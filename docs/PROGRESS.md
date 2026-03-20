@@ -94,7 +94,12 @@
 - home-manager switch SUCCESS — all packages installed
 - Verified all apps: NVIM 0.11.6, tmux 3.6a, zsh 5.9, ffmpeg 8.0.1, Chromium 146, Chrome 146, VSCode 1.111.0, IntelliJ OSS, Sway 1.11, Waybar 0.15.0, foot 1.26.1, Node.js 22.22.1
 - Claude Code 2.1.80 and Gemini CLI 0.34.0 installed via npm to ~/.npm-global/bin
-- All configs deployed: Neovim init.lua, Sway config (8 workspaces, CTRL+SHIFT keybindings), Waybar config, foot config
+- All configs deployed: Neovim init.lua, Sway config (8 workspaces, CTRL+SHIFT keybindings), foot config
+- Switched from GNOME to Sway desktop via wayvnc (headless backend)
+- Waybar layer-shell surfaces don't render with headless+wayvnc — using swaybar (sway's built-in bar) instead
+- Swaybar showing: workspace indicators (left), LOAD/MEM/datetime (right), dark #1a1b26 theme
+- Created sway-status script at ~/.local/bin/sway-status for bar status output
+- Created systemd services: sway-desktop.service, wayvnc.service (replacing TigerVNC)
 
 ### In Progress
 - F-0012 through F-0018: Running `home-manager switch` with comprehensive home.nix containing ALL packages
