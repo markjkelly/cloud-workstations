@@ -257,3 +257,40 @@
 ### Next Steps
 - Reboot workstation to verify new image works end-to-end
 - Future items backlog is empty — await next PO direction
+
+---
+
+## Session 7 — 2026-03-20
+
+### Goals
+- Tag v1.3 release and rebuild Docker image (final rebuild)
+- Plan Milestone 4: Auto-start workspace, shell/font setup, persistent disk bootstrap
+- Architectural shift: move all setup to persistent disk, eliminate future Docker rebuilds
+
+### Completed
+- **F-0026** (Docker image rebuild): PE agent submitted Cloud Build (build `12e30d81-14a7-4561-8327-ec67f3647a5a`), in progress
+- **F-0027 spec** created: Auto-start workspace with Cloud Scheduler (7AM PT), app updates, 4 pre-launched workspaces
+- **F-0030 spec** created: ZSH shell + Nerd Fonts + Starship prompt + terminal config
+- **F-0030 spec updated**: PO added `dev-fonts/` directory with Operator Mono, CascadiaCode, CaskaydiaCove NF, FiraCodeiScript. Terminal font changed to Operator Mono Book size=18
+- **F-0033 spec** (in progress): Persistent disk bootstrap architecture — lean Docker image + `~/boot/setup.sh`
+- **Milestone 4 backlog** created with 6 items: F-0027 (Cloud Scheduler), F-0028 (app updates), F-0029 (workspace launch), F-0030 (fonts), F-0031 (ZSH+plugins), F-0032 (Starship+foot config)
+- **ameer00@gmail.com IAM** removed from all docs (PO confirmed no longer needed)
+- **Interim commits** made after each agent completes to prevent data loss
+
+### Architectural Decision: Persistent Disk Bootstrap (F-0033)
+- **Problem**: Docker image is 3.3GB and requires Cloud Build rebuild for every change
+- **Solution**: Minimal Docker image with single `000_bootstrap.sh` that calls `~/boot/setup.sh` on persistent disk
+- **Impact**: All future features (fonts, ZSH, configs, apps) deploy to persistent disk only — zero Docker rebuilds
+- **Migration**: One-time rebuild to create lean image, then move all setup logic to `~/boot/` sub-scripts
+- PO approved this approach
+
+### Decisions
+- Milestone 4 scope expanded: auto-start + shell/fonts + persistent bootstrap
+- Operator Mono selected as primary terminal font (from PO's dev-fonts/ directory)
+- ZSH plugins via direct git clone (no plugin manager per PO requirement)
+- All future changes target persistent disk, not Docker image
+
+### Next Steps
+- Complete F-0033 spec and add to backlog
+- Tag v1.3 after Docker rebuild completes
+- Begin Milestone 4 execution: F-0033 first (enables all other items), then F-0027-F-0032
