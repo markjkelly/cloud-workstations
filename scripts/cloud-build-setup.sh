@@ -8,8 +8,9 @@
 
 set -euo pipefail
 
-PROJECT_ID="${1:?Usage: cloud-build-setup.sh PROJECT_ID REGION}"
+PROJECT_ID="${1:?Usage: cloud-build-setup.sh PROJECT_ID REGION [WEBHOOK_URL]}"
 REGION="${2:-us-west1}"
+WEBHOOK_URL="${3:-}"
 CLUSTER="workstation-cluster"
 CONFIG="ws-config"
 WORKSTATION="dev-workstation"
@@ -17,9 +18,44 @@ AR_REPO="workstation-images"
 IMAGE="${REGION}-docker.pkg.dev/${PROJECT_ID}/${AR_REPO}/workstation:latest"
 REPO_DIR="/workspace/repo"
 PASS=0; FAIL=0; WARN=0
+START_TIME=$(date +%s)
 
 log()  { echo "[$(date '+%H:%M:%S')] $1"; }
 step() { echo ""; echo "========================================"; echo "  $1"; echo "========================================"; }
+
+# Send Google Chat / Slack webhook notification
+notify() {
+    local title="$1" subtitle="$2" body="$3" color="${4:-#9ece6a}"
+    [ -z "$WEBHOOK_URL" ] && return 0
+    curl -s -X POST "$WEBHOOK_URL" \
+        -H 'Content-Type: application/json' \
+        -d "{
+            \"cards\": [{
+                \"header\": {
+                    \"title\": \"${title}\",
+                    \"subtitle\": \"${subtitle}\"
+                },
+                \"sections\": [{
+                    \"widgets\": [{
+                        \"textParagraph\": {\"text\": \"${body}\"}
+                    }]
+                }]
+            }]
+        }" >/dev/null 2>&1 || true
+}
+
+# Send failure notification and exit
+notify_and_fail() {
+    local elapsed=$(( $(date +%s) - START_TIME ))
+    local mins=$(( elapsed / 60 ))
+    notify "Setup FAILED" "Project: ${PROJECT_ID}" \
+        "Failed at: <b>$1</b><br>After: ${mins} minutes<br>PASS: ${PASS} | FAIL: ${FAIL} | WARN: ${WARN}<br><br>Re-run <code>setup.sh</code> to retry (idempotent)." \
+        "#f7768e"
+    exit 1
+}
+
+# Trap unexpected exits
+trap 'notify_and_fail "Unexpected error (line $LINENO)"' ERR
 
 # Retry a command up to N times with delay
 retry() {
@@ -109,8 +145,10 @@ if retry 2 30 gcloud builds submit \
     --timeout=1800 \
     --quiet; then
     test_pass "Docker image built and pushed"
+    notify "Progress: Image Built" "Project: ${PROJECT_ID}" "Docker image ready. Creating workstation cluster next (5-10 min)..."
 else
     test_fail "Docker image build failed"
+    notify_and_fail "Docker image build"
 fi
 cd "${REPO_DIR}"
 
@@ -225,9 +263,9 @@ for i in $(seq 1 60); do
 done
 if [ "$SSH_READY" = false ]; then
     test_fail "SSH access after 10 minutes"
-    log "FATAL: Cannot SSH into workstation — aborting"
-    exit 1
+    notify_and_fail "SSH access to workstation"
 fi
+notify "Progress: Workstation Running" "Project: ${PROJECT_ID}" "Workstation is up and SSH ready. Installing Nix and packages next (10-15 min)..."
 
 # =========================================================================
 step "Step 9/15: Install Nix package manager"
@@ -419,13 +457,28 @@ gcloud workstations stop "$WORKSTATION" \
 # =========================================================================
 step "SETUP COMPLETE — Test Results"
 # =========================================================================
+ELAPSED=$(( $(date +%s) - START_TIME ))
+MINS=$(( ELAPSED / 60 ))
+
 echo ""
-echo "  PASS: $PASS  |  FAIL: $FAIL  |  WARN: $WARN"
+echo "  PASS: $PASS  |  FAIL: $FAIL  |  WARN: $WARN  |  Time: ${MINS}m"
 echo ""
+
+# Disable trap before final notification
+trap - ERR
+
 if [ "$FAIL" -gt 0 ]; then
     echo "  Some steps failed. Re-run setup.sh to retry (all steps are idempotent)."
     echo ""
+    notify "Setup FAILED" "Project: ${PROJECT_ID}" \
+        "PASS: ${PASS} | FAIL: <b>${FAIL}</b> | WARN: ${WARN}<br>Duration: ${MINS} minutes<br><br>Some steps failed. Re-run <code>setup.sh</code> to retry (idempotent)." \
+        "#f7768e"
+else
+    notify "Setup COMPLETE" "Project: ${PROJECT_ID}" \
+        "PASS: ${PASS} | FAIL: ${FAIL} | WARN: ${WARN}<br>Duration: ${MINS} minutes<br><br>Workstation URL: <b>https://${WS_HOST}</b><br><br>Start: <code>gcloud workstations start ${WORKSTATION} --config=${CONFIG} --cluster=${CLUSTER} --region=${REGION} --project=${PROJECT_ID}</code>" \
+        "#9ece6a"
 fi
+
 echo "============================================="
 echo " Cloud Workstation is ready!"
 echo "============================================="

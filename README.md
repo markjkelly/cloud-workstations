@@ -24,6 +24,23 @@ bash scripts/setup.sh -p YOUR_PROJECT_ID
 
 That's it. The script submits a Cloud Build job that does everything. **You can close your terminal** — the build runs independently in GCP.
 
+### Get notified when it's done (optional)
+
+Add a Google Chat webhook to receive notifications on progress and completion:
+
+```bash
+bash scripts/setup.sh -p YOUR_PROJECT_ID --webhook "https://chat.googleapis.com/v1/spaces/XXXXX/messages?key=YYY&token=ZZZ"
+```
+
+To create a webhook: Google Chat → Create Space → Space name → Apps & integrations → Manage webhooks → Copy URL.
+
+You'll receive messages when:
+- Build starts
+- Infrastructure is ready (Docker image built)
+- Workstation is running (SSH ready)
+- Setup completes (with PASS/FAIL summary and workstation URL)
+- Setup fails (with error details and retry instructions)
+
 ### Track Progress
 
 The script prints a Cloud Console URL. You can also check via CLI:

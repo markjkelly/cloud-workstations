@@ -7,7 +7,7 @@
 #
 # Usage:
 #   gcloud auth login
-#   bash setup.sh -p PROJECT_ID
+#   bash setup.sh -p PROJECT_ID [--webhook WEBHOOK_URL]
 #
 # Requirements:
 #   - gcloud CLI authenticated with Owner role on the target project
@@ -21,13 +21,16 @@ REPO_URL="https://github.com/ameer00/cloud-workstations.git"
 
 # --- Parse arguments ---
 usage() {
-    echo "Usage: bash setup.sh -p PROJECT_ID"
+    echo "Usage: bash setup.sh -p PROJECT_ID [--webhook URL]"
     echo ""
     echo "Sets up a GPU Cloud Workstation with Sway, Nix, and dev tools."
     echo "All work runs in Cloud Build (safe to close terminal after launch)."
     echo ""
     echo "Required:"
     echo "  -p, --project PROJECT_ID    GCP project ID"
+    echo ""
+    echo "Optional:"
+    echo "  -w, --webhook URL           Google Chat or Slack webhook URL for notifications"
     echo ""
     echo "Prerequisites:"
     echo "  1. gcloud auth login"
@@ -37,9 +40,11 @@ usage() {
 }
 
 PROJECT_ID=""
+WEBHOOK_URL=""
 while [[ $# -gt 0 ]]; do
     case $1 in
         -p|--project) PROJECT_ID="$2"; shift 2 ;;
+        -w|--webhook) WEBHOOK_URL="$2"; shift 2 ;;
         -h|--help) usage ;;
         *) echo "Unknown option: $1"; usage ;;
     esac
@@ -52,8 +57,9 @@ fi
 
 echo "============================================="
 echo " Cloud Workstation Setup"
-echo " Project: $PROJECT_ID"
-echo " Region:  $REGION"
+echo " Project:  $PROJECT_ID"
+echo " Region:   $REGION"
+[ -n "$WEBHOOK_URL" ] && echo " Webhook:  configured (notifications enabled)"
 echo "============================================="
 
 # --- Pre-flight: validate gcloud auth ---
@@ -82,7 +88,6 @@ gcloud services enable cloudbuild.googleapis.com --project="$PROJECT_ID" --quiet
 # --- Grant Cloud Build SA the Owner role ---
 echo "[4/5] Granting Cloud Build service account Owner role..."
 CB_SA="${PROJECT_NUMBER}@cloudbuild.gserviceaccount.com"
-# Check if binding already exists
 if gcloud projects get-iam-policy "$PROJECT_ID" --format=json 2>/dev/null | \
    grep -q "$CB_SA"; then
     echo "  Cloud Build SA already has project-level bindings"
@@ -108,7 +113,11 @@ echo ""
 echo "  You can safely close this terminal after submission."
 echo ""
 
-# Create a temporary cloudbuild.yaml that clones the repo first
+# Build substitutions
+SUBS="_REPO_URL=${REPO_URL},_REGION=${REGION}"
+[ -n "$WEBHOOK_URL" ] && SUBS="${SUBS},_WEBHOOK_URL=${WEBHOOK_URL}"
+
+# Create a temporary cloudbuild.yaml
 TMPDIR=$(mktemp -d)
 cat > "${TMPDIR}/cloudbuild.yaml" << 'BUILDEOF'
 steps:
@@ -124,7 +133,7 @@ steps:
       - '-c'
       - |
         cd /workspace/repo
-        bash scripts/cloud-build-setup.sh "${PROJECT_ID}" "${_REGION}"
+        bash scripts/cloud-build-setup.sh "${PROJECT_ID}" "${_REGION}" "${_WEBHOOK_URL}"
     id: 'run-setup'
     waitFor: ['clone-repo']
 
@@ -132,6 +141,7 @@ timeout: 7200s
 substitutions:
   _REPO_URL: 'https://github.com/ameer00/cloud-workstations.git'
   _REGION: 'us-west1'
+  _WEBHOOK_URL: ''
 options:
   logging: CLOUD_LOGGING_ONLY
   machineType: 'E2_HIGHCPU_8'
@@ -142,7 +152,7 @@ BUILD_OUTPUT=$(gcloud builds submit \
     --project="$PROJECT_ID" \
     --region="$REGION" \
     --no-source \
-    --substitutions="_REPO_URL=${REPO_URL},_REGION=${REGION}" \
+    --substitutions="${SUBS}" \
     --async 2>&1)
 
 rm -rf "$TMPDIR"
@@ -155,6 +165,28 @@ if [ -z "$BUILD_ID" ]; then
     exit 1
 fi
 
+# Send webhook notification that build started
+if [ -n "$WEBHOOK_URL" ]; then
+    curl -s -X POST "$WEBHOOK_URL" \
+        -H 'Content-Type: application/json' \
+        -d "{
+            \"cards\": [{
+                \"header\": {
+                    \"title\": \"Cloud Workstation Setup Started\",
+                    \"subtitle\": \"Project: ${PROJECT_ID}\"
+                },
+                \"sections\": [{
+                    \"widgets\": [
+                        {\"textParagraph\": {\"text\": \"Build ID: <b>${BUILD_ID}</b>\"}},
+                        {\"textParagraph\": {\"text\": \"You'll receive a notification when it completes.\"}},
+                        {\"buttons\": [{\"textButton\": {\"text\": \"VIEW BUILD\", \"onClick\": {\"openLink\": {\"url\": \"https://console.cloud.google.com/cloud-build/builds;region=${REGION}/${BUILD_ID}?project=${PROJECT_ID}\"}}}}]}
+                    ]
+                }]
+            }]
+        }" >/dev/null 2>&1
+    echo "  Notification sent to webhook"
+fi
+
 echo "============================================="
 echo " Build submitted successfully!"
 echo "============================================="
@@ -165,6 +197,8 @@ echo " Track progress:"
 echo "   Console: https://console.cloud.google.com/cloud-build/builds;region=${REGION}/${BUILD_ID}?project=${PROJECT_ID}"
 echo ""
 echo "   CLI:     gcloud builds log ${BUILD_ID} --stream --project=${PROJECT_ID} --region=${REGION}"
+echo ""
+[ -n "$WEBHOOK_URL" ] && echo " Notifications: You'll receive a Google Chat message when the build completes."
 echo ""
 echo " You can safely close this terminal now."
 echo " The build will continue running in Cloud Build."
