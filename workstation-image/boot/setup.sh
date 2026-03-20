@@ -19,6 +19,8 @@ log "Starting workstation bootstrap from $BOOT_DIR"
 for script in "$BOOT_DIR"/[0-9][0-9]-*.sh; do
     [ -f "$script" ] || continue
     script_name="$(basename "$script")"
+    # Skip 08-workspaces.sh — it runs as a systemd service after Sway starts
+    [ "$script_name" = "08-workspaces.sh" ] && { log "Skipping $script_name (runs via systemd after Sway)"; continue; }
     log "Running $script_name..."
     if bash "$script" 2>&1; then
         log "Completed $script_name"

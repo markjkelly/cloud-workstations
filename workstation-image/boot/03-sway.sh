@@ -64,6 +64,24 @@ ln -sf /etc/systemd/system/sway-desktop.service /etc/systemd/system/multi-user.t
 ln -sf /etc/systemd/system/wayvnc.service /etc/systemd/system/multi-user.target.wants/
 log "Enabled sway-desktop and wayvnc services"
 
+# --- Create ws-autolaunch.service (launches apps on workspaces after Sway) ---
+cat > /etc/systemd/system/ws-autolaunch.service << 'EOF'
+[Unit]
+Description=Auto-launch apps on Sway workspaces
+After=wayvnc.service
+Requires=sway-desktop.service
+
+[Service]
+Type=oneshot
+ExecStart=/bin/bash /home/user/boot/08-workspaces.sh
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
+EOF
+ln -sf /etc/systemd/system/ws-autolaunch.service /etc/systemd/system/multi-user.target.wants/
+log "Created ws-autolaunch.service (runs 08-workspaces.sh after Sway)"
+
 # --- Disable and mask TigerVNC ---
 rm -f /etc/systemd/system/multi-user.target.wants/tigervnc.service
 # Must rm first — ln -sf fails on overlay fs with regular files
