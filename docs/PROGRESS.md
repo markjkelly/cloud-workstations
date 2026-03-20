@@ -268,14 +268,17 @@
 - Architectural shift: move all setup to persistent disk, eliminate future Docker rebuilds
 
 ### Completed
-- **F-0026** (Docker image rebuild): PE agent submitted Cloud Build (build `12e30d81-14a7-4561-8327-ec67f3647a5a`), in progress
+- **F-0026** (Docker image rebuild): Cloud Build SUCCESS (`sha256:eeaea8493bdc`). Image pushed to AR. Old images cleaned up.
+- **v1.3 tagged**: Annotated git tag for Milestone 3 completion
 - **F-0027 spec** created: Auto-start workspace with Cloud Scheduler (7AM PT), app updates, 4 pre-launched workspaces
 - **F-0030 spec** created: ZSH shell + Nerd Fonts + Starship prompt + terminal config
 - **F-0030 spec updated**: PO added `dev-fonts/` directory with Operator Mono, CascadiaCode, CaskaydiaCove NF, FiraCodeiScript. Terminal font changed to Operator Mono Book size=18
-- **F-0033 spec** (in progress): Persistent disk bootstrap architecture — lean Docker image + `~/boot/setup.sh`
-- **Milestone 4 backlog** created with 6 items: F-0027 (Cloud Scheduler), F-0028 (app updates), F-0029 (workspace launch), F-0030 (fonts), F-0031 (ZSH+plugins), F-0032 (Starship+foot config)
+- **F-0033 spec** created: Persistent disk bootstrap architecture — lean Docker image + `~/boot/setup.sh`
+- **Milestone 4 backlog** created with 7 items: F-0027 through F-0033
 - **ameer00@gmail.com IAM** removed from all docs (PO confirmed no longer needed)
 - **Interim commits** made after each agent completes to prevent data loss
+- **Workstation restarted** with new image — E2E validation: 10 PASS, 1 FAIL (VNC port conflict)
+- **VNC port conflict fixed**: TigerVNC from base image was grabbing port 5901 before wayvnc. Fixed by masking tigervnc.service and killing Xtigervnc in startup script. Sway desktop now served correctly via wayvnc + noVNC.
 
 ### Architectural Decision: Persistent Disk Bootstrap (F-0033)
 - **Problem**: Docker image is 3.3GB and requires Cloud Build rebuild for every change
@@ -291,6 +294,5 @@
 - All future changes target persistent disk, not Docker image
 
 ### Next Steps
-- Complete F-0033 spec and add to backlog
-- Tag v1.3 after Docker rebuild completes
-- Begin Milestone 4 execution: F-0033 first (enables all other items), then F-0027-F-0032
+- Begin Milestone 4 execution: F-0033 first (persistent bootstrap), then F-0027-F-0032
+- Note: startup script fix (mask TigerVNC) needs to be included in next Docker rebuild or persistent bootstrap
