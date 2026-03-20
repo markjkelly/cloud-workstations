@@ -46,7 +46,7 @@
 | F-0016 | Install Sway + Waybar + supporting apps via Nix HM | F-0016 | P0 | done | SWE-2 | — | F-0012 | Sway 1.11, Waybar 0.15.0, foot 1.26.1, wofi, thunar, clipman, wayvnc. Full keybinding config. |
 | F-0017 | Install IDEs via Nix HM (VSCode, IntelliJ, Cursor) | F-0017 | P0 | done | SWE-2 | — | F-0012 | VSCode 1.111.0, IntelliJ IDEA OSS. Cursor not in nixpkgs — TBD. |
 | F-0018 | Install AI CLI tools via Nix (Claude Code, Gemini CLI) | F-0017 | P0 | done | SWE-3 | — | F-0012 | Claude Code 2.1.80, Gemini CLI 0.34.0 — both via npm to ~/.npm-global/bin. Node.js 22.22.1 via Nix. |
-| F-0019 | Post-reboot E2E validation | F-0011 | P0 | backlog | SWE-QA | — | F-0013 thru F-0018 | All apps survive stop/start cycle. Nix HM, Sway, all apps, GPU, noVNC. |
+| F-0019 | Post-reboot E2E validation | F-0011 | P0 | in-progress | SWE-QA | — | F-0013 thru F-0018 | All apps survive stop/start cycle. Nix HM, Sway, all apps, GPU, noVNC. |
 
 ---
 
@@ -57,7 +57,7 @@
 | F-0020 | Modern Sway config (gaps, borders, Tokyo Night) | F-0020 | P1 | done | SWE-1 | — | F-0016 | Complete. Full Nix paths, Electron flags (--no-sandbox --ozone-platform=wayland --disable-gpu --disable-dev-shm-usage), GPU ldconfig, Xwayland. All keybindings verified working by PO. |
 | F-0021 | Modern swaybar with JSON protocol status | F-0020 | P1 | done | SWE-2 | — | F-0016 | Fixed: nvidia-smi uses full path /var/lib/nvidia/bin/nvidia-smi. GPU now shows T4 temp + utilization. |
 | F-0022 | Waybar config + CSS (future activation) | F-0020 | P2 | done | SWE-2 | — | F-0016 | Deployed to workstation. config.jsonc + style.css ready for when layer-shell works on wayvnc. |
-| F-0023 | Comprehensive setup documentation | — | P1 | backlog | SWE-3 | — | F-0020, F-0021 | Full guide for recreating this Cloud Workstation from scratch, usable by humans and AI agents |
+| F-0023 | Comprehensive setup documentation | — | P1 | in-progress | SWE-3 | — | F-0020, F-0021 | Full guide for recreating this Cloud Workstation from scratch, usable by humans and AI agents |
 | F-0024 | E2E validation of modern desktop | F-0020 | P1 | done | SWE-QA | — | F-0020, F-0021, F-0022 | PO confirmed: swaybar visible, GPU in status bar, keybindings working, Antigravity launches stable. |
 
 ---
