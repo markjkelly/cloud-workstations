@@ -184,10 +184,11 @@ bindsym $mod+Alt+l move container to workspace number 8
 # SWAYBAR (integrated status bar)
 # =============================================================================
 bar {
+    swaybar_command /home/user/.nix-profile/bin/swaybar
     position top
     height 28
     font pango:monospace Bold 10
-    status_command ~/.local/bin/sway-status
+    status_command /home/user/.local/bin/sway-status
 
     colors {
         background #1a1b26
