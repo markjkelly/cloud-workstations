@@ -166,7 +166,10 @@
 - Fixed gcloud auth (corrupted GCE credential entry in credentials.db)
 - Verified: 3 workspaces active on HEADLESS-1 (1920x1080), inner gaps (6px) and outer gaps (12px) applied
 
+### Bug Fix
+- **Swaybar not spawning**: Sway's process PATH only included system dirs, not Nix store paths. Swaybar binary couldn't be found. Fixed by adding explicit `swaybar_command /home/user/.nix-profile/bin/swaybar` and using absolute path for `status_command`. After reload, swaybar spawned successfully with sway-status script running.
+- **PO confirmed** swaybar visible with Tokyo Night theme and color-coded status modules.
+
 ### Next Steps
 - F-0023: Create comprehensive setup guide for recreating workstation from scratch
-- F-0024: E2E validation of modern desktop
 - F-0019: Post-reboot E2E validation (Milestone 2 carryover)

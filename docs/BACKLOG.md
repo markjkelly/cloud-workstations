@@ -54,11 +54,11 @@
 
 | ID | Feature | Spec | Priority | Status | Owner | Branch | Dependencies | Feedback |
 |----|---------|------|----------|--------|-------|--------|--------------|----------|
-| F-0020 | Modern Sway config (gaps, borders, Tokyo Night) | F-0020 | P1 | done | SWE-1 | — | F-0016 | Deployed to workstation. Tokyo Night theme, 6/12 gaps, smart_gaps, 2px pixel borders, all 33 keybindings preserved. Sway reloaded successfully. |
-| F-0021 | Modern swaybar with JSON protocol status | F-0020 | P1 | done | SWE-2 | — | F-0016 | Deployed to workstation. i3bar JSON protocol with color-coded CPU/MEM/DISK/GPU/NET/clock. |
+| F-0020 | Modern Sway config (gaps, borders, Tokyo Night) | F-0020 | P1 | done | SWE-1 | — | F-0016 | Deployed + verified. Fixed swaybar_command path (Nix not in sway PATH). Tokyo Night, 6/12 gaps, all 33 keybindings. |
+| F-0021 | Modern swaybar with JSON protocol status | F-0020 | P1 | done | SWE-2 | — | F-0016 | Deployed + verified. i3bar JSON protocol with color-coded CPU/MEM/DISK/GPU/NET/clock. PO confirmed visible. |
 | F-0022 | Waybar config + CSS (future activation) | F-0020 | P2 | done | SWE-2 | — | F-0016 | Deployed to workstation. config.jsonc + style.css ready for when layer-shell works on wayvnc. |
 | F-0023 | Comprehensive setup documentation | — | P1 | backlog | SWE-3 | — | F-0020, F-0021 | Full guide for recreating this Cloud Workstation from scratch, usable by humans and AI agents |
-| F-0024 | E2E validation of modern desktop | F-0020 | P1 | backlog | SWE-QA | — | F-0020, F-0021, F-0022 | — |
+| F-0024 | E2E validation of modern desktop | F-0020 | P1 | done | SWE-QA | — | F-0020, F-0021, F-0022 | PO confirmed swaybar visible with Tokyo Night theme. |
 
 ---
 
