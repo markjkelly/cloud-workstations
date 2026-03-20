@@ -155,8 +155,18 @@
 - Created Waybar config+CSS for future swap when layer-shell issue is resolved
 - Added F-0023 (comprehensive setup documentation) to backlog per PO request
 
+### Deployment
+- **Deployed all 4 configs** to workstation via `gcloud workstations ssh` pipe:
+  - `~/.config/sway/config` (7937 bytes) — replaced Nix HM symlink with regular file
+  - `~/.local/bin/sway-status` (4758 bytes, executable) — i3bar JSON protocol script
+  - `~/.config/waybar/config` (2638 bytes) — for future use
+  - `~/.config/waybar/style.css` (5088 bytes) — for future use
+- Removed stale Nix Home Manager symlinks pointing to old configs in Nix store
+- **Sway reloaded** via swaymsg — `{"success": true}`
+- Fixed gcloud auth (corrupted GCE credential entry in credentials.db)
+- Verified: 3 workspaces active on HEADLESS-1 (1920x1080), inner gaps (6px) and outer gaps (12px) applied
+
 ### Next Steps
-- Deploy configs to workstation (copy to persistent disk, restart Sway)
 - F-0023: Create comprehensive setup guide for recreating workstation from scratch
 - F-0024: E2E validation of modern desktop
 - F-0019: Post-reboot E2E validation (Milestone 2 carryover)
