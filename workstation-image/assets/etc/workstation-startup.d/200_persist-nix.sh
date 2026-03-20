@@ -1,12 +1,14 @@
 #!/bin/bash
-# Restore /nix symlink from persistent disk on boot
+# Restore /nix bind mount from persistent disk on boot
 # Nix store lives on persistent HOME disk at /home/user/nix
-# Container root resets on restart, so we re-create the symlink each boot
+# Container root resets on restart, so we re-create the mount each boot
+# NOTE: Nix does NOT allow /nix to be a symlink — must use bind mount
 
-if [ -d /home/user/nix ] && [ ! -L /nix ]; then
+if [ -d /home/user/nix ] && ! mountpoint -q /nix 2>/dev/null; then
     rm -rf /nix 2>/dev/null
-    ln -s /home/user/nix /nix
-    echo "Restored /nix symlink to /home/user/nix"
+    mkdir -p /nix
+    mount --bind /home/user/nix /nix
+    echo "Restored /nix bind mount from /home/user/nix"
 fi
 
 # Restore nvidia PATH/LD_LIBRARY_PATH for GPU access
