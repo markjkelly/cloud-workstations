@@ -69,9 +69,13 @@ ln -sf /etc/systemd/system/sway-desktop.service /etc/systemd/system/multi-user.t
 ln -sf /etc/systemd/system/wayvnc.service /etc/systemd/system/multi-user.target.wants/
 echo "Enabled sway-desktop and wayvnc services"
 
-# --- Disable TigerVNC (conflicts on port 5901) ---
+# --- Disable and mask TigerVNC (conflicts on port 5901) ---
 rm -f /etc/systemd/system/multi-user.target.wants/tigervnc.service
-echo "Disabled TigerVNC service (port 5901 now served by wayvnc)"
+# Mask the service so systemd can never start it (handles all enable symlinks)
+ln -sf /dev/null /etc/systemd/system/tigervnc.service
+# Kill any already-running Xtigervnc process
+pkill -f Xtigervnc 2>/dev/null || true
+echo "Disabled and masked TigerVNC service (port 5901 now served by wayvnc)"
 
 # noVNC stays enabled — it proxies port 80 -> localhost:5901,
 # which wayvnc now serves instead of TigerVNC.
