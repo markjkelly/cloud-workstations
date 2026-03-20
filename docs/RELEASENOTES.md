@@ -1,5 +1,24 @@
 # Release Notes — Cloud Workstation
 
+## v1.2 — Modern Desktop (Tokyo Night) (2026-03-20)
+
+### Added
+- **Modern Sway config** with Tokyo Night color scheme — 6px inner / 12px outer gaps, smart gaps, 2px pixel borders (focused=#7aa2f7, urgent=#f7768e)
+- **Color-coded swaybar status** using i3bar JSON protocol — CPU, memory, disk, GPU temp/utilization, network, clock with green/yellow/red thresholds
+- **Waybar config + CSS** (for future use) — pill-shaped modules, semi-transparent background, hover effects, urgent-pulse animation
+- All config files stored in repo at `workstation-image/configs/` for reproducibility
+- F-0023 backlog item for comprehensive setup documentation
+
+### Changed
+- Sway config now uses Tokyo Night palette (bg=#1a1b26, accent=#7aa2f7) with modern gaps and borders
+- Swaybar upgraded from plain text to i3bar JSON protocol with per-module color coding
+- Added floating window rules for dialogs, pop-ups, file operations
+
+### Preserved
+- All 33 keybindings from F-0016 (CTRL+SHIFT modifier, 8 workspaces, all app launchers)
+
+---
+
 ## v1.1 — Nix Home Manager + Full App Suite (2026-03-20)
 
 ### Added

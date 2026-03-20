@@ -1,0 +1,149 @@
+#!/usr/bin/env bash
+#
+# sway-status — i3bar JSON protocol status script for swaybar
+# Tokyo Night themed, designed for Cloud Workstation (headless wayvnc)
+#
+# Modules (right-to-left): Clock | Disk | Memory | CPU | GPU | Network
+#
+
+# ── Tokyo Night palette ──────────────────────────────────────────────
+COLOR_FG="#c0caf5"
+COLOR_GREEN="#9ece6a"
+COLOR_YELLOW="#e0af68"
+COLOR_RED="#f7768e"
+COLOR_BLUE="#7aa2f7"
+COLOR_CYAN="#7dcfff"
+
+# ── Helpers ──────────────────────────────────────────────────────────
+
+# threshold_color <value> <warn_threshold> <crit_threshold>
+# Returns green / yellow / red based on thresholds
+threshold_color() {
+    local val=$1 warn=$2 crit=$3
+    if (( val >= crit )); then
+        echo "$COLOR_RED"
+    elif (( val >= warn )); then
+        echo "$COLOR_YELLOW"
+    else
+        echo "$COLOR_GREEN"
+    fi
+}
+
+# json_block <name> <full_text> <color> [separator_width]
+# Emits a single i3bar block object
+json_block() {
+    local name="$1" text="$2" color="$3" sep_w="${4:-20}"
+    printf '{"name":"%s","full_text":"%s","color":"%s","separator":true,"separator_block_width":%d}' \
+        "$name" "$text" "$color" "$sep_w"
+}
+
+# ── Module collectors ────────────────────────────────────────────────
+
+collect_clock() {
+    local ts
+    ts=$(date +"%a %b %d  %H:%M")
+    json_block "clock" "$ts" "$COLOR_FG"
+}
+
+collect_disk() {
+    local pct
+    pct=$(df /home 2>/dev/null | awk 'NR==2 {gsub(/%/,"",$5); print $5}')
+    pct=${pct:-0}
+    local color
+    color=$(threshold_color "$pct" 70 85)
+    json_block "disk" "DISK ${pct}%" "$color"
+}
+
+collect_memory() {
+    local used_kb total_kb
+    read -r total_kb used_kb < <(
+        awk '/^MemTotal:/ {t=$2} /^MemAvailable:/ {a=$2} END {printf "%d %d", t, t-a}' /proc/meminfo
+    )
+    local used_g total_g pct
+    used_g=$(awk "BEGIN {printf \"%.1f\", ${used_kb}/1048576}")
+    total_g=$(awk "BEGIN {printf \"%.0f\", ${total_kb}/1048576}")
+    pct=$(awk "BEGIN {printf \"%.0f\", ${used_kb}*100/${total_kb}}")
+    local color
+    color=$(threshold_color "$pct" 60 80)
+    json_block "memory" "MEM ${used_g}G/${total_g}G" "$color"
+}
+
+collect_cpu() {
+    # Read two snapshots 500ms apart from /proc/stat
+    local c1 c2
+    c1=$(awk '/^cpu / {print $2+$3+$4+$5+$6+$7+$8, $5}' /proc/stat)
+    sleep 0.5
+    c2=$(awk '/^cpu / {print $2+$3+$4+$5+$6+$7+$8, $5}' /proc/stat)
+
+    local total1 idle1 total2 idle2
+    read -r total1 idle1 <<< "$c1"
+    read -r total2 idle2 <<< "$c2"
+
+    local diff_total diff_idle pct
+    diff_total=$((total2 - total1))
+    diff_idle=$((idle2 - idle1))
+    if (( diff_total > 0 )); then
+        pct=$(( (diff_total - diff_idle) * 100 / diff_total ))
+    else
+        pct=0
+    fi
+
+    local color
+    color=$(threshold_color "$pct" 50 80)
+    json_block "cpu" "CPU ${pct}%" "$color"
+}
+
+collect_gpu() {
+    local gpu_info temp util text color
+    gpu_info=$(nvidia-smi --query-gpu=name,temperature.gpu,utilization.gpu \
+                          --format=csv,noheader,nounits 2>/dev/null)
+
+    if [[ -n "$gpu_info" ]]; then
+        IFS=', ' read -r _ gpu_name temp util <<< "$gpu_info"
+        # nvidia-smi name is e.g. "Tesla T4"; extract short name
+        gpu_name=$(nvidia-smi --query-gpu=name --format=csv,noheader 2>/dev/null | sed 's/.*\(T4\|A100\|V100\|L4\|A10G\|P100\)/\1/' | head -1)
+        gpu_name=${gpu_name:-GPU}
+        temp=$(echo "$gpu_info" | awk -F', ' '{print $2}' | tr -d ' ')
+        util=$(echo "$gpu_info" | awk -F', ' '{print $3}' | tr -d ' ')
+        text="GPU ${gpu_name} ${temp}C ${util}%"
+        color=$(threshold_color "${util}" 50 80)
+    else
+        text="GPU N/A"
+        color="$COLOR_BLUE"
+    fi
+    json_block "gpu" "$text" "$color"
+}
+
+collect_network() {
+    local text color
+    if ping -c1 -W1 8.8.8.8 &>/dev/null; then
+        text="NET UP"
+        color="$COLOR_GREEN"
+    else
+        text="NET DOWN"
+        color="$COLOR_RED"
+    fi
+    json_block "network" "$text" "$color"
+}
+
+# ── Main loop (i3bar JSON protocol) ──────────────────────────────────
+
+# Header
+echo '{"version":1}'
+echo '['
+echo '[],'
+
+while true; do
+    # Collect all modules
+    net=$(collect_network)
+    gpu=$(collect_gpu)
+    cpu=$(collect_cpu)
+    mem=$(collect_memory)
+    disk=$(collect_disk)
+    clock=$(collect_clock)
+
+    # Emit JSON array (order = left-to-right on the bar)
+    echo "[${net},${gpu},${cpu},${mem},${disk},${clock}],"
+
+    sleep 2
+done

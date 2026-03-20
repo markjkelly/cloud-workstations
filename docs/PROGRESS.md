@@ -101,15 +101,62 @@
 - Created sway-status script at ~/.local/bin/sway-status for bar status output
 - Created systemd services: sway-desktop.service, wayvnc.service (replacing TigerVNC)
 
-### In Progress
-- F-0012 through F-0018: Running `home-manager switch` with comprehensive home.nix containing ALL packages
-
 ### Pending
-- F-0012: Set up Nix Home Manager (blocked on F-0011)
-- F-0013: Verify Antigravity persistent (blocked on F-0011)
-- F-0014: Install browsers via Nix HM (blocked on F-0012)
-- F-0015: Install dev tools via Nix HM (blocked on F-0012)
-- F-0016: Install Sway + Waybar (blocked on F-0012)
-- F-0017: Install IDEs via Nix HM (blocked on F-0012)
-- F-0018: Install AI CLI tools (blocked on F-0012)
 - F-0019: E2E validation (blocked on all above)
+
+---
+
+## Session 4 — 2026-03-20 (continued)
+
+### Goals
+- Milestone 3: Modernize Sway and status bar appearance (Tokyo Night theme, gaps, colored status)
+- Fix boring/dated desktop look
+- Add comprehensive setup documentation to backlog
+
+### Completed
+- **F-0020** (Modern Sway config): Created `workstation-image/configs/sway/config` with:
+  - Tokyo Night color palette (10 variables: bg, fg, accent, urgent, green, yellow, magenta, cyan, muted, inactive)
+  - Gaps: 6px inner, 12px outer, smart_gaps on
+  - 2px pixel borders with Tokyo Night-themed client colors (focused=#7aa2f7, unfocused=#414868, urgent=#f7768e)
+  - All 33 keybindings from F-0016 preserved (CTRL+SHIFT modifier, 8 workspaces, all app launchers)
+  - Floating window rules for dialogs, pop-ups, file operations
+  - Integrated swaybar with Tokyo Night workspace colors
+  - Headless output config (HEADLESS-1 1920x1080) for wayvnc
+  - Clipboard manager autostart (wl-paste + clipman)
+
+- **F-0021** (Modern swaybar status): Created `workstation-image/configs/swaybar/sway-status` with:
+  - i3bar JSON protocol ({"version":1} header + continuous JSON array stream)
+  - 6 modules: NET, GPU, CPU, MEM, DISK, Clock
+  - Color-coded thresholds: green (#9ece6a) < warn, yellow (#e0af68) < crit, red (#f7768e)
+  - CPU: real-time via /proc/stat delta sampling (500ms)
+  - Memory: used/total from /proc/meminfo
+  - Disk: /home partition from df
+  - GPU: nvidia-smi temp + utilization (graceful N/A fallback)
+  - Network: ping-based connectivity check
+  - 2-second refresh loop
+
+- **F-0022** (Waybar config for future): Created for when layer-shell works on wayvnc:
+  - `workstation-image/configs/waybar/config.jsonc` — modules: workspaces, mode, window, network, gpu, cpu, memory, disk, clock with warning/critical states and calendar tooltip
+  - `workstation-image/configs/waybar/style.css` — Tokyo Night CSS with semi-transparent bg, pill-shaped modules (12px radius), hover effects, urgent-pulse animation, color-coded states
+
+- **F-0020 spec**: Created `docs/specs/F-0020-modern-sway-waybar.md` with 4 requirements and 7 acceptance criteria
+- **Backlog updated**: Added Milestone 3 section with F-0020 through F-0024, including F-0023 for comprehensive setup documentation
+
+### Pipeline
+- PM created spec and backlog items
+- SWE-1 implemented Sway config (all 33 keybindings verified)
+- SWE-2 implemented swaybar status script and Waybar config/CSS
+- All three agents ran in parallel
+
+### Decisions
+- Kept swaybar (not Waybar) as active bar — Waybar layer-shell doesn't render on wayvnc headless
+- Tokyo Night as the standard theme across all components
+- i3bar JSON protocol for color-coded status output
+- Created Waybar config+CSS for future swap when layer-shell issue is resolved
+- Added F-0023 (comprehensive setup documentation) to backlog per PO request
+
+### Next Steps
+- Deploy configs to workstation (copy to persistent disk, restart Sway)
+- F-0023: Create comprehensive setup guide for recreating workstation from scratch
+- F-0024: E2E validation of modern desktop
+- F-0019: Post-reboot E2E validation (Milestone 2 carryover)
