@@ -100,17 +100,17 @@ bindsym $mod+r exec $nix/wofi --show drun
 # File Manager (Thunar)
 bindsym $mod+e exec $nix/thunar
 
-# Web Browser (Google Chrome)
-bindsym $mod+b exec google-chrome-stable
+# Web Browser (Google Chrome — /dev/shm too small at 64MB in container)
+bindsym $mod+b exec google-chrome-stable --disable-dev-shm-usage
 
-# Antigravity (Electron app — Wayland backend, no-sandbox, disable-gpu for VNC)
-bindsym $mod+n exec /home/user/.antigravity/antigravity/antigravity --no-sandbox --ozone-platform=wayland --disable-gpu
+# Antigravity (Electron app — Wayland, no-sandbox, /dev/shm too small at 64MB)
+bindsym $mod+n exec /home/user/.antigravity/antigravity/antigravity --no-sandbox --ozone-platform=wayland --disable-gpu --disable-dev-shm-usage
 
 # IntelliJ IDEA Community
 bindsym $mod+m exec $nix/idea-community
 
-# VS Code (Electron app — Wayland backend, no-sandbox, disable-gpu for VNC)
-bindsym $mod+y exec $nix/code --no-sandbox --ozone-platform=wayland --disable-gpu
+# VS Code (Electron app — Wayland, no-sandbox, /dev/shm too small at 64MB)
+bindsym $mod+y exec $nix/code --no-sandbox --ozone-platform=wayland --disable-gpu --disable-dev-shm-usage
 
 # Clipboard history picker (clipman)
 bindsym $mod+a exec $nix/clipman pick --tool $nix/wofi
