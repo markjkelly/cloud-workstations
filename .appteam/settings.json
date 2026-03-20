@@ -1,0 +1,72 @@
+{
+  "ProjectName": "Cloud Workstation",
+  "Description": "Build a Cloud Workstation in GCP Project ID gement01 with Google Antigravity installed (antigravity.google) following the blog at this link https://medium.com/google-cloud/running-antigravity-on-a-browser-tab-6298bb7e47c4. The Cloud Workstation machine should have a GPU and 64GB RAM as well as 500GB SSD drive. The 500GB SSD drive is a persistent disk with HOME folder mounted to it. All apps must be installed inside the peristent disk. The main docker image should be minimal so all changes, app installs persist inside the persistent disk. For OS, I prefer NixOS with Nix package manager. Follow the blog for what to install and ask questions as necessary",
+  "TechStack": "",
+  "InitGit": true,
+  "CreateRepo": true,
+  "RepoURL": "https://github.com//Cloud Workstation.git",
+  "GitHubOrg": "",
+  "OwnerName": "Ameer Abbas",
+  "OwnerEmail": "ameer00@gmail.com",
+  "OwnerGitHub": "ameer00",
+  "GCP": {
+    "Enabled": true,
+    "ProjectID": "gement01",
+    "ProjectNumber": "938099127340",
+    "Organization": "ameerabbas.altostrat.com",
+    "Region": "us-west1"
+  },
+  "SWEs": [
+    {
+      "Number": 1,
+      "Title": "General Engineer 1",
+      "Bullets": null
+    },
+    {
+      "Number": 2,
+      "Title": "General Engineer 2",
+      "Bullets": null
+    },
+    {
+      "Number": 3,
+      "Title": "General Engineer 3",
+      "Bullets": null
+    }
+  ],
+  "IncludePlatform": true,
+  "IncludeReviewer": true,
+  "IncludeSWEQA": true,
+  "IncludeSWETest": true,
+  "Conventions": null,
+  "SelectedSkills": {
+    "adr": false,
+    "api-design": false,
+    "brainstorm": true,
+    "cuj-list": false,
+    "cuj-test": false,
+    "debug": true,
+    "deploy": false,
+    "docs": true,
+    "hotfix": true,
+    "pipeline": true,
+    "refactor": true,
+    "regenerate": true,
+    "release": true,
+    "review": true,
+    "roadmap": true,
+    "schema": false,
+    "security": false,
+    "spec": true,
+    "standup": false,
+    "status": true,
+    "test": true
+  },
+  "CustomSkills": null,
+  "CustomAgents": null,
+  "ModelName": "Opus 4.6",
+  "ModelID": "claude-opus-4-6",
+  "TargetDir": "ws",
+  "TeamSize": "standard",
+  "Framework": "claude-code",
+  "DefaultHarness": "claude"
+}
