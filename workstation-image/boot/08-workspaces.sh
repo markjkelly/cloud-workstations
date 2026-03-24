@@ -12,7 +12,7 @@ USER="user"
 NIX="/home/user/.nix-profile/bin"
 SWAYMSG="$NIX/swaymsg"
 FOOT="$NIX/foot"
-ANTIGRAVITY="/home/user/.antigravity/antigravity/antigravity"
+ANTIGRAVITY="/usr/bin/antigravity"
 
 log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] [08-workspaces] $1"; }
 
@@ -105,9 +105,9 @@ launch_and_wait 1 5 "$FOOT"
 # Workspace 2: Google Chrome (Electron — 15s timeout)
 launch_and_wait 2 15 google-chrome-stable --ozone-platform=wayland --disable-dev-shm-usage
 
-# Workspace 3: Antigravity (Electron — 15s timeout)
+# Workspace 3: Antigravity (Electron — 30s timeout, needs longer to initialize)
 if [ -x "$ANTIGRAVITY" ]; then
-    launch_and_wait 3 15 "$ANTIGRAVITY" --no-sandbox --ozone-platform=wayland --disable-gpu --disable-dev-shm-usage
+    launch_and_wait 3 30 "$ANTIGRAVITY" --no-sandbox --ozone-platform=wayland --disable-gpu --disable-dev-shm-usage
 else
     log "WARNING: Antigravity not found at $ANTIGRAVITY — skipping ws3"
 fi
