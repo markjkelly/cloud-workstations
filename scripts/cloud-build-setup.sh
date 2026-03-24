@@ -497,25 +497,54 @@ echo "$AI_VERIFY" | grep -q "gemini=[0-9]" && test_pass "Gemini CLI" || test_war
 echo "$AI_VERIFY" | grep -q "/usr/bin/antigravity" && test_pass "Antigravity" || test_warn "Antigravity not verified"
 
 # =========================================================================
-step "Step 16/17: Create Cloud Scheduler"
+step "Step 16/17: Create Cloud Scheduler (weekday start/stop)"
 # =========================================================================
-if gcloud scheduler jobs describe ws-daily-start \
+WS_API_BASE="https://workstations.googleapis.com/v1/projects/${PROJECT_ID}/locations/${REGION}/workstationClusters/${CLUSTER}/workstationConfigs/${CONFIG}/workstations/${WORKSTATION}"
+
+# Remove old daily scheduler if exists
+gcloud scheduler jobs delete ws-daily-start \
+    --location="$REGION" --project="$PROJECT_ID" --quiet 2>/dev/null || true
+
+# Weekday start: 6AM Mon-Fri Pacific
+if gcloud scheduler jobs describe ws-weekday-start \
     --location="$REGION" --project="$PROJECT_ID" >/dev/null 2>&1; then
-    log "Cloud Scheduler already exists — skipping"
+    log "Weekday start scheduler already exists — skipping"
 else
-    retry 2 5 gcloud scheduler jobs create http ws-daily-start \
+    retry 2 5 gcloud scheduler jobs create http ws-weekday-start \
         --project="$PROJECT_ID" --location="$REGION" \
-        --schedule="0 7 * * *" --time-zone="America/Los_Angeles" \
-        --uri="https://workstations.googleapis.com/v1/projects/${PROJECT_ID}/locations/${REGION}/workstationClusters/${CLUSTER}/workstationConfigs/${CONFIG}/workstations/${WORKSTATION}:start" \
+        --schedule="0 6 * * 1-5" --time-zone="America/Los_Angeles" \
+        --uri="${WS_API_BASE}:start" \
         --http-method=POST \
         --oauth-service-account-email="$COMPUTE_SA" \
         --oauth-token-scope="https://www.googleapis.com/auth/cloud-platform" || true
 fi
-if gcloud scheduler jobs describe ws-daily-start \
+
+# Weekday stop: 9PM Mon-Fri Pacific
+if gcloud scheduler jobs describe ws-weekday-stop \
     --location="$REGION" --project="$PROJECT_ID" >/dev/null 2>&1; then
-    test_pass "Cloud Scheduler 'ws-daily-start'"
+    log "Weekday stop scheduler already exists — skipping"
 else
-    test_warn "Cloud Scheduler not verified"
+    retry 2 5 gcloud scheduler jobs create http ws-weekday-stop \
+        --project="$PROJECT_ID" --location="$REGION" \
+        --schedule="0 21 * * 1-5" --time-zone="America/Los_Angeles" \
+        --uri="${WS_API_BASE}:stop" \
+        --http-method=POST \
+        --oauth-service-account-email="$COMPUTE_SA" \
+        --oauth-token-scope="https://www.googleapis.com/auth/cloud-platform" || true
+fi
+
+# Verify both
+if gcloud scheduler jobs describe ws-weekday-start \
+    --location="$REGION" --project="$PROJECT_ID" >/dev/null 2>&1; then
+    test_pass "Cloud Scheduler 'ws-weekday-start' (6AM Mon-Fri)"
+else
+    test_warn "Weekday start scheduler not verified"
+fi
+if gcloud scheduler jobs describe ws-weekday-stop \
+    --location="$REGION" --project="$PROJECT_ID" >/dev/null 2>&1; then
+    test_pass "Cloud Scheduler 'ws-weekday-stop' (9PM Mon-Fri)"
+else
+    test_warn "Weekday stop scheduler not verified"
 fi
 
 # =========================================================================

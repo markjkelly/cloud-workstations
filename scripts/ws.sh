@@ -320,7 +320,7 @@ elif [ "$COMMAND" = "teardown" ]; then
     echo "   - Workstation Cluster: $CLUSTER"
     echo "   - Artifact Registry: $AR_REPO (and all images)"
     echo "   - Cloud NAT: ws-nat + Cloud Router: ws-router"
-    echo "   - Cloud Scheduler: ws-daily-start"
+    echo "   - Cloud Scheduler: ws-weekday-start, ws-weekday-stop"
     echo "   - Cloud Function: ws-email-notify (if exists)"
     echo ""
 
@@ -408,16 +408,17 @@ elif [ "$COMMAND" = "teardown" ]; then
         log "  Not found — skipping"
     fi
 
-    # 7. Delete Cloud Scheduler
-    log "Deleting Cloud Scheduler..."
-    if gcloud scheduler jobs describe ws-daily-start \
-        --location="$REGION" --project="$PROJECT_ID" >/dev/null 2>&1; then
-        gcloud scheduler jobs delete ws-daily-start \
-            --location="$REGION" --project="$PROJECT_ID" --quiet
-        log "  Deleted"
-    else
-        log "  Not found — skipping"
-    fi
+    # 7. Delete Cloud Scheduler jobs
+    log "Deleting Cloud Scheduler jobs..."
+    for JOB in ws-daily-start ws-weekday-start ws-weekday-stop; do
+        if gcloud scheduler jobs describe "$JOB" \
+            --location="$REGION" --project="$PROJECT_ID" >/dev/null 2>&1; then
+            gcloud scheduler jobs delete "$JOB" \
+                --location="$REGION" --project="$PROJECT_ID" --quiet
+            log "  Deleted $JOB"
+        fi
+    done
+    log "  Done"
 
     # 8. Delete email notification function
     log "Deleting email function..."
