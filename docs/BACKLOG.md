@@ -102,6 +102,7 @@
 | F-0044 | Weekday-only Cloud Scheduler | — | P1 | done | PE | — | — | ws-weekday-start (6AM Mon-Fri), ws-weekday-stop (9PM Mon-Fri). Off on weekends. All 3 projects configured |
 | F-0045 | Fix Antigravity autostart on ws3 | — | P0 | done | SWE-2 | — | F-0042 | 08-workspaces.sh had old path. Changed to /usr/bin/antigravity, timeout 15s→30s. Verified after full stop/start on gement02+03 |
 | F-0046 | Consolidated ws.sh setup + teardown | — | P0 | done | SWE-1 | — | F-0039 | Single script for both setup and teardown with webhook + email notifications. 17-step setup with built-in tests |
+| F-0047 | Persistent .env sourcing across reboots | — | P0 | done | SWE-1 | — | F-0031 | 05-shell.sh was overwriting .zshrc on every boot (cat >), losing manual edits. Added `source ~/.env` block (with set -a) to the .zshrc template in 05-shell.sh. Fixes Claude Code not working after reboot (missing Vertex AI env vars) |
 
 ---
 

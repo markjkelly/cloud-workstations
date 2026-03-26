@@ -86,6 +86,13 @@ if [ -f "$HOME/.zsh/zsh-autosuggestions/zsh-autosuggestions.zsh" ]; then
     source "$HOME/.zsh/zsh-autosuggestions/zsh-autosuggestions.zsh"
 fi
 
+# Source ~/.env (Vertex AI config for Claude Code, etc.)
+if [ -f "$HOME/.env" ]; then
+    set -a
+    source "$HOME/.env"
+    set +a
+fi
+
 # Starship prompt
 if command -v starship &>/dev/null; then
     eval "$(starship init zsh)"

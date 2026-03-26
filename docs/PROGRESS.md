@@ -493,3 +493,33 @@
 ### Next Steps
 - All 3 workstations operational and tested
 - Memory files created for future session context
+
+---
+
+## Session 11 — 2026-03-26
+
+### Goals
+- Fix Claude Code not working after workstation reboot (missing env vars)
+- Investigate gcloud auth persistence across reboots
+
+### Completed
+
+- **F-0047** (Persistent .env sourcing): Root cause found and fixed.
+  - **Root cause**: `05-shell.sh` uses `cat > "$ZSHRC"` to recreate `.zshrc` from scratch on every boot, destroying any manually added `source ~/.env` line
+  - **Fix**: Added `source ~/.env` block (with `set -a` / `set +a` for auto-export) to the `.zshrc` template inside `05-shell.sh` (lines 89-94), so it survives reboots
+  - Also replaced the current `.zshrc` (was a Nix store symlink, read-only) with a writable copy including the fix for immediate effect
+  - Verified: new ZSH shell correctly picks up `CLAUDE_CODE_USE_VERTEX=1` and `ANTHROPIC_VERTEX_PROJECT_ID=gement01`
+
+- **gcloud auth investigation**: Confirmed credentials persist on disk (`~/.config/gcloud/credentials.db` and `application_default_credentials.json` on persistent disk with valid refresh tokens). No boot scripts touch gcloud. Auth should survive reboots — the real issue was likely the missing env vars causing Claude Code to fail, leading to re-auth as troubleshooting habit.
+
+### Files Changed
+- `boot/05-shell.sh` — Added `source ~/.env` block to .zshrc template
+- `~/.zshrc` — Replaced Nix store symlink with writable file including .env sourcing
+
+### Decisions
+- Used `set -a` / `set +a` wrapper around `source ~/.env` to auto-export all variables (needed for Claude Code subprocess inheritance)
+- gcloud SA key-based auth deferred — will revisit if refresh tokens still expire after the .env fix eliminates the Claude Code failure
+
+### Next Steps
+- Verify after next reboot that Claude Code works without manual `source ~/.env`
+- If gcloud auth still requires re-login after reboot, set up service account key-based auth
