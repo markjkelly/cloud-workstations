@@ -47,4 +47,4 @@ PM → TPM → SWEs → SWE-Test/QA → SWEs update backlog → TPM → PM
 - Use feature branches (`feature/<name>`) for all non-trivial work
 - Use `SendMessage` to coordinate with all agents
 - All commits must include `Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>`
-- Use `git -c user.name="Ameer Abbas" -c user.email="ameer00@gmail.com"` for all commits
+- Use `git -c user.name="Your Name" -c user.email="your-email@example.com"` for all commits

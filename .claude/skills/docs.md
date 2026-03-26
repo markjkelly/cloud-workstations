@@ -23,4 +23,4 @@ User invokes `/docs` with a target module, API, feature, or file to document.
 ## Project Context
 
 - **Project:** Cloud Workstation
-- **Owner:** Ameer Abbas (ameer00@gmail.com)
+- **Owner:** Your Name (your-email@example.com)

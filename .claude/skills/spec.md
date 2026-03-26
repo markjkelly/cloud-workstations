@@ -27,7 +27,7 @@ User invokes `/spec` with a feature title or description.
 ## Project Context
 
 - **Project:** Cloud Workstation
-- **Owner:** Ameer Abbas (ameer00@gmail.com)
+- **Owner:** Your Name (your-email@example.com)
 - **Specs directory:** `docs/specs/`
 - **Spec template:** `docs/specs/TEMPLATE.md`
 - **Backlog:** `docs/BACKLOG.md`

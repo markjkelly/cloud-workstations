@@ -3,12 +3,12 @@
 **Type:** Feature
 **Priority:** P0 (critical)
 **Status:** Draft
-**Requested by:** PO (Ameer Abbas)
+**Requested by:** PO (Your Name)
 **Date:** 2026-03-19
 
 ## Problem
 
-The PO needs a cloud-based development workstation in GCP with a full graphical desktop environment, GPU acceleration, and Google Antigravity installed. The workstation must persist all user data, installed applications, and configurations across restarts using a persistent disk. Currently no such environment exists in the `gement01` GCP project.
+The PO needs a cloud-based development workstation in GCP with a full graphical desktop environment, GPU acceleration, and Google Antigravity installed. The workstation must persist all user data, installed applications, and configurations across restarts using a persistent disk. Currently no such environment exists in the `YOUR_PROJECT_ID` GCP project.
 
 Reference blog: https://medium.com/google-cloud/running-antigravity-on-a-browser-tab-6298bb7e47c4
 
@@ -16,7 +16,7 @@ Reference blog: https://medium.com/google-cloud/running-antigravity-on-a-browser
 
 ### R1: Cloud Workstation Cluster
 
-The system must create a Cloud Workstation cluster in the `gement01` GCP project.
+The system must create a Cloud Workstation cluster in the `YOUR_PROJECT_ID` GCP project.
 
 - Region: `us-west1`
 - Network: default VPC
@@ -157,8 +157,8 @@ The system must create an actual Cloud Workstation instance from the configurati
 The system must configure appropriate network and IAM settings for the workstation.
 
 - The workstation runs in the default VPC in `us-west1`
-- The `owner-sa@gement01.iam.gserviceaccount.com` service account is used for provisioning
-- The PO's Google account (`ameer00@gmail.com` / `ameerabbas.altostrat.com`) has access to use the workstation
+- The `owner-sa@YOUR_PROJECT_ID.iam.gserviceaccount.com` service account is used for provisioning
+- The PO's Google account (`your-email@example.com` / `your-org.example.com`) has access to use the workstation
 - Firewall rules allow VNC/noVNC traffic as needed (or use Cloud Workstations built-in TCP proxy)
 - IAM roles: `roles/workstations.user` for the PO, `roles/workstations.admin` for the service account
 
@@ -188,14 +188,14 @@ The system must ensure NVIDIA GPU drivers are installed and functional for the L
 
 - **Auto-scaling:** This is a single-user workstation; no auto-scaling or multi-instance support
 - **CI/CD pipelines:** No automated build/deploy pipelines for the Docker image; builds are manual or scripted
-- **Multi-user support:** Only the PO (Ameer Abbas) will use this workstation; no multi-tenancy
+- **Multi-user support:** Only the PO (Your Name) will use this workstation; no multi-tenancy
 - **GCP Free Tier:** This workstation uses a `g2-standard-16` with GPU and 500GB SSD, which is NOT within the GCP free tier. The PO has approved the associated costs
 - **High availability:** Single instance, no failover or redundancy
 - **Custom domain / TLS:** Access is via Cloud Workstations built-in proxy; no custom domain setup
 
 ## Dependencies
 
-- GCP project `gement01` must be active with billing enabled
+- GCP project `YOUR_PROJECT_ID` must be active with billing enabled
 - Cloud Workstations API must be enabled in the project
 - Artifact Registry API must be enabled in the project
 - Compute Engine API must be enabled (for GPU quota)

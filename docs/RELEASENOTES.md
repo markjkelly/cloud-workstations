@@ -1,5 +1,21 @@
 # Release Notes — Cloud Workstation
 
+## v1.7 — Repo Templatization (2026-03-26)
+
+### Added
+- **`scripts/configure.sh`** — Onboarding script for colleagues. Prompts for 7 values (GCP project, org, name, email, GitHub), validates inputs, and applies sed replacements across all config files
+- **README Quick Start** — Added 3-step quick start section and configure.sh step in setup flow
+- **Private repo backup** — Personal repo with all project-specific values pushed to `ameer-workstations` (private)
+
+### Changed
+- **Templatized 38 files** — Replaced all personal/org-specific info with generic placeholders (`YOUR_PROJECT_ID`, `your-email@example.com`, etc.) across CLAUDE.md, agent configs, skill configs, setup docs, specs, and scripts
+- **Public repo is now shareable** — Any colleague can clone, run configure.sh, and deploy their own workstation
+
+### Fixed
+- **Persistent `.env` sourcing** — `05-shell.sh` was overwriting `.zshrc` on every boot, losing `source ~/.env`. Added env sourcing to the `.zshrc` template so Claude Code Vertex AI config survives reboots
+
+---
+
 ## v1.6 — Multi-Project Hardening (2026-03-24)
 
 ### Added
@@ -13,15 +29,15 @@
 - **Nix store persistence** — copies /nix to /home/user/nix after all installs so the store survives container restarts (bind-mounted back by startup script)
 - **Antigravity keybinding** — changed from non-existent `/home/user/.antigravity/` path to `/usr/bin/antigravity` (apt-installed in Docker image)
 - **Antigravity autostart on workspace 3** — fixed path in `08-workspaces.sh`, increased timeout from 15s to 30s
-- **Swaybar after reboot** — deployed current sway config to gement01 (was using old i3status-rust config)
+- **Swaybar after reboot** — deployed current sway config to YOUR_PROJECT_ID (was using old i3status-rust config)
 - **Window sizing** — removed outer gaps (12px → 0) for edge-to-edge windows
 - **Webhook URL escaping** — array-based substitution building handles `&` characters in Google Chat webhook URLs
 - **Cloud Logging visibility** — grants Logs Writer role to build SA so build logs appear
 
 ### Verified
-- gement02: 33 PASS / 0 FAIL + 25/25 post-setup tests
-- gement03: 33 PASS / 0 FAIL + 25/25 post-setup tests
-- All 3 projects (gement01/02/03) have working schedulers and identical configurations
+- YOUR_PROJECT_ID: 33 PASS / 0 FAIL + 25/25 post-setup tests
+- YOUR_PROJECT_ID: 33 PASS / 0 FAIL + 25/25 post-setup tests
+- All 3 projects (YOUR_PROJECT_ID/02/03) have working schedulers and identical configurations
 
 ---
 
@@ -125,7 +141,7 @@
 - Nix package manager 2.34.2 on persistent HOME disk (492GB available)
 - Cloud Router + Cloud NAT for internet access (org policy blocks public IPs)
 - Shielded VM enabled (secure boot, vTPM, integrity monitoring — org policy)
-- IAM: admin@ameerabbas.altostrat.com has workstations.user access
+- IAM: admin@your-org.example.com has workstations.user access
 
 ### Access
 - **URL:** `https://dev-workstation.cluster-wg3q6vm6rnflcvjsrq5k7aqoac.cloudworkstations.dev`
@@ -142,7 +158,7 @@
 
 ## v0.1 — Initial Release
 
-Build a Cloud Workstation in GCP Project ID gement01 with Google Antigravity installed (antigravity.google) following the blog at this link https://medium.com/google-cloud/running-antigravity-on-a-browser-tab-6298bb7e47c4. The Cloud Workstation machine should have a GPU and 64GB RAM as well as 500GB SSD drive. The 500GB SSD drive is a persistent disk with HOME folder mounted to it. All apps must be installed inside the peristent disk. The main docker image should be minimal so all changes, app installs persist inside the persistent disk. For OS, I prefer NixOS with Nix package manager. Follow the blog for what to install and ask questions as necessary
+Build a Cloud Workstation in GCP Project ID YOUR_PROJECT_ID with Google Antigravity installed (antigravity.google) following the blog at this link https://medium.com/google-cloud/running-antigravity-on-a-browser-tab-6298bb7e47c4. The Cloud Workstation machine should have a GPU and 64GB RAM as well as 500GB SSD drive. The 500GB SSD drive is a persistent disk with HOME folder mounted to it. All apps must be installed inside the peristent disk. The main docker image should be minimal so all changes, app installs persist inside the persistent disk. For OS, I prefer NixOS with Nix package manager. Follow the blog for what to install and ask questions as necessary
 
 ### Features
 - Project scaffolding generated with appteam

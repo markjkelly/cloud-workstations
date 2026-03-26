@@ -336,7 +336,7 @@ After each test run, produce a structured report:
 - Always capture screenshots as evidence — name them `cuj-NNN-step-N-description.png`
 - Report clear pass/fail status with screenshots, console errors, and timing
 - Update `docs/CUJ.md` with last tested date and result after every run
-- All commits: `git -c user.name="Ameer Abbas" -c user.email="ameer00@gmail.com"`
+- All commits: `git -c user.name="Your Name" -c user.email="your-email@example.com"`
 - All commits include `Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>`
 - Block verification if any P0 CUJ fails — the work item cannot be marked complete
 - Hand off results to TPM with a summary of pass/fail counts and any blockers

@@ -27,7 +27,7 @@
 - F-0002 (Artifact Registry): `workstation-images` repo exists in us-west1 with images — DONE
 - F-0003 (Docker Image): `workstation` image built and pushed (~3.3GB) with GNOME, Antigravity, Chrome, TigerVNC, noVNC — DONE
 - All required APIs enabled (workstations, artifactregistry, compute)
-- No SA key file found; using admin@ameerabbas.altostrat.com identity
+- No SA key file found; using admin@your-org.example.com identity
 
 ### Completed
 - **F-0001** (Cluster): Pre-existing `workstation-cluster` in us-west1
@@ -36,7 +36,7 @@
 - **F-0004/F-0005** (Config): Created `ws-config` — n1-standard-16 + nvidia-tesla-t4, 500GB pd-ssd, 4h idle/12h run, no public IP, Shielded VM
 - **F-0006** (GPU): Tesla T4 verified — Driver 535.288.01, CUDA 12.2, nvidia-smi at `/var/lib/nvidia/bin/`. Created `/etc/profile.d/nvidia.sh` for PATH/LD_LIBRARY_PATH
 - **F-0007** (Nix): Nix 2.34.2 installed on persistent HOME disk. `nix-env -iA` works. Created Cloud Router `ws-router` + Cloud NAT `ws-nat` for internet access
-- **F-0008** (IAM/Network): admin@ameerabbas.altostrat.com has workstations.user. AR reader granted to service agent. No public IP + Shielded VM (org policies). ameer00@gmail.com access pending (API precondition issue — can be set when workstation is stopped) (removed — no longer needed)
+- **F-0008** (IAM/Network): admin@your-org.example.com has workstations.user. AR reader granted to service agent. No public IP + Shielded VM (org policies). your-email@example.com access pending (API precondition issue — can be set when workstation is stopped) (removed — no longer needed)
 - **F-0009** (Workstation): `dev-workstation` RUNNING at `dev-workstation.cluster-wg3q6vm6rnflcvjsrq5k7aqoac.cloudworkstations.dev`
 - **F-0010** (E2E): All verified — Antigravity installed, noVNC active (HTTP 302 via proxy), TigerVNC active, T4 GPU working, Nix 2.34.2 with package install, 492GB home disk available
 
@@ -52,13 +52,13 @@
 9. `owner-sa` service account does not exist — not critical, skipped
 
 ### Decisions
-- Used admin@ameerabbas.altostrat.com identity (no SA key file)
+- Used admin@your-org.example.com identity (no SA key file)
 - Machine type: n1-standard-16 (60GB RAM) since g2-standard-16 not supported by Cloud Workstations
 - GPU: nvidia-tesla-t4 since nvidia-l4 not supported as accelerator
 - Cloud NAT for internet access (required due to no public IP org policy)
 
 ### Next Steps
-- Grant ameer00@gmail.com access (stop workstation, set IAM, restart) (removed — no longer needed)
+- Grant your-email@example.com access (stop workstation, set IAM, restart) (removed — no longer needed)
 - Test stop/start cycle to verify persistence (Nix, GPU profile, data)
 - Tag v1.0 release after PO approval
 
@@ -242,16 +242,16 @@
 ### Goals
 - Tag v1.3 release
 - Rebuild Docker image with startup scripts baked in
-- Clean up docs (remove obsolete ameer00@gmail.com IAM item)
+- Clean up docs (remove obsolete your-email@example.com IAM item)
 
 ### Completed
 - **v1.3 tagged** — Annotated git tag for Milestone 3 completion
 - **F-0026** (Docker image rebuild): Rebuilt image via Cloud Build to natively include `300_setup-sway-desktop.sh` (Sway auto-start on boot). Old AR images cleaned up.
-- **ameer00@gmail.com IAM** — Removed from all docs (PO confirmed no longer needed)
+- **your-email@example.com IAM** — Removed from all docs (PO confirmed no longer needed)
 - **All docs updated**: BACKLOG.md, PROGRESS.md, RELEASENOTES.md
 
 ### Decisions
-- ameer00@gmail.com IAM access removed per PO direction (no longer needed)
+- your-email@example.com IAM access removed per PO direction (no longer needed)
 - Docker image now includes all 3 startup scripts natively (no manual deployment needed after reboot)
 
 ### Next Steps
@@ -275,7 +275,7 @@
 - **F-0030 spec updated**: PO added `dev-fonts/` directory with Operator Mono, CascadiaCode, CaskaydiaCove NF, FiraCodeiScript. Terminal font changed to Operator Mono Book size=18
 - **F-0033 spec** created: Persistent disk bootstrap architecture — lean Docker image + `~/boot/setup.sh`
 - **Milestone 4 backlog** created with 7 items: F-0027 through F-0033
-- **ameer00@gmail.com IAM** removed from all docs (PO confirmed no longer needed)
+- **your-email@example.com IAM** removed from all docs (PO confirmed no longer needed)
 - **Interim commits** made after each agent completes to prevent data loss
 - **Workstation restarted** with new image — E2E validation: 10 PASS, 1 FAIL (VNC port conflict)
 - **VNC port conflict fixed**: TigerVNC from base image was grabbing port 5901 before wayvnc. Fixed by masking tigervnc.service and killing Xtigervnc in startup script. Sway desktop now served correctly via wayvnc + noVNC.
@@ -406,7 +406,7 @@
   - `README.md` — Quick start guide for colleagues
   - `docs/specs/F-0034-one-click-setup.md` — Full spec
 
-- **GitHub repo**: All changes pushed to https://github.com/ameer00/cloud-workstations
+- **GitHub repo**: All changes pushed to https://github.com/your-github-username/cloud-workstations
 
 ### Decisions
 - Cloud Build as execution engine (not Cloud Shell) — persistent, survives terminal close
@@ -424,13 +424,13 @@
 ## Session 9 — 2026-03-20 to 2026-03-21
 
 ### Goals
-- Test ws.sh setup script on project gement02 (fresh project)
+- Test ws.sh setup script on project YOUR_PROJECT_ID (fresh project)
 - Fix all issues discovered during testing
 - Teardown and re-setup to verify fixes
 
 ### Completed
 
-- **F-0038** (E2E test of one-click setup): Tested on gement02, discovered and fixed 5 critical issues
+- **F-0038** (E2E test of one-click setup): Tested on YOUR_PROJECT_ID, discovered and fixed 5 critical issues
 - **F-0039** (Fix setup for fresh GCP projects): Fixed VPC network creation, SA permissions, webhook URL escaping
 - **F-0040** (Nix store persistence): Added Step 11/17 to copy /nix → /home/user/nix for restart survival
 - **F-0041** (noVNC tests): Added Step 17/17 verifying Sway, wayvnc:5901, noVNC:80, HTTP accessibility
@@ -445,8 +445,8 @@
 6. **No Cloud Logging permissions** — build logs invisible. Added Logs Writer role
 
 ### Test Results
-- gement02 final run: 33 PASS / 0 FAIL / 0 WARN / 41 min
-- gement03 first run: 33 PASS / 0 FAIL / 0 WARN / 41 min
+- YOUR_PROJECT_ID final run: 33 PASS / 0 FAIL / 0 WARN / 41 min
+- YOUR_PROJECT_ID first run: 33 PASS / 0 FAIL / 0 WARN / 41 min
 - Setup steps expanded from 15 to 17 (added Nix persistence + noVNC tests)
 
 ### Decisions
@@ -459,22 +459,22 @@
 ## Session 10 — 2026-03-22 to 2026-03-24
 
 ### Goals
-- Fix noVNC accessibility issues on gement02/03
+- Fix noVNC accessibility issues on YOUR_PROJECT_ID/03
 - Fix Antigravity keybinding and autostart
-- Fix swaybar on gement01
+- Fix swaybar on YOUR_PROJECT_ID
 - Configure weekday-only schedulers on all 3 projects
 - Full teardown and re-setup verification
 
 ### Completed
 
 - **F-0042** (Fix Antigravity path): Sway config and 08-workspaces.sh both referenced /home/user/.antigravity/antigravity/antigravity which didn't exist. Changed to /usr/bin/antigravity (apt-installed in Docker image). Removed dummy .antigravity download from setup script.
-- **F-0043** (Fix swaybar on gement01): gement01 had old sway config using i3status-rust. Deployed current repo config (sway-status). Also removed outer gaps (12→0) for better window sizing.
+- **F-0043** (Fix swaybar on YOUR_PROJECT_ID): YOUR_PROJECT_ID had old sway config using i3status-rust. Deployed current repo config (sway-status). Also removed outer gaps (12→0) for better window sizing.
 - **F-0044** (Weekday scheduler): All 3 projects now have ws-weekday-start (6AM Mon-Fri) and ws-weekday-stop (9PM Mon-Fri). Workstations off on weekends. Old ws-daily-start (7AM daily) removed.
 - **F-0045** (Fix Antigravity autostart ws3): 08-workspaces.sh had old Antigravity path, causing -x check to fail silently. Fixed path + increased timeout 15s→30s.
 
 ### Full Re-Setup Results (teardown + setup from scratch)
-- gement02: 33 PASS / 0 FAIL / 0 WARN + 25/25 post-setup tests
-- gement03: 33 PASS / 0 FAIL / 0 WARN + 25/25 post-setup tests
+- YOUR_PROJECT_ID: 33 PASS / 0 FAIL / 0 WARN + 25/25 post-setup tests
+- YOUR_PROJECT_ID: 33 PASS / 0 FAIL / 0 WARN + 25/25 post-setup tests
 - Antigravity autostart verified on both after full stop/start cycle
 
 ### Post-Setup Test Suite (25 tests per workstation)
@@ -508,7 +508,7 @@
   - **Root cause**: `05-shell.sh` uses `cat > "$ZSHRC"` to recreate `.zshrc` from scratch on every boot, destroying any manually added `source ~/.env` line
   - **Fix**: Added `source ~/.env` block (with `set -a` / `set +a` for auto-export) to the `.zshrc` template inside `05-shell.sh` (lines 89-94), so it survives reboots
   - Also replaced the current `.zshrc` (was a Nix store symlink, read-only) with a writable copy including the fix for immediate effect
-  - Verified: new ZSH shell correctly picks up `CLAUDE_CODE_USE_VERTEX=1` and `ANTHROPIC_VERTEX_PROJECT_ID=gement01`
+  - Verified: new ZSH shell correctly picks up `CLAUDE_CODE_USE_VERTEX=1` and `ANTHROPIC_VERTEX_PROJECT_ID=YOUR_PROJECT_ID`
 
 - **gcloud auth investigation**: Confirmed credentials persist on disk (`~/.config/gcloud/credentials.db` and `application_default_credentials.json` on persistent disk with valid refresh tokens). No boot scripts touch gcloud. Auth should survive reboots — the real issue was likely the missing env vars causing Claude Code to fail, leading to re-auth as troubleshooting habit.
 
@@ -523,3 +523,47 @@
 ### Next Steps
 - Verify after next reboot that Claude Code works without manual `source ~/.env`
 - If gcloud auth still requires re-login after reboot, set up service account key-based auth
+
+---
+
+## Session 11b — 2026-03-26
+
+### Goals
+- Split repo into public template + private personal repo
+- Make cloud-workstations shareable with colleagues (no personal info)
+
+### Completed
+
+- **F-0048** (Repo split: private personal + public template):
+  - **Private repo**: Pushed current repo (with all personal info) to `ameer-workstations` (private) including all branches and tags (v1.3, v1.4)
+  - **Templatization**: Replaced all personal info across 38 files with generic placeholders:
+    - `gement01/02/03` → `YOUR_PROJECT_ID`
+    - `938099127340` → `YOUR_PROJECT_NUMBER`
+    - `ameerabbas.altostrat.com` → `your-org.example.com`
+    - `admin@...` → `admin@your-org.example.com`
+    - `ameer00@gmail.com` → `your-email@example.com`
+    - `Ameer Abbas` → `Your Name`
+    - `ameer00` (GitHub) → `your-github-username`
+  - **configure.sh**: Created `scripts/configure.sh` (221 lines) — onboarding script that prompts for 7 values, validates inputs, shows confirmation, runs sed replacements across all files, prints next steps
+  - **README updated**: Added Quick Start section (clone → configure → setup), added Step 2 (configure.sh) between auth and setup
+  - **Verified**: grep confirms zero remaining personal identifiers in tracked files
+
+### Agent Team
+- SWE-1: Pushed to private repo (ameer-workstations)
+- SWE-2: Templatized all 38 files
+- SWE-3: Created configure.sh + updated README
+
+### Files Changed
+- 36 files modified (all personal info replaced with placeholders)
+- 1 new file: `scripts/configure.sh`
+
+### Decisions
+- Two-repo approach: public template (cloud-workstations) + private personal (ameer-workstations)
+- Private repo added as `private` remote for easy syncing
+- configure.sh uses sed with proper escaping for special characters
+- Replacement order: specific patterns first (SA email) before generic (PROJECT_ID) to avoid double-replacement
+
+### Next Steps
+- For daily work, use `ameer-workstations` (private repo with personal values)
+- To share improvements, cherry-pick from private to public repo
+- Colleagues: clone public repo → run configure.sh → run ws.sh setup

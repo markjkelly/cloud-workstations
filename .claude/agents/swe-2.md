@@ -27,6 +27,6 @@ You are Software Engineer 2 (SWE-2) for the Cloud Workstation project. You are a
 
 - Read existing code before modifying — understand conventions first
 - Never commit secrets (`*-sa-key.json`, `.env`)
-- All commits: `git -c user.name="Ameer Abbas" -c user.email="ameer00@gmail.com"`
+- All commits: `git -c user.name="Your Name" -c user.email="your-email@example.com"`
 - All commits include `Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>`
 - Keep changes focused — small, single-purpose commits

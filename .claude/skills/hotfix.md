@@ -19,8 +19,8 @@ User invokes `/hotfix` with a critical bug description that needs an immediate f
    ```
 5. **Commit the fix:**
    ```
-   git -c user.name="Ameer Abbas" -c user.email="ameer00@gmail.com" add -A
-   git -c user.name="Ameer Abbas" -c user.email="ameer00@gmail.com" commit -m "hotfix: <description>"
+   git -c user.name="Your Name" -c user.email="your-email@example.com" add -A
+   git -c user.name="Your Name" -c user.email="your-email@example.com" commit -m "hotfix: <description>"
    ```
 6. **Merge to main:**
    ```
@@ -29,7 +29,7 @@ User invokes `/hotfix` with a critical bug description that needs an immediate f
    ```
 7. **Tag a patch release** — Bump the patch version:
    ```
-   git -c user.name="Ameer Abbas" -c user.email="ameer00@gmail.com" tag -a vX.Y.Z -m "Hotfix: <description>"
+   git -c user.name="Your Name" -c user.email="your-email@example.com" tag -a vX.Y.Z -m "Hotfix: <description>"
    ```
 8. **Push everything:**
    ```
@@ -40,4 +40,4 @@ User invokes `/hotfix` with a critical bug description that needs an immediate f
 ## Project Context
 
 - **Project:** Cloud Workstation
-- **Owner:** Ameer Abbas (ameer00@gmail.com)
+- **Owner:** Your Name (your-email@example.com)

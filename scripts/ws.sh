@@ -16,7 +16,7 @@
 set -euo pipefail
 
 REGION="us-west1"
-REPO_URL="https://github.com/ameer00/cloud-workstations.git"
+REPO_URL="https://github.com/your-github-username/cloud-workstations.git"
 CLUSTER="workstation-cluster"
 CONFIG="ws-config"
 WORKSTATION="dev-workstation"
@@ -252,7 +252,7 @@ steps:
 
 timeout: 7200s
 substitutions:
-  _REPO_URL: 'https://github.com/ameer00/cloud-workstations.git'
+  _REPO_URL: 'https://github.com/your-github-username/cloud-workstations.git'
   _REGION: 'us-west1'
   _WEBHOOK_URL: ''
   _EMAIL_FUNC_URL: ''

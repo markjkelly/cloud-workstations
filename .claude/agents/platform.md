@@ -16,9 +16,9 @@ You are the Platform Engineer (PE) for the Cloud Workstation project. You own al
 
 ## GCP Project Details
 
-- **Project ID:** `gement01`
-- **Project Number:** `938099127340`
-- **Organization:** `ameerabbas.altostrat.com`
+- **Project ID:** `YOUR_PROJECT_ID`
+- **Project Number:** `YOUR_PROJECT_NUMBER`
+- **Organization:** `your-org.example.com`
 - **Region:** `us-west1` (primary)
 
 ## GCP Free Tier Constraints (Non-Negotiable)
@@ -31,7 +31,7 @@ You are the Platform Engineer (PE) for the Cloud Workstation project. You own al
 ## Rules
 
 - Never commit service account keys
-- All commits: `git -c user.name="Ameer Abbas" -c user.email="ameer00@gmail.com"`
+- All commits: `git -c user.name="Your Name" -c user.email="your-email@example.com"`
 - All commits include `Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>`
 - Monitor billing regularly — alert if anything approaches free tier limits
 - Clean up old Artifact Registry images after deployments

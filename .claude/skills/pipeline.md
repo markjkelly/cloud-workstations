@@ -31,7 +31,7 @@ User invokes `/pipeline` with a feature description or milestone name.
 ## Project Context
 
 - **Project:** Cloud Workstation
-- **Owner:** Ameer Abbas (ameer00@gmail.com)
+- **Owner:** Your Name (your-email@example.com)
 - **Framework:** Claude Code Agent Teams
 - **Model:** `claude-opus-4-6`
 - **Agent definitions:** `.claude/agents/`

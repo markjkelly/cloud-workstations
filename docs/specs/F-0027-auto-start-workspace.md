@@ -8,7 +8,7 @@
 
 ## Problem
 
-The PO (Ameer Abbas) wants the Cloud Workstation to be fully ready every morning by 7AM Pacific time without manual intervention. Currently, the workstation must be manually started, apps must be manually updated, and Sway workspaces must be manually opened. This wastes time every morning and creates friction. The workstation should boot itself, update all key tools to latest versions, and pre-launch apps across 4 Sway workspaces so that when the PO connects via VNC, everything is ready to go.
+The PO (Your Name) wants the Cloud Workstation to be fully ready every morning by 7AM Pacific time without manual intervention. Currently, the workstation must be manually started, apps must be manually updated, and Sway workspaces must be manually opened. This wastes time every morning and creates friction. The workstation should boot itself, update all key tools to latest versions, and pre-launch apps across 4 Sway workspaces so that when the PO connects via VNC, everything is ready to go.
 
 ## Requirements
 
@@ -17,7 +17,7 @@ The PO (Ameer Abbas) wants the Cloud Workstation to be fully ready every morning
 - Create a GCP Cloud Scheduler job that fires daily at 7:00 AM Pacific time (cron: `0 7 * * *` in timezone `America/Los_Angeles`).
 - The scheduler triggers a mechanism (Cloud Functions, Cloud Workflows, or direct HTTP target) that calls the GCP Workstations API `startWorkstation` endpoint for the `dev-workstation` instance.
 - If the workstation is already running, the start call should be a no-op (the API returns success without error when the workstation is already started).
-- The scheduler job must be created in region `us-west1` within GCP project `gement01`.
+- The scheduler job must be created in region `us-west1` within GCP project `YOUR_PROJECT_ID`.
 
 ### R2: App Update Startup Script
 
@@ -50,7 +50,7 @@ The PO (Ameer Abbas) wants the Cloud Workstation to be fully ready every morning
 
 ## Acceptance Criteria
 
-- [ ] AC1: A Cloud Scheduler job exists in `gement01` (us-west1) with cron `0 7 * * *` in `America/Los_Angeles` timezone, targeting the Workstations API `startWorkstation` for `dev-workstation`
+- [ ] AC1: A Cloud Scheduler job exists in `YOUR_PROJECT_ID` (us-west1) with cron `0 7 * * *` in `America/Los_Angeles` timezone, targeting the Workstations API `startWorkstation` for `dev-workstation`
 - [ ] AC2: The workstation auto-starts within 5 minutes of the scheduler trigger firing
 - [ ] AC3: On each boot, all 5 apps (Claude Code, Gemini CLI, VSCode, IntelliJ, Antigravity) are updated to their latest available versions, with update logs written to `~/logs/app-update.log`
 - [ ] AC4: When the PO connects via VNC after auto-start, 4 Sway workspaces are populated: ws1 = foot terminal, ws2 = Chrome browser, ws3 = Antigravity, ws4 = foot terminal

@@ -28,7 +28,7 @@
 | F-0005 | Persistent disk setup (500GB SSD, HOME) | F-0001 | P0 | done | PE | feature/ws-disk | F-0004 | 500GB pd-ssd configured in ws-config via --pd-disk-size=500 --pd-disk-type=pd-ssd |
 | F-0006 | GPU driver verification (T4) | F-0001 | P0 | done | PE | feature/ws-gpu-drivers | F-0009 | Tesla T4 verified, Driver 535.288.01, CUDA 12.2. nvidia-smi at /var/lib/nvidia/bin/. Profile script created. |
 | F-0007 | Nix package manager (persistent disk) | F-0001 | P1 | done | PE | feature/ws-nix | F-0009 | Nix 2.34.2 installed on persistent disk. nix-env works. Cloud Router + NAT created for internet. |
-| F-0008 | Network and IAM configuration | F-0001 | P0 | done | PE | feature/ws-iam | F-0001 | admin@ameerabbas.altostrat.com has workstations.user. AR reader granted. No public IP, Shielded VM enabled. |
+| F-0008 | Network and IAM configuration | F-0001 | P0 | done | PE | feature/ws-iam | F-0001 | admin@your-org.example.com has workstations.user. AR reader granted. No public IP, Shielded VM enabled. |
 | F-0009 | Workstation creation and VNC setup | F-0001 | P0 | done | PE | feature/ws-create | F-0004, F-0008 | dev-workstation RUNNING. Host: dev-workstation.cluster-wg3q6vm6rnflcvjsrq5k7aqoac.cloudworkstations.dev |
 | F-0010 | End-to-end validation | F-0001 | P0 | done | SWE-QA | — | F-0009, F-0006, F-0007 | All verified: Antigravity installed, noVNC active (HTTP 302 via proxy), T4 GPU working, Nix 2.34.2 with package install, 492GB home disk |
 
@@ -86,7 +86,7 @@
 | F-0035 | Cloud Build setup script | F-0034 | P0 | done | PE | — | F-0034 | scripts/cloud-build-setup.sh: 15-step idempotent setup with retry logic, self-recovery, and built-in verification tests (PASS/FAIL/WARN) |
 | F-0036 | Nix + Home Manager install | F-0034 | P0 | done | SWE-2 | — | F-0035 | Integrated into cloud-build-setup.sh steps 9-10: Nix install, persistent disk, Home Manager, all packages |
 | F-0037 | Config + AI tools deployment | F-0034 | P0 | done | SWE-3 | — | F-0036 | Integrated into cloud-build-setup.sh steps 11-14: boot scripts, fonts, Sway config, ZSH, Starship, Claude Code, Gemini, Antigravity |
-| F-0038 | E2E test of one-click setup | F-0034 | P0 | done | SWE-QA | — | F-0034 thru F-0037 | Tested on gement02 and gement03 from scratch. 33 PASS / 0 FAIL / 0 WARN. Fixed: VPC network, SA permissions, --service-account on config, Nix persistence, webhook URL escaping |
+| F-0038 | E2E test of one-click setup | F-0034 | P0 | done | SWE-QA | — | F-0034 thru F-0037 | Tested on YOUR_PROJECT_ID and YOUR_PROJECT_ID from scratch. 33 PASS / 0 FAIL / 0 WARN. Fixed: VPC network, SA permissions, --service-account on config, Nix persistence, webhook URL escaping |
 
 ---
 
@@ -98,11 +98,19 @@
 | F-0040 | Nix store persistence across restarts | — | P0 | done | SWE-1 | — | F-0039 | Added Step 11/17: cp -a /nix /home/user/nix after all installs. Startup script bind-mounts back on boot |
 | F-0041 | noVNC desktop connectivity tests | — | P0 | done | SWE-2 | — | F-0040 | Added Step 17/17: verifies Sway running, wayvnc on 5901, noVNC on 80, HTTP accessible |
 | F-0042 | Fix Antigravity path (sway config + boot) | — | P0 | done | SWE-1 | — | — | Changed from ~/.antigravity/ to /usr/bin/antigravity (apt-installed). Fixed in sway config, 08-workspaces.sh, and cloud-build-setup.sh |
-| F-0043 | Fix swaybar on gement01 | — | P1 | done | SWE-1 | — | — | Deployed current repo sway config (sway-status instead of i3status-rust). Removed outer gaps (0 instead of 12) |
+| F-0043 | Fix swaybar on YOUR_PROJECT_ID | — | P1 | done | SWE-1 | — | — | Deployed current repo sway config (sway-status instead of i3status-rust). Removed outer gaps (0 instead of 12) |
 | F-0044 | Weekday-only Cloud Scheduler | — | P1 | done | PE | — | — | ws-weekday-start (6AM Mon-Fri), ws-weekday-stop (9PM Mon-Fri). Off on weekends. All 3 projects configured |
-| F-0045 | Fix Antigravity autostart on ws3 | — | P0 | done | SWE-2 | — | F-0042 | 08-workspaces.sh had old path. Changed to /usr/bin/antigravity, timeout 15s→30s. Verified after full stop/start on gement02+03 |
+| F-0045 | Fix Antigravity autostart on ws3 | — | P0 | done | SWE-2 | — | F-0042 | 08-workspaces.sh had old path. Changed to /usr/bin/antigravity, timeout 15s→30s. Verified after full stop/start on YOUR_PROJECT_ID+03 |
 | F-0046 | Consolidated ws.sh setup + teardown | — | P0 | done | SWE-1 | — | F-0039 | Single script for both setup and teardown with webhook + email notifications. 17-step setup with built-in tests |
 | F-0047 | Persistent .env sourcing across reboots | — | P0 | done | SWE-1 | — | F-0031 | 05-shell.sh was overwriting .zshrc on every boot (cat >), losing manual edits. Added `source ~/.env` block (with set -a) to the .zshrc template in 05-shell.sh. Fixes Claude Code not working after reboot (missing Vertex AI env vars) |
+
+---
+
+## Milestone 7: Repo Templatization
+
+| ID | Feature | Spec | Priority | Status | Owner | Branch | Dependencies | Feedback |
+|----|---------|------|----------|--------|-------|--------|--------------|----------|
+| F-0048 | Repo split: private personal + public template | — | P0 | done | SWE-1, SWE-2, SWE-3 | main | — | Pushed personal repo to ameer-workstations (private). Templatized 38 files in cloud-workstations (public) with placeholders. Created scripts/configure.sh for colleague onboarding. Updated README with Quick Start + configure step. |
 
 ---
 

@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-Build a Cloud Workstation in GCP Project ID gement01 with Google Antigravity installed (antigravity.google) following the blog at this link https://medium.com/google-cloud/running-antigravity-on-a-browser-tab-6298bb7e47c4. The Cloud Workstation machine should have a GPU and 64GB RAM as well as 500GB SSD drive. The 500GB SSD drive is a persistent disk with HOME folder mounted to it. All apps must be installed inside the peristent disk. The main docker image should be minimal so all changes, app installs persist inside the persistent disk. For OS, I prefer NixOS with Nix package manager. Follow the blog for what to install and ask questions as necessary
+Build a Cloud Workstation in GCP Project ID YOUR_PROJECT_ID with Google Antigravity installed (antigravity.google) following the blog at this link https://medium.com/google-cloud/running-antigravity-on-a-browser-tab-6298bb7e47c4. The Cloud Workstation machine should have a GPU and 64GB RAM as well as 500GB SSD drive. The 500GB SSD drive is a persistent disk with HOME folder mounted to it. All apps must be installed inside the peristent disk. The main docker image should be minimal so all changes, app installs persist inside the persistent disk. For OS, I prefer NixOS with Nix package manager. Follow the blog for what to install and ask questions as necessary
 
 ## Key References
 
@@ -16,16 +16,16 @@ Build a Cloud Workstation in GCP Project ID gement01 with Google Antigravity ins
 
 ## GCP Project
 
-- **Project ID:** `gement01`
-- **Project Number:** `938099127340`
-- **Organization:** `ameerabbas.altostrat.com`
+- **Project ID:** `YOUR_PROJECT_ID`
+- **Project Number:** `YOUR_PROJECT_NUMBER`
+- **Organization:** `your-org.example.com`
 - **Region:** `us-west1` (primary — matches existing Cloud Run services)
 
 ### Service Accounts
 
 | Account | Email | Role | Purpose |
 |---------|-------|------|---------|
-| **owner-sa** | `owner-sa@gement01.iam.gserviceaccount.com` | Owner | Full project admin — used by Platform Engineer for all GCP operations |
+| **owner-sa** | `owner-sa@YOUR_PROJECT_ID.iam.gserviceaccount.com` | Owner | Full project admin — used by Platform Engineer for all GCP operations |
 
 ### Credentials
 
@@ -34,11 +34,11 @@ Build a Cloud Workstation in GCP Project ID gement01 with Google Antigravity ins
 
 ## Product Owner / CEO
 
-- **Name:** Ameer Abbas
+- **Name:** Your Name
 - **Role:** Product Owner (PO) and CEO — the human in the loop
-- **GitHub:** ameer00
-- **Email:** ameer00@gmail.com
-- **Git config:** Always use `git -c user.name="Ameer Abbas" -c user.email="ameer00@gmail.com"` for commits so authorship is consistent in history.
+- **GitHub:** your-github-username
+- **Email:** your-email@example.com
+- **Git config:** Always use `git -c user.name="Your Name" -c user.email="your-email@example.com"` for commits so authorship is consistent in history.
 
 ## Version Control
 
@@ -66,7 +66,7 @@ This project uses a multi-agent team structure.
 
 **This is the mandatory workflow for all user feedback and requests:**
 
-1. **PO (Ameer Abbas)** provides feedback, feature requests, or bug reports to the **PM**
+1. **PO (Your Name)** provides feedback, feature requests, or bug reports to the **PM**
 2. **PM** translates PO feedback into a product spec in `docs/specs/F-NNNN-slug.md` with detailed requirements and acceptance criteria, then works with the **TPM** to create/update work items in docs/BACKLOG.md with priority, scope, and dependencies
 3. **TPM** assigns individual work items to the appropriate **SWE agents** (scaling from 1–3 SWEs as needed) and coordinates parallel execution
 4. **SWE agents** implement on feature branches, following the existing codebase conventions
@@ -82,7 +82,7 @@ This project uses a multi-agent team structure.
 
 ### Agent-Only Execution Rule (Non-Negotiable)
 
-**All project work must be performed by a designated Agent role.** No work is done directly — it is always delegated to the appropriate agent (PM, TPM, SWE-1 through SWE-3, SWE-Test, SWE-QA, Platform Engineer, Reviewer). If a task requires a role or specialization that does not exist in the current team roster, **stop and check with the PO (Ameer Abbas)** before proceeding. The PO will decide whether to create a new agent role or reassign the work.
+**All project work must be performed by a designated Agent role.** No work is done directly — it is always delegated to the appropriate agent (PM, TPM, SWE-1 through SWE-3, SWE-Test, SWE-QA, Platform Engineer, Reviewer). If a task requires a role or specialization that does not exist in the current team roster, **stop and check with the PO (Your Name)** before proceeding. The PO will decide whether to create a new agent role or reassign the work.
 
 ### Interactive Agent Teams via Tmux (Non-Negotiable)
 
@@ -125,7 +125,7 @@ Agents must be spawned as interactive teammates in separate tmux panes so the PO
 **Violating this pipeline is a process failure.** If time pressure tempts a shortcut, stop and confirm with the PO first.
 
 ### Roles
-- **PO / CEO** (Ameer Abbas) — Product Owner, the human in the loop. Provides feedback, feature requests, and bug reports. Approves direction, tests the app
+- **PO / CEO** (Your Name) — Product Owner, the human in the loop. Provides feedback, feature requests, and bug reports. Approves direction, tests the app
 - **PM** — Receives all PO feedback. Translates it into detailed product requirements with acceptance criteria. Works with TPM to create backlog items. Creates completion summaries and reports back to PO
 - **TPM** — Coordinates between agents. Allocates individual work items to SWEs. Tracks blockers and dependencies. Waits for all milestone items to complete before reporting to PM. Maintains docs/PROGRESS.md and docs/BACKLOG.md
 - **SWE-1** — General Engineer 1
@@ -150,7 +150,7 @@ in the backlog before implementation begins and updated when completed.
 ## GCP Free Tier (Non-Negotiable)
 
 - **This app must stay within the GCP free tier. Zero additional billing.**
-- Single user app (Ameer Abbas only) — no need for high availability or scale
+- Single user app — no need for high availability or scale
 - Cloud Run config: **256Mi memory, 0.5 vCPU, maxScale=1, minInstances=0, request-based CPU**
 - Region: **us-west1** (matches existing services)
 - Clean up old Artifact Registry images to stay within 0.5 GB free storage

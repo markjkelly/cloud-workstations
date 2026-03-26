@@ -1,6 +1,6 @@
 # Cloud Workstation Setup Guide
 
-Complete guide for recreating the Cloud Workstation from scratch in the `gement01` GCP project. This covers every component: GCP infrastructure, Docker image, Nix package manager, Sway desktop, application suite, GPU configuration, and Antigravity.
+Complete guide for recreating the Cloud Workstation from scratch in the `YOUR_PROJECT_ID` GCP project. This covers every component: GCP infrastructure, Docker image, Nix package manager, Sway desktop, application suite, GPU configuration, and Antigravity.
 
 **Reference blog:** https://medium.com/google-cloud/running-antigravity-on-a-browser-tab-6298bb7e47c4
 
@@ -29,11 +29,11 @@ Complete guide for recreating the Cloud Workstation from scratch in the `gement0
 
 ### GCP Project
 
-- **Project ID:** `gement01`
-- **Project Number:** `938099127340`
-- **Organization:** `ameerabbas.altostrat.com`
+- **Project ID:** `YOUR_PROJECT_ID`
+- **Project Number:** `YOUR_PROJECT_NUMBER`
+- **Organization:** `your-org.example.com`
 - **Region:** `us-west1`
-- **Identity:** `admin@ameerabbas.altostrat.com` (or use `owner-sa@gement01.iam.gserviceaccount.com` if available)
+- **Identity:** `admin@your-org.example.com` (or use `owner-sa@YOUR_PROJECT_ID.iam.gserviceaccount.com` if available)
 
 ### Required APIs
 
@@ -41,16 +41,16 @@ Enable these APIs in the GCP project:
 
 ```bash
 gcloud services enable workstations.googleapis.com \
-    --project=gement01
+    --project=YOUR_PROJECT_ID
 
 gcloud services enable artifactregistry.googleapis.com \
-    --project=gement01
+    --project=YOUR_PROJECT_ID
 
 gcloud services enable compute.googleapis.com \
-    --project=gement01
+    --project=YOUR_PROJECT_ID
 
 gcloud services enable cloudbuild.googleapis.com \
-    --project=gement01
+    --project=YOUR_PROJECT_ID
 ```
 
 ### GPU Quota
@@ -59,7 +59,7 @@ You need GPU quota in `us-west1` for NVIDIA Tesla T4. Check your quota:
 
 ```bash
 gcloud compute regions describe us-west1 \
-    --project=gement01 \
+    --project=YOUR_PROJECT_ID \
     --format="table(quotas.filter(metric='NVIDIA_T4_GPUS'))"
 ```
 
@@ -71,7 +71,7 @@ Install and authenticate:
 
 ```bash
 gcloud auth login
-gcloud config set project gement01
+gcloud config set project YOUR_PROJECT_ID
 gcloud config set compute/region us-west1
 ```
 
@@ -97,7 +97,7 @@ Create a Cloud Workstation cluster in `us-west1` using the default VPC:
 ```bash
 gcloud workstations clusters create workstation-cluster \
     --region=us-west1 \
-    --project=gement01
+    --project=YOUR_PROJECT_ID
 ```
 
 This takes 5-10 minutes. Verify:
@@ -105,7 +105,7 @@ This takes 5-10 minutes. Verify:
 ```bash
 gcloud workstations clusters describe workstation-cluster \
     --region=us-west1 \
-    --project=gement01
+    --project=YOUR_PROJECT_ID
 ```
 
 ### 2.2 Artifact Registry Repository
@@ -116,7 +116,7 @@ Create a Docker repository to host the custom workstation image:
 gcloud artifacts repositories create workstation-images \
     --repository-format=docker \
     --location=us-west1 \
-    --project=gement01 \
+    --project=YOUR_PROJECT_ID \
     --description="Cloud Workstation Docker images"
 ```
 
@@ -129,7 +129,7 @@ The organization has a `constraints/compute.vmExternalIpAccess` policy that prev
 gcloud compute routers create ws-router \
     --network=default \
     --region=us-west1 \
-    --project=gement01
+    --project=YOUR_PROJECT_ID
 
 # Create Cloud NAT
 gcloud compute routers nats create ws-nat \
@@ -137,7 +137,7 @@ gcloud compute routers nats create ws-nat \
     --region=us-west1 \
     --auto-allocate-nat-external-ips \
     --nat-all-subnet-ip-ranges \
-    --project=gement01
+    --project=YOUR_PROJECT_ID
 ```
 
 ### 2.4 IAM Configuration
@@ -146,13 +146,13 @@ Grant the Cloud Workstations service agent read access to Artifact Registry so i
 
 ```bash
 # Get the service agent email (format: service-PROJECT_NUMBER@gcp-sa-workstations.iam.gserviceaccount.com)
-SERVICE_AGENT="service-938099127340@gcp-sa-workstations.iam.gserviceaccount.com"
+SERVICE_AGENT="service-YOUR_PROJECT_NUMBER@gcp-sa-workstations.iam.gserviceaccount.com"
 
 gcloud artifacts repositories add-iam-policy-binding workstation-images \
     --location=us-west1 \
     --member="serviceAccount:${SERVICE_AGENT}" \
     --role="roles/artifactregistry.reader" \
-    --project=gement01
+    --project=YOUR_PROJECT_ID
 ```
 
 The `roles/workstations.user` role is granted automatically at the workstation level when creating a workstation.
@@ -253,8 +253,8 @@ cd workstation-image/
 
 # Submit to Cloud Build (builds in GCP, no local Docker needed)
 gcloud builds submit \
-    --tag us-west1-docker.pkg.dev/gement01/workstation-images/workstation:latest \
-    --project=gement01 \
+    --tag us-west1-docker.pkg.dev/YOUR_PROJECT_ID/workstation-images/workstation:latest \
+    --project=YOUR_PROJECT_ID \
     --region=us-west1
 ```
 
@@ -265,10 +265,10 @@ Alternatively, build locally and push:
 gcloud auth configure-docker us-west1-docker.pkg.dev
 
 # Build locally
-docker build -t us-west1-docker.pkg.dev/gement01/workstation-images/workstation:latest .
+docker build -t us-west1-docker.pkg.dev/YOUR_PROJECT_ID/workstation-images/workstation:latest .
 
 # Push
-docker push us-west1-docker.pkg.dev/gement01/workstation-images/workstation:latest
+docker push us-west1-docker.pkg.dev/YOUR_PROJECT_ID/workstation-images/workstation:latest
 ```
 
 ---
@@ -286,14 +286,14 @@ gcloud workstations configs create ws-config \
     --accelerator-count=1 \
     --pd-disk-size=500 \
     --pd-disk-type=pd-ssd \
-    --container-custom-image=us-west1-docker.pkg.dev/gement01/workstation-images/workstation:latest \
+    --container-custom-image=us-west1-docker.pkg.dev/YOUR_PROJECT_ID/workstation-images/workstation:latest \
     --idle-timeout=14400 \
     --running-timeout=43200 \
     --disable-public-ip-addresses \
     --shielded-secure-boot \
     --shielded-vtpm \
     --shielded-integrity-monitoring \
-    --project=gement01
+    --project=YOUR_PROJECT_ID
 ```
 
 ### Configuration Details
@@ -319,7 +319,7 @@ gcloud workstations create dev-workstation \
     --config=ws-config \
     --cluster=workstation-cluster \
     --region=us-west1 \
-    --project=gement01
+    --project=YOUR_PROJECT_ID
 ```
 
 ### Start the Workstation
@@ -329,7 +329,7 @@ gcloud workstations start dev-workstation \
     --config=ws-config \
     --cluster=workstation-cluster \
     --region=us-west1 \
-    --project=gement01
+    --project=YOUR_PROJECT_ID
 ```
 
 ### Access the Workstation
@@ -347,7 +347,7 @@ gcloud workstations describe dev-workstation \
     --config=ws-config \
     --cluster=workstation-cluster \
     --region=us-west1 \
-    --project=gement01 \
+    --project=YOUR_PROJECT_ID \
     --format="value(host)"
 ```
 
@@ -360,7 +360,7 @@ gcloud workstations ssh dev-workstation \
     --config=ws-config \
     --cluster=workstation-cluster \
     --region=us-west1 \
-    --project=gement01
+    --project=YOUR_PROJECT_ID
 ```
 
 ### Stop the Workstation
@@ -370,7 +370,7 @@ gcloud workstations stop dev-workstation \
     --config=ws-config \
     --cluster=workstation-cluster \
     --region=us-west1 \
-    --project=gement01
+    --project=YOUR_PROJECT_ID
 ```
 
 ---
