@@ -1,7 +1,7 @@
 # Project Backlog — Cloud Workstation
 
 **Maintained by:** TPM
-**Last updated:** 2026-03-20
+**Last updated:** 2026-03-26
 
 ---
 
@@ -68,7 +68,7 @@
 
 | ID | Feature | Spec | Priority | Status | Owner | Branch | Dependencies | Feedback |
 |----|---------|------|----------|--------|-------|--------|--------------|----------|
-| F-0027 | Cloud Scheduler (7AM PT daily start) | F-0027 | P0 | done | PE | — | — | Cloud Scheduler job `ws-daily-start` created in us-west1. Cron: 0 7 * * * America/Los_Angeles. Targets Workstations API startWorkstation via HTTP POST with OAuth. |
+| F-0027 | Cloud Scheduler (weekday start/stop) | F-0027 | P0 | done | PE | — | — | Updated by F-0044: ws-weekday-start (6AM Mon-Fri) + ws-weekday-stop (9PM Mon-Fri). Old daily job removed. All 3 projects configured. |
 | F-0028 | App update startup script | F-0027 | P0 | done | SWE-1 | — | F-0027, F-0033 | ~/boot/07-apps.sh: Updates Claude Code, Gemini CLI (npm), VSCode, IntelliJ (nix-channel + home-manager switch). Logs to ~/logs/app-update.log. |
 | F-0029 | Auto-launch 4 workspaces with apps | F-0027 | P0 | done | SWE-2 | — | F-0025, F-0028, F-0033 | ~/boot/08-workspaces.sh: ws1=foot, ws2=Chrome, ws3=Antigravity, ws4=foot. Discovers SWAYSOCK, waits for Sway ready, idempotent. |
 | F-0030 | Install Nerd Fonts (CascadiaCode, FiraCode) | F-0030 | P0 | done | SWE-1 | — | F-0033 | ~/boot/04-fonts.sh: 12 Operator Mono, 168 Cascadia, 19 Fira, 24 Caskaydia fonts installed from ~/boot/fonts/ to ~/.local/share/fonts/. fc-cache rebuilt. |
