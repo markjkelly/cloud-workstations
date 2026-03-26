@@ -1,5 +1,30 @@
 # Release Notes — Cloud Workstation
 
+## v1.6 — Multi-Project Hardening (2026-03-24)
+
+### Added
+- **17-step setup script** (`cloud-build-setup.sh`) — expanded from 15 steps with Nix persistence (Step 11) and noVNC desktop verification (Step 17)
+- **Weekday-only Cloud Scheduler** — `ws-weekday-start` (6AM Mon-Fri) and `ws-weekday-stop` (9PM Mon-Fri). Workstations stay off on weekends
+- **25-test post-setup verification suite** — covers Sway, swaybar, wayvnc, noVNC, Antigravity, Nix, fonts, ZSH, Starship, AI tools, Cloud Scheduler, Chrome, VS Code
+- **Consolidated `ws.sh`** — single script for setup (via Cloud Build) and teardown with webhook + email notifications
+
+### Fixed
+- **Fresh GCP project support** — auto-creates default VPC network, grants permissions to both Cloud Build and Compute Engine SAs, adds `--service-account` to workstation config
+- **Nix store persistence** — copies /nix to /home/user/nix after all installs so the store survives container restarts (bind-mounted back by startup script)
+- **Antigravity keybinding** — changed from non-existent `/home/user/.antigravity/` path to `/usr/bin/antigravity` (apt-installed in Docker image)
+- **Antigravity autostart on workspace 3** — fixed path in `08-workspaces.sh`, increased timeout from 15s to 30s
+- **Swaybar after reboot** — deployed current sway config to gement01 (was using old i3status-rust config)
+- **Window sizing** — removed outer gaps (12px → 0) for edge-to-edge windows
+- **Webhook URL escaping** — array-based substitution building handles `&` characters in Google Chat webhook URLs
+- **Cloud Logging visibility** — grants Logs Writer role to build SA so build logs appear
+
+### Verified
+- gement02: 33 PASS / 0 FAIL + 25/25 post-setup tests
+- gement03: 33 PASS / 0 FAIL + 25/25 post-setup tests
+- All 3 projects (gement01/02/03) have working schedulers and identical configurations
+
+---
+
 ## v1.4 — Auto-Start & Daily Readiness (2026-03-20)
 
 ### Added

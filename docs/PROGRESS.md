@@ -418,3 +418,78 @@
 ### Next Steps
 - E2E test one-click setup on a clean project (F-0038)
 - Tag v1.5 after PO approval
+
+---
+
+## Session 9 — 2026-03-20 to 2026-03-21
+
+### Goals
+- Test ws.sh setup script on project gement02 (fresh project)
+- Fix all issues discovered during testing
+- Teardown and re-setup to verify fixes
+
+### Completed
+
+- **F-0038** (E2E test of one-click setup): Tested on gement02, discovered and fixed 5 critical issues
+- **F-0039** (Fix setup for fresh GCP projects): Fixed VPC network creation, SA permissions, webhook URL escaping
+- **F-0040** (Nix store persistence): Added Step 11/17 to copy /nix → /home/user/nix for restart survival
+- **F-0041** (noVNC tests): Added Step 17/17 verifying Sway, wayvnc:5901, noVNC:80, HTTP accessibility
+- **F-0046** (Consolidated ws.sh): Single script handles setup (via Cloud Build) and teardown with webhook notifications
+
+### Issues Found and Fixed
+1. **No default VPC network** — fresh projects don't have one. Script now auto-creates
+2. **Wrong service account** — newer GCP projects use Compute Engine SA, not Cloud Build SA. Now grants to both
+3. **No --service-account on workstation config** — image pull 403. Added to Step 7
+4. **Nix store not persisted** — /nix is ephemeral on restart. Added copy to /home/user/nix (Step 11)
+5. **Webhook URL & in substitutions** — broke Cloud Build submission. Fixed with array-based escaping
+6. **No Cloud Logging permissions** — build logs invisible. Added Logs Writer role
+
+### Test Results
+- gement02 final run: 33 PASS / 0 FAIL / 0 WARN / 41 min
+- gement03 first run: 33 PASS / 0 FAIL / 0 WARN / 41 min
+- Setup steps expanded from 15 to 17 (added Nix persistence + noVNC tests)
+
+### Decisions
+- Run setup directly (not via Cloud Build) for better log visibility during development
+- Auto-detect REPO_DIR so script works both in Cloud Build and locally
+- NIX_SOURCE helper handles both old and new Nix profile paths
+
+---
+
+## Session 10 — 2026-03-22 to 2026-03-24
+
+### Goals
+- Fix noVNC accessibility issues on gement02/03
+- Fix Antigravity keybinding and autostart
+- Fix swaybar on gement01
+- Configure weekday-only schedulers on all 3 projects
+- Full teardown and re-setup verification
+
+### Completed
+
+- **F-0042** (Fix Antigravity path): Sway config and 08-workspaces.sh both referenced /home/user/.antigravity/antigravity/antigravity which didn't exist. Changed to /usr/bin/antigravity (apt-installed in Docker image). Removed dummy .antigravity download from setup script.
+- **F-0043** (Fix swaybar on gement01): gement01 had old sway config using i3status-rust. Deployed current repo config (sway-status). Also removed outer gaps (12→0) for better window sizing.
+- **F-0044** (Weekday scheduler): All 3 projects now have ws-weekday-start (6AM Mon-Fri) and ws-weekday-stop (9PM Mon-Fri). Workstations off on weekends. Old ws-daily-start (7AM daily) removed.
+- **F-0045** (Fix Antigravity autostart ws3): 08-workspaces.sh had old Antigravity path, causing -x check to fail silently. Fixed path + increased timeout 15s→30s.
+
+### Full Re-Setup Results (teardown + setup from scratch)
+- gement02: 33 PASS / 0 FAIL / 0 WARN + 25/25 post-setup tests
+- gement03: 33 PASS / 0 FAIL / 0 WARN + 25/25 post-setup tests
+- Antigravity autostart verified on both after full stop/start cycle
+
+### Post-Setup Test Suite (25 tests per workstation)
+1. Sway running, 2. Swaybar running, 3. wayvnc on 5901, 4. noVNC on 80, 5. noVNC HTTP,
+6. Antigravity binary, 7. Antigravity version, 8. Desktop entry, 9. Keybinding correct,
+10. Nix store persisted, 11. Nix binary works, 12. Sway binary, 13. wayvnc binary,
+14. Boot scripts (9), 15. Fonts, 16. ZSH, 17. Starship, 18. foot.ini, 19. ZSH plugins,
+20. Claude Code, 21. Gemini CLI, 22. Cloud Scheduler, 23. Gaps outer 0, 24. Chrome, 25. VS Code keybind
+
+### Decisions
+- Antigravity is apt-installed (/usr/bin/antigravity) — never use .antigravity download path
+- Outer gaps set to 0 for edge-to-edge windows (inner gaps 6px retained)
+- Scheduler changed from daily to weekday-only (Mon-Fri) per PO request
+- Agent teams used for parallel work across projects
+
+### Next Steps
+- All 3 workstations operational and tested
+- Memory files created for future session context
