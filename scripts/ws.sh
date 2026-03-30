@@ -338,100 +338,155 @@ elif [ "$COMMAND" = "teardown" ]; then
     echo ""
     notify_all "Teardown Started" "Project: ${PROJECT_ID}" "Deleting all Cloud Workstation resources..."
 
+    # Timeout wrapper — prevents any gcloud command from hanging indefinitely.
+    # Usage: gcloud_timeout <seconds> <command...>
+    # Logs a clear message on timeout instead of hanging silently.
+    gcloud_timeout() {
+        local secs=$1; shift
+        if timeout "$secs" "$@" 2>&1; then
+            return 0
+        else
+            local rc=$?
+            # timeout returns 124 when the command is killed
+            if [ $rc -eq 124 ]; then
+                log "  TIMEOUT: command exceeded ${secs}s — skipping"
+            fi
+            return $rc
+        fi
+    }
+
+    # Check if a GCP API is enabled before attempting operations that depend on it
+    api_enabled() {
+        timeout 15 gcloud services list --enabled --project="$PROJECT_ID" \
+            --format="value(name)" 2>/dev/null | grep -q "$1"
+    }
+
     # 1. Delete Workstation
     log "Deleting workstation..."
-    if gcloud workstations describe "$WORKSTATION" \
-        --config="$CONFIG" --cluster="$CLUSTER" --region="$REGION" \
-        --project="$PROJECT_ID" >/dev/null 2>&1; then
-        gcloud workstations stop "$WORKSTATION" \
+    if api_enabled "workstations.googleapis.com"; then
+        if gcloud_timeout 30 gcloud workstations describe "$WORKSTATION" \
             --config="$CONFIG" --cluster="$CLUSTER" --region="$REGION" \
-            --project="$PROJECT_ID" --quiet 2>/dev/null || true
-        gcloud workstations delete "$WORKSTATION" \
-            --config="$CONFIG" --cluster="$CLUSTER" --region="$REGION" \
-            --project="$PROJECT_ID" --quiet
-        log "  Deleted"
+            --project="$PROJECT_ID" >/dev/null 2>&1; then
+            gcloud_timeout 120 gcloud workstations stop "$WORKSTATION" \
+                --config="$CONFIG" --cluster="$CLUSTER" --region="$REGION" \
+                --project="$PROJECT_ID" --quiet 2>/dev/null || true
+            gcloud_timeout 120 gcloud workstations delete "$WORKSTATION" \
+                --config="$CONFIG" --cluster="$CLUSTER" --region="$REGION" \
+                --project="$PROJECT_ID" --quiet || log "  WARN: delete may have timed out"
+            log "  Deleted"
+        else
+            log "  Not found — skipping"
+        fi
     else
-        log "  Not found — skipping"
+        log "  Workstations API not enabled — skipping"
     fi
 
     # 2. Delete Config
     log "Deleting config..."
-    if gcloud workstations configs describe "$CONFIG" \
-        --cluster="$CLUSTER" --region="$REGION" --project="$PROJECT_ID" >/dev/null 2>&1; then
-        gcloud workstations configs delete "$CONFIG" \
-            --cluster="$CLUSTER" --region="$REGION" \
-            --project="$PROJECT_ID" --quiet
-        log "  Deleted"
+    if api_enabled "workstations.googleapis.com"; then
+        if gcloud_timeout 30 gcloud workstations configs describe "$CONFIG" \
+            --cluster="$CLUSTER" --region="$REGION" --project="$PROJECT_ID" >/dev/null 2>&1; then
+            gcloud_timeout 120 gcloud workstations configs delete "$CONFIG" \
+                --cluster="$CLUSTER" --region="$REGION" \
+                --project="$PROJECT_ID" --quiet || log "  WARN: delete may have timed out"
+            log "  Deleted"
+        else
+            log "  Not found — skipping"
+        fi
     else
-        log "  Not found — skipping"
+        log "  Workstations API not enabled — skipping"
     fi
 
-    # 3. Delete Cluster
+    # 3. Delete Cluster (can take 5-10 minutes)
     log "Deleting cluster (5-10 minutes)..."
-    if gcloud workstations clusters describe "$CLUSTER" \
-        --region="$REGION" --project="$PROJECT_ID" >/dev/null 2>&1; then
-        gcloud workstations clusters delete "$CLUSTER" \
-            --region="$REGION" --project="$PROJECT_ID" --quiet
-        log "  Deleted"
+    if api_enabled "workstations.googleapis.com"; then
+        if gcloud_timeout 30 gcloud workstations clusters describe "$CLUSTER" \
+            --region="$REGION" --project="$PROJECT_ID" >/dev/null 2>&1; then
+            gcloud_timeout 900 gcloud workstations clusters delete "$CLUSTER" \
+                --region="$REGION" --project="$PROJECT_ID" --quiet || log "  WARN: delete may have timed out"
+            log "  Deleted"
+        else
+            log "  Not found — skipping"
+        fi
     else
-        log "  Not found — skipping"
+        log "  Workstations API not enabled — skipping"
     fi
 
     # 4. Delete Artifact Registry
     log "Deleting Artifact Registry..."
-    if gcloud artifacts repositories describe "$AR_REPO" \
-        --location="$REGION" --project="$PROJECT_ID" >/dev/null 2>&1; then
-        gcloud artifacts repositories delete "$AR_REPO" \
-            --location="$REGION" --project="$PROJECT_ID" --quiet
-        log "  Deleted"
+    if api_enabled "artifactregistry.googleapis.com"; then
+        if gcloud_timeout 30 gcloud artifacts repositories describe "$AR_REPO" \
+            --location="$REGION" --project="$PROJECT_ID" >/dev/null 2>&1; then
+            gcloud_timeout 120 gcloud artifacts repositories delete "$AR_REPO" \
+                --location="$REGION" --project="$PROJECT_ID" --quiet || log "  WARN: delete may have timed out"
+            log "  Deleted"
+        else
+            log "  Not found — skipping"
+        fi
     else
-        log "  Not found — skipping"
+        log "  Artifact Registry API not enabled — skipping"
     fi
 
     # 5. Delete Cloud NAT
     log "Deleting Cloud NAT..."
-    if gcloud compute routers nats describe ws-nat \
-        --router=ws-router --region="$REGION" --project="$PROJECT_ID" >/dev/null 2>&1; then
-        gcloud compute routers nats delete ws-nat \
-            --router=ws-router --region="$REGION" \
-            --project="$PROJECT_ID" --quiet
-        log "  Deleted"
+    if api_enabled "compute.googleapis.com"; then
+        if gcloud_timeout 30 gcloud compute routers nats describe ws-nat \
+            --router=ws-router --region="$REGION" --project="$PROJECT_ID" >/dev/null 2>&1; then
+            gcloud_timeout 120 gcloud compute routers nats delete ws-nat \
+                --router=ws-router --region="$REGION" \
+                --project="$PROJECT_ID" --quiet || log "  WARN: delete may have timed out"
+            log "  Deleted"
+        else
+            log "  Not found — skipping"
+        fi
     else
-        log "  Not found — skipping"
+        log "  Compute API not enabled — skipping"
     fi
 
     # 6. Delete Cloud Router
     log "Deleting Cloud Router..."
-    if gcloud compute routers describe ws-router \
-        --region="$REGION" --project="$PROJECT_ID" >/dev/null 2>&1; then
-        gcloud compute routers delete ws-router \
-            --region="$REGION" --project="$PROJECT_ID" --quiet
-        log "  Deleted"
+    if api_enabled "compute.googleapis.com"; then
+        if gcloud_timeout 30 gcloud compute routers describe ws-router \
+            --region="$REGION" --project="$PROJECT_ID" >/dev/null 2>&1; then
+            gcloud_timeout 120 gcloud compute routers delete ws-router \
+                --region="$REGION" --project="$PROJECT_ID" --quiet || log "  WARN: delete may have timed out"
+            log "  Deleted"
+        else
+            log "  Not found — skipping"
+        fi
     else
-        log "  Not found — skipping"
+        log "  Compute API not enabled — skipping"
     fi
 
     # 7. Delete Cloud Scheduler jobs
     log "Deleting Cloud Scheduler jobs..."
-    for JOB in ws-daily-start ws-weekday-start ws-weekday-stop; do
-        if gcloud scheduler jobs describe "$JOB" \
-            --location="$REGION" --project="$PROJECT_ID" >/dev/null 2>&1; then
-            gcloud scheduler jobs delete "$JOB" \
-                --location="$REGION" --project="$PROJECT_ID" --quiet
-            log "  Deleted $JOB"
-        fi
-    done
-    log "  Done"
+    if api_enabled "cloudscheduler.googleapis.com"; then
+        for JOB in ws-daily-start ws-weekday-start ws-weekday-stop; do
+            if gcloud_timeout 15 gcloud scheduler jobs describe "$JOB" \
+                --location="$REGION" --project="$PROJECT_ID" >/dev/null 2>&1; then
+                gcloud_timeout 30 gcloud scheduler jobs delete "$JOB" \
+                    --location="$REGION" --project="$PROJECT_ID" --quiet || log "  WARN: $JOB delete may have timed out"
+                log "  Deleted $JOB"
+            fi
+        done
+        log "  Done"
+    else
+        log "  Cloud Scheduler API not enabled — skipping"
+    fi
 
     # 8. Delete email notification function
     log "Deleting email function..."
-    if gcloud functions describe ws-email-notify \
-        --gen2 --region="$REGION" --project="$PROJECT_ID" >/dev/null 2>&1; then
-        gcloud functions delete ws-email-notify \
-            --gen2 --region="$REGION" --project="$PROJECT_ID" --quiet
-        log "  Deleted"
+    if api_enabled "cloudfunctions.googleapis.com"; then
+        if gcloud_timeout 30 gcloud functions describe ws-email-notify \
+            --gen2 --region="$REGION" --project="$PROJECT_ID" >/dev/null 2>&1; then
+            gcloud_timeout 120 gcloud functions delete ws-email-notify \
+                --gen2 --region="$REGION" --project="$PROJECT_ID" --quiet || log "  WARN: delete may have timed out"
+            log "  Deleted"
+        else
+            log "  Not found — skipping"
+        fi
     else
-        log "  Not found — skipping"
+        log "  Cloud Functions API not enabled — skipping"
     fi
 
     echo ""
