@@ -248,7 +248,7 @@ steps:
       - '-c'
       - |
         cd /workspace/repo
-        bash scripts/cloud-build-setup.sh "${PROJECT_ID}" "${_REGION}" "${_WEBHOOK_URL}" "${_EMAIL_FUNC_URL}" "${_EMAIL}"
+        bash scripts/cloud-build-setup.sh "${PROJECT_ID}" "${_REGION}" "${_WEBHOOK_URL}" "${_EMAIL_FUNC_URL}" "${_EMAIL}" "${_USER_ACCOUNT}"
     id: 'run-setup'
     waitFor: ['clone-repo']
 
@@ -259,6 +259,7 @@ substitutions:
   _WEBHOOK_URL: ''
   _EMAIL_FUNC_URL: ''
   _EMAIL: ''
+  _USER_ACCOUNT: ''
 options:
   logging: CLOUD_LOGGING_ONLY
   machineType: 'E2_HIGHCPU_8'
@@ -267,7 +268,7 @@ BUILDEOF
     # Build the substitutions array — use gcloud's --substitutions flag carefully.
     # Webhook URLs contain & and = which are safe in Cloud Build substitution values
     # but must be properly quoted when passed via shell.
-    SUBS_ARGS=("_REPO_URL=${REPO_URL}" "_REGION=${REGION}")
+    SUBS_ARGS=("_REPO_URL=${REPO_URL}" "_REGION=${REGION}" "_USER_ACCOUNT=${ACCOUNT}")
     [ -n "$WEBHOOK_URL" ] && SUBS_ARGS+=("_WEBHOOK_URL=${WEBHOOK_URL}")
     [ -n "$EMAIL_FUNCTION_URL" ] && SUBS_ARGS+=("_EMAIL_FUNC_URL=${EMAIL_FUNCTION_URL}" "_EMAIL=${EMAIL}")
 
