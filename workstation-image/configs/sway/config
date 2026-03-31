@@ -106,11 +106,11 @@ bindsym $mod+b exec google-chrome-stable --disable-dev-shm-usage
 # Antigravity (Electron app — Wayland, no-sandbox, /dev/shm too small at 64MB)
 bindsym $mod+n exec /usr/bin/antigravity --no-sandbox --ozone-platform=wayland --disable-gpu --disable-dev-shm-usage
 
-# IntelliJ IDEA Community
-bindsym $mod+m exec $nix/idea-community
+# IntelliJ IDEA Community (X11/Swing app — needs DISPLAY for Xwayland)
+bindsym $mod+m exec env DISPLAY=:0 $nix/idea-oss
 
-# VS Code (Electron app — Wayland, no-sandbox, /dev/shm too small at 64MB)
-bindsym $mod+y exec $nix/code --no-sandbox --ozone-platform=wayland --disable-gpu --disable-dev-shm-usage
+# VS Code (Electron app — clear LD_LIBRARY_PATH so nvidia GL doesn't conflict with Nix)
+bindsym $mod+y exec env -u LD_LIBRARY_PATH $nix/code --no-sandbox --ozone-platform=wayland --disable-gpu --disable-dev-shm-usage
 
 # Clipboard history picker (clipman)
 bindsym $mod+a exec $nix/clipman pick --tool $nix/wofi
@@ -211,7 +211,9 @@ bar {
 # AUTOSTART
 # =============================================================================
 
-# Start Xwayland for X11 apps that don't support Wayland natively
+# Disable built-in Xwayland (Nix Xwayland fails: nvidia LD_LIBRARY_PATH breaks
+# transitive libX11 resolution in Nix linker). Use system Xwayland instead.
+xwayland disable
 exec /usr/bin/Xwayland :0 &
 
 # Clipboard manager — watch clipboard and store history
