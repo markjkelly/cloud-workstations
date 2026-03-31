@@ -93,6 +93,27 @@ if [ -f "$HOME/.env" ]; then
     set +a
 fi
 
+# Go
+export GOROOT="$HOME/go"
+export GOPATH="$HOME/gopath"
+export PATH="$GOROOT/bin:$GOPATH/bin:$PATH"
+
+# Rust
+export PATH="$HOME/.cargo/bin:$PATH"
+
+# pyenv
+export PYENV_ROOT="$HOME/.pyenv"
+export PATH="$PYENV_ROOT/bin:$PATH"
+if command -v pyenv &>/dev/null; then
+    eval "$(pyenv init -)"
+fi
+
+# rbenv
+export PATH="$HOME/.rbenv/bin:$PATH"
+if command -v rbenv &>/dev/null; then
+    eval "$(rbenv init -)"
+fi
+
 # Starship prompt
 if command -v starship &>/dev/null; then
     eval "$(starship init zsh)"
