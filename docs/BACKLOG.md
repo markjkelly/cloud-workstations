@@ -1,7 +1,7 @@
 # Project Backlog — Cloud Workstation
 
 **Maintained by:** TPM
-**Last updated:** 2026-03-26
+**Last updated:** 2026-03-31
 
 ---
 
@@ -112,6 +112,19 @@
 |----|---------|------|----------|--------|-------|--------|--------------|----------|
 | F-0048 | Repo split: private personal + public template | — | P0 | done | SWE-1, SWE-2, SWE-3 | main | — | Pushed personal repo to ameer-workstations (private). Templatized 38 files in cloud-workstations (public) with placeholders. Created scripts/configure.sh for colleague onboarding. Updated README with Quick Start + configure step. |
 | F-0049 | Remove configure.sh, auto-detect REPO_URL | — | P1 | done | SWE-1 | main | F-0048 | Removed configure.sh (caused dirty git state on 38 files). ws.sh now auto-detects REPO_URL from git remote. README simplified to clone → ws.sh setup. |
+
+---
+
+## Milestone 8: Programming Language Support
+
+| ID | Feature | Spec | Priority | Status | Owner | Branch | Dependencies | Feedback |
+|----|---------|------|----------|--------|-------|--------|--------------|----------|
+| F-0050 | Language boot script (`07b-languages.sh`) | F-0001-language-support | P0 | done | SWE-1 | feature/languages | F-0033 | Created 07b-languages.sh: Go (tarball), Rust (rustup), Python 3.12 (pyenv), Ruby 3.3 (rbenv). Idempotent — first boot full install, subsequent boots update only. Commit 2f8d437 |
+| F-0051 | Language build deps boot script (`07a-lang-deps.sh`) | F-0001-language-support | P0 | done | SWE-1 | feature/languages | F-0033 | Created 07a-lang-deps.sh: apt build-essential, libssl-dev, zlib1g-dev, etc. Uses dpkg -s to skip installed. Commit 2f8d437 |
+| F-0052 | Shell integration (PATH for language managers) | F-0001-language-support | P0 | done | SWE-2 | feature/languages | F-0050, F-0031 | Updated 05-shell.sh: added Go (GOROOT, GOPATH), Rust (.cargo/bin), pyenv init, rbenv init to .zshrc. Guarded with command -v checks. Commit e702deb |
+| F-0053 | Update cloud-build-setup.sh for first-time language install | F-0001-language-support | P0 | done | SWE-3 | feature/languages | F-0050, F-0051 | Added Step 15/19 (lang deps) and Step 16/19 (lang install + verification). Renumbered to 19 total steps. Commit fbc537b |
+| F-0054 | Update README.md with language documentation | F-0001-language-support | P1 | done | SWE-3 | feature/languages | F-0050 | Added Languages row to "What's Included" table + "Language Version Management" section with version switch commands. Commit fbc537b |
+| F-0055 | E2E test and verify language installations | F-0001-language-support | P0 | backlog | SWE-Test | — | F-0050, F-0052, F-0053 | Verify go/rustc/cargo/python/ruby on PATH, pyenv install works, gem install works, survives stop/start, tested on 2+ projects |
 
 ---
 

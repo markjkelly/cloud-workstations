@@ -1,5 +1,47 @@
 # Development Progress Log — Cloud Workstation
 
+## Session 12 — 2026-03-31
+
+### Goals
+- Execute Milestone 8: Programming Language Support (F-0050 through F-0055)
+- Install Go, Rust, Python, Ruby with native version managers on persistent disk
+
+### Completed
+
+- **F-0050** (Language boot script `07b-languages.sh`): Created `workstation-image/boot/07b-languages.sh` — installs Go (tarball from go.dev), Rust (rustup), Python 3.12 (pyenv), Ruby 3.3 (rbenv). Idempotent: first boot does full install, subsequent boots update version managers only. (SWE-1, commit 2f8d437)
+
+- **F-0051** (Language build deps `07a-lang-deps.sh`): Created `workstation-image/boot/07a-lang-deps.sh` — installs apt build dependencies (build-essential, libssl-dev, zlib1g-dev, etc.) needed by pyenv/rbenv to compile from source. Uses `dpkg -s` to skip already-installed packages. (SWE-1, commit 2f8d437)
+
+- **F-0052** (Shell integration for language managers): Updated `workstation-image/boot/05-shell.sh` — added Go (GOROOT, GOPATH), Rust (.cargo/bin), pyenv (init), rbenv (init) to .zshrc. All entries placed before Starship init. Guarded with `command -v` checks to avoid errors if a manager isn't installed yet. (SWE-2, commit e702deb)
+
+- **F-0053** (Cloud Build setup integration): Updated `scripts/cloud-build-setup.sh` — added Step 15/19 (language build deps) and Step 16/19 (language install + verification). Renumbered total steps from 17 to 19. Updated final summary output. (SWE-3, commit fbc537b)
+
+- **F-0054** (README documentation): Updated `README.md` — added Languages row to "What's Included" table, added "Language Version Management" section with commands for switching Go, Rust, Python, and Ruby versions. (SWE-3, commit fbc537b)
+
+- **F-0055** (E2E testing): Pending — requires running on actual workstation with stop/start cycle and testing on 2+ projects.
+
+### Key Decisions
+- **Hybrid approach**: Nix for system tools, native version managers (rustup, pyenv, rbenv) for programming languages — better ecosystem compatibility and multi-version support
+- **Direct Go tarball** (not goenv) since multi-version Go is rare in practice
+- **Python/Ruby compiled on first boot** (5-15 min); subsequent boots just update version managers (<30s)
+- **Build deps via boot script** (not Docker image) to keep the base image lean
+- **setup.sh glob pattern** updated from `[0-9][0-9]-*.sh` to `[0-9][0-9]*.sh` to support letter-suffixed scripts (07a, 07b)
+
+### Pipeline
+- PM created spec (F-0001-language-support)
+- TPM created 6 backlog items (F-0050 through F-0055)
+- SWE-1 implemented language deps + language install scripts
+- SWE-2 implemented shell PATH integration
+- SWE-3 updated cloud-build-setup.sh and README
+- All three SWEs ran in parallel on feature/languages branch
+
+### Next Steps
+- F-0055: Run E2E test on actual workstation (stop/start cycle, verify on 2+ projects)
+- Tag v1.8 release after PO approval
+- Backlog otherwise empty — await next PO direction
+
+---
+
 ## Session 1
 
 ### Goals
