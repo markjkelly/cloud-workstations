@@ -84,6 +84,7 @@ check_binary "IntelliJ" "idea-oss"
 check_binary "Cursor" "cursor"
 check_binary "Windsurf" "windsurf"
 check_binary "Zed" "zeditor"
+check_binary "tmux" "tmux"
 
 # =============================================================================
 # AI CLI Tools
@@ -160,6 +161,12 @@ check_file "Snippets conf" "$HOME_DIR/.config/snippets/snippets.conf"
 check_file "sway-status" "$HOME_DIR/.local/bin/sway-status"
 check_file "Sway config" "$HOME_DIR/.config/sway/config"
 check_file "tmux.conf" "$HOME_DIR/.tmux.conf"
+# Verify tmux.conf syntax is valid
+if runuser -u $USER -- bash -c ". $NIX_SH && tmux -f $HOME_DIR/.tmux.conf start-server \\; kill-server" >/dev/null 2>&1; then
+    test_pass "tmux.conf syntax valid"
+else
+    test_fail "tmux.conf has syntax errors"
+fi
 check_file ".zshrc" "$HOME_DIR/.zshrc"
 check_file ".env" "$HOME_DIR/.env"
 
@@ -298,11 +305,13 @@ else
 fi
 
 # =============================================================================
-# Tailscale (opt-in — only tested if TAILSCALE_AUTHKEY in ~/.env)
+# Tailscale (opt-in — only fully tested if TAILSCALE_AUTHKEY in ~/.env)
 # =============================================================================
 log ""
 log "--- Tailscale ---"
+check_binary "tailscale" "tailscale"
 if grep -q "TAILSCALE_AUTHKEY" "$HOME_DIR/.env" 2>/dev/null; then
+    check_file "Tailscale state dir" "$HOME_DIR/.tailscale/tailscaled.state"
     if pgrep -x tailscaled >/dev/null 2>&1; then
         test_pass "tailscaled running"
     else
@@ -313,6 +322,11 @@ if grep -q "TAILSCALE_AUTHKEY" "$HOME_DIR/.env" 2>/dev/null; then
         test_pass "Tailscale connected ($TS_IP)"
     else
         test_fail "Tailscale not connected"
+    fi
+    if tailscale status --json 2>/dev/null | grep -q '"SSH"'; then
+        test_pass "Tailscale SSH enabled"
+    else
+        test_warn "Tailscale SSH status unknown"
     fi
 else
     log "  SKIP: Tailscale not configured (no TAILSCALE_AUTHKEY in ~/.env)"
