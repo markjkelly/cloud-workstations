@@ -611,16 +611,29 @@ npm install -g @anthropic-ai/claude-code @google/gemini-cli @openai/codex @sourc
 # No manual download needed.
 
 # Install OpenCode via go install
-ws_ssh 'export GOROOT=$HOME/go GOPATH=$HOME/gopath PATH=$GOROOT/bin:$GOPATH/bin:$PATH && go install github.com/opencode-ai/opencode@latest' || true
-test_pass "OpenCode installed"
+if ws_ssh "${NIX_SOURCE}"' && export GOROOT=$HOME/go GOPATH=$HOME/gopath && export PATH=$GOROOT/bin:$GOPATH/bin:$PATH && go install github.com/opencode-ai/opencode@latest'; then
+    test_pass "OpenCode installed"
+else
+    test_warn "OpenCode install failed (may work on next boot via 07-apps.sh)"
+fi
 
 # Install aider via pip
-ws_ssh 'export PATH=$HOME/.pyenv/bin:$PATH && eval "$(pyenv init -)" && pip install aider-chat' || true
-test_pass "Aider installed"
+if ws_ssh 'export PYENV_ROOT=$HOME/.pyenv && export PATH=$PYENV_ROOT/bin:$PATH && eval "$(pyenv init -)" && pip install --user aider-chat'; then
+    test_pass "Aider installed"
+else
+    test_warn "Aider install failed (may work on next boot via 07-apps.sh)"
+fi
 
 # Install gh copilot
-ws_ssh "${NIX_SOURCE}"' && gh extension install github/gh-copilot 2>/dev/null || true' || true
-test_pass "GitHub Copilot CLI installed"
+if ws_ssh "${NIX_SOURCE}"' && gh extension install github/gh-copilot 2>&1 || gh extension upgrade gh-copilot 2>&1'; then
+    test_pass "GitHub Copilot CLI installed"
+else
+    test_warn "GitHub Copilot CLI install failed (may work on next boot via 07-apps.sh)"
+fi
+
+# Create default .env if it doesn't exist (user adds secrets manually)
+ws_ssh 'touch $HOME/.env'
+test_pass "Default .env created"
 
 AI_VERIFY=$(ws_ssh '
 echo "claude=$(~/.npm-global/bin/claude --version 2>/dev/null | head -1)"
