@@ -55,6 +55,15 @@ else
     fi
 fi
 
+# --- Set user password from ~/.env (for SSH access) ---
+if grep -q "^USER_PASSWORD=" "$ENV_FILE" 2>/dev/null; then
+    USER_PW=$(grep "^USER_PASSWORD=" "$ENV_FILE" | cut -d'=' -f2- | tr -d '"' | tr -d "'")
+    if [ -n "$USER_PW" ]; then
+        echo "$USER:$USER_PW" | chpasswd 2>/dev/null
+        log "User password set from ~/.env"
+    fi
+fi
+
 # --- Enable SSH password auth for Tailscale connections ---
 if ! grep -q "^PasswordAuthentication yes" /etc/ssh/sshd_config 2>/dev/null; then
     sed -i 's/^#*PasswordAuthentication.*/PasswordAuthentication yes/' /etc/ssh/sshd_config
