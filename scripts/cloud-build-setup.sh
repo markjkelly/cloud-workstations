@@ -532,6 +532,11 @@ cat "${REPO_DIR}/workstation-image/configs/snippets/snippets.conf" | \
     ws_pipe "mkdir -p ~/.config/snippets && cat > ~/.config/snippets/snippets.conf"
 test_pass "Snippet picker deployed"
 
+# Deploy tmux.conf
+cat "${REPO_DIR}/workstation-image/configs/tmux/tmux.conf" | \
+    ws_pipe "cat > ~/.tmux.conf"
+test_pass "tmux.conf deployed"
+
 # =========================================================================
 step "Step 14/19: Run initial setup"
 # =========================================================================

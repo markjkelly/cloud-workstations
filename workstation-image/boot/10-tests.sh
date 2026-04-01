@@ -25,7 +25,7 @@ test_warn() { WARN=$((WARN+1)); log "  WARN: $1"; }
 
 check_binary() {
     local name="$1" bin="$2"
-    if runuser -u $USER -- bash -c ". $NIX_SH && export PATH=$HOME_DIR/.npm-global/bin:$HOME_DIR/gopath/bin:$HOME_DIR/go/bin:$HOME_DIR/.cargo/bin:$HOME_DIR/.pyenv/bin:$HOME_DIR/.rbenv/bin:\$PATH && which $bin" >/dev/null 2>&1; then
+    if runuser -u $USER -- bash -c ". $NIX_SH && export PATH=$HOME_DIR/.nix-profile/bin:$HOME_DIR/.npm-global/bin:$HOME_DIR/.local/bin:$HOME_DIR/gopath/bin:$HOME_DIR/go/bin:$HOME_DIR/.cargo/bin:$HOME_DIR/.pyenv/bin:$HOME_DIR/.rbenv/bin:/var/lib/nvidia/bin:\$PATH && which $bin" >/dev/null 2>&1; then
         test_pass "$name ($bin)"
     else
         test_fail "$name ($bin not found)"
@@ -260,7 +260,7 @@ fi
 # Check tool versions (verifies upgrades actually installed something)
 check_version() {
     local name="$1" cmd="$2"
-    local ver=$(runuser -u $USER -- bash -c ". $NIX_SH && export PATH=$HOME_DIR/.npm-global/bin:$HOME_DIR/gopath/bin:$HOME_DIR/go/bin:$HOME_DIR/.cargo/bin:$HOME_DIR/.pyenv/bin:$HOME_DIR/.rbenv/bin:\$PATH && $cmd" 2>&1 | grep -viE "^[0-9]+/[0-9].*WARN |^WARNING" | head -1)
+    local ver=$(runuser -u $USER -- bash -c ". $NIX_SH && export PATH=$HOME_DIR/.nix-profile/bin:$HOME_DIR/.npm-global/bin:$HOME_DIR/.local/bin:$HOME_DIR/gopath/bin:$HOME_DIR/go/bin:$HOME_DIR/.cargo/bin:$HOME_DIR/.pyenv/bin:$HOME_DIR/.rbenv/bin:/var/lib/nvidia/bin:\$PATH && $cmd" 2>&1 | grep -viE "^[0-9]+/[0-9].*WARN |^WARNING" | head -1)
     if [ -n "$ver" ] && ! echo "$ver" | grep -qiE "not found|error|command not found"; then
         test_pass "$name version: $ver"
     else
