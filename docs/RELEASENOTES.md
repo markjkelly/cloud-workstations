@@ -1,5 +1,44 @@
 # Release Notes — Cloud Workstation
 
+## v1.12 — AI IDEs, CLI Tools, and Timezone Fix (2026-03-31)
+
+### Added
+- **Cursor IDE** (v2.6.22) — AI-powered VSCode fork, installed via Nix Home Manager (`code-cursor`). Sway keybinding: `CTRL+SHIFT+C` with Electron flags and `env -u LD_LIBRARY_PATH` for nvidia compatibility
+- **Windsurf IDE** (v1.108.2) — AI-powered VSCode fork, installed via Nix Home Manager (`windsurf`). Sway keybinding: `CTRL+SHIFT+W` with same Electron flags pattern
+- **Zed IDE** (v0.229.0) — GPU-accelerated code editor, installed via Nix Home Manager (`zed-editor`). Launched from terminal
+- **Aider** (v0.86.2) — AI pair programming CLI tool, installed via pip (Nix build fails due to sandbox network restrictions). Available as `aider` from the terminal
+- **Sourcegraph Cody CLI** (v5.5.26) — AI coding assistant CLI, installed via npm global (`@sourcegraph/cody`). Upgrades on every boot
+- **pi-coding-agent** (v0.64.0) — AI coding agent CLI, installed via npm global (`@mariozechner/pi-coding-agent`). Upgrades on every boot
+- **GitHub Copilot CLI** — `gh copilot` extension installed on first boot, upgraded on subsequent boots. Enables `gh copilot suggest` and `gh copilot explain` commands
+
+### Fixed
+- **Timezone consistency** — Set `TZ=America/Los_Angeles` in three locations: `sway-desktop.service` (all sway child processes), `.zshrc` (interactive shells), and `sway-status` (status bar clock). All displays now show Pacific Time instead of UTC
+
+### Changed
+- **`home.nix`** — Added `code-cursor`, `windsurf`, and `zed-editor` to Nix Home Manager packages
+- **`07-apps.sh`** — Added `@sourcegraph/cody` and `@mariozechner/pi-coding-agent` to npm global update line; added `gh extension install/upgrade gh-copilot` step; added `pip install aider-chat` step
+- **`sway/config`** — Added `CTRL+SHIFT+C` (Cursor) and `CTRL+SHIFT+W` (Windsurf) keybindings following the established Electron IDE pattern
+- **`03-sway.sh`** — Added `Environment=TZ=America/Los_Angeles` to sway-desktop.service
+- **`05-shell.sh`** — Added `export TZ="America/Los_Angeles"` to .zshrc template
+- **`sway-status`** — Added `export TZ="America/Los_Angeles"` at top of script
+
+---
+
+## v1.11 — AI CLI Tools Expansion (2026-03-31)
+
+### Added
+- **Codex CLI** (`@openai/codex` v0.118.0) — OpenAI's CLI coding assistant, installed via npm global alongside Claude Code and Gemini CLI. Upgrades to latest on every boot
+- **OpenCode** (v0.0.55) — Open-source AI coding assistant, installed via `go install` to `$GOPATH/bin` on the persistent disk. Upgrades to latest on every boot
+
+### Changed
+- **`07-apps.sh`** — Updated npm global update line to include `@openai/codex` alongside `@anthropic-ai/claude-code` and `@anthropic-ai/gemini-cli`. Added `go install` step for OpenCode with proper GOROOT/GOPATH configuration
+
+### Notes
+- Requires Go from Milestone 8 (F-0050) for OpenCode installation
+- API key configuration is user-managed (not included in boot scripts)
+
+---
+
 ## v1.10 — UX Polish: Wofi, Clipboard, Snippets (2026-04-01)
 
 ### Added

@@ -1,5 +1,78 @@
 # Development Progress Log — Cloud Workstation
 
+## Session 16 — 2026-03-31
+
+### Goals
+- Execute Milestone 12: AI IDEs, CLI Tools, and Timezone Fix (F-0066 through F-0069)
+- Add Cursor, Windsurf, Zed, and Aider as AI-powered IDEs
+- Add Cody CLI, pi-coding-agent, and GitHub Copilot CLI
+- Add sway keybindings for Cursor (CTRL+SHIFT+C) and Windsurf (CTRL+SHIFT+W)
+- Fix timezone to Pacific Time across all runtime contexts
+
+### Completed
+
+- **F-0066** (Add AI IDEs via Nix Home Manager): Added `code-cursor`, `windsurf`, and `zed-editor` to Nix Home Manager `home.nix`. `aider-chat` installed via pip instead of Nix (Nix build fails due to sandbox network restrictions). Verified: Cursor 2.6.22, Windsurf 1.108.2, Zed 0.229.0, Aider 0.86.2. (SWE-1, commit 8cade9e)
+
+- **F-0067** (Add CLI tools via npm + GitHub Copilot CLI): Added `@sourcegraph/cody` and `@mariozechner/pi-coding-agent` to the npm global update line in `07-apps.sh`. Added `gh extension install github/gh-copilot` (first boot) and `gh extension upgrade gh-copilot` (subsequent boots) to `07-apps.sh`. Verified: Cody 5.5.26, pi 0.64.0, gh copilot working. (SWE-1, commit 8cade9e)
+
+- **F-0068** (Sway keybindings for Cursor and Windsurf): Added `CTRL+SHIFT+C` for Cursor and `CTRL+SHIFT+W` for Windsurf to sway config. Both use Electron flags (`--no-sandbox --ozone-platform=wayland --disable-gpu --disable-dev-shm-usage`) and `env -u LD_LIBRARY_PATH` to prevent nvidia GL conflicts — same pattern as VSCode. (SWE-1, commit 8cade9e)
+
+- **F-0069** (Fix timezone to Pacific Time): Set `TZ=America/Los_Angeles` in three locations for consistent Pacific Time:
+  - `03-sway.sh` — `Environment=TZ=America/Los_Angeles` in sway-desktop.service
+  - `05-shell.sh` — `export TZ="America/Los_Angeles"` in .zshrc template
+  - `sway-status` script — `export TZ="America/Los_Angeles"` at top of script
+  - Swaybar clock now shows Pacific time instead of UTC. (SWE-2, commit 6b16472)
+
+### Key Decisions
+- **aider-chat via pip, not Nix** — Nix build fails due to sandbox network restrictions during the build phase. pip install is reliable and places binary on PATH via `~/.local/bin/`
+- **Per-app `env -u LD_LIBRARY_PATH`** pattern continues — Cursor and Windsurf follow the same workaround as VSCode for nvidia GL library conflicts
+- **Timezone set in 3 places** — sway-desktop.service (for all sway child processes), .zshrc (for interactive shells), and sway-status (for status bar clock) ensures no context falls back to UTC
+
+### Pipeline
+- PM created spec (F-0038-milestone-12-ai-ides-tools-timezone.md) with 5 features and acceptance criteria
+- TPM created backlog items (F-0066 through F-0069) in Milestone 12
+- SWE-1 implemented AI IDEs, CLI tools, keybindings
+- SWE-2 implemented timezone fix
+- Both SWEs ran in parallel on feature/languages branch
+
+### Next Steps
+- Verify all new tools after next workstation boot (cursor, windsurf, zed, aider, cody, pi, gh copilot)
+- Verify timezone shows Pacific Time on status bar and in shell
+- F-0055/F-0058/F-0063: E2E test carryovers from Milestones 8, 9, and 10
+- Tag v1.12 release after PO approval
+
+---
+
+## Session 15 — 2026-03-31
+
+### Goals
+- Add OpenCode and Codex CLI as additional AI coding assistants (Milestone 11, F-0065)
+
+### Completed
+
+- **F-0065** (Add OpenCode + Codex CLI to boot scripts): Updated `workstation-image/boot/07-apps.sh` to install and upgrade two new AI CLI tools on every boot:
+  - **Codex CLI** (`@openai/codex` v0.118.0) — installed via npm global, alongside existing Claude Code and Gemini CLI update line
+  - **OpenCode** (`opencode` v0.0.55) — installed via `go install github.com/opencode-ai/opencode@latest`, binary placed in `$GOPATH/bin` on persistent disk
+  - Both tools upgrade to latest on every subsequent boot
+  - (SWE-1, commit 97f20fc)
+
+### Key Decisions
+- Codex added to existing npm global update line (same pattern as Claude Code / Gemini CLI)
+- OpenCode uses `go install` since it's a Go binary — requires Go from Milestone 8 (F-0050)
+- No API key configuration included (user manages their own keys per spec)
+
+### Pipeline
+- PM created spec (F-0037-ai-cli-tools.md) with 6 acceptance criteria
+- TPM created backlog item (F-0065) in Milestone 11
+- SWE-1 implemented boot script changes on feature/languages branch
+
+### Next Steps
+- Verify `codex --version` and `opencode --version` after next workstation boot
+- F-0055/F-0058/F-0063: E2E test carryovers from Milestones 8, 9, and 10
+- Tag v1.11 release after PO approval
+
+---
+
 ## Session 14 — 2026-04-01
 
 ### Goals

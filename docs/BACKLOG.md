@@ -1,7 +1,7 @@
 # Project Backlog — Cloud Workstation
 
 **Maintained by:** TPM
-**Last updated:** 2026-03-31 (Milestone 10 added)
+**Last updated:** 2026-03-31 (Milestone 12 added)
 
 ---
 
@@ -148,6 +148,25 @@
 | F-0062 | Switch to Waybar + Apps dropdown | [F-0036](specs/F-0036-milestone-10-ux.md) | P1 | blocked | SWE-3 | feature/languages | F-0016, F-0059 | **Reverted (225aea7):** Waybar uses wlr-layer-shell protocol which doesn't render through wayvnc in headless Sway. Swaybar restored. Waybar config kept in repo for future activation. Apps dropdown needs alternative approach. |
 | F-0063 | E2E test and verify Milestone 10 UX features | [F-0036](specs/F-0036-milestone-10-ux.md) | P0 | backlog | SWE-QA | — | F-0059, F-0060, F-0061 | Pending: verify Wofi shows all apps, clipboard daemon running, snippet picker works, no regressions, tested on 2+ projects |
 | F-0064 | Fix clipman pick --tool invocation | [F-0036](specs/F-0036-milestone-10-ux.md) | P0 | done | team-lead | feature/languages | F-0060 | clipman --tool expects tool name ('wofi') not full path. Fixed by adding PATH=/home/user/.nix-profile/bin:$PATH. Commit 225aea7 |
+
+---
+
+## Milestone 11: AI CLI Tools Expansion
+
+| ID | Feature | Spec | Priority | Status | Owner | Branch | Dependencies | Feedback |
+|----|---------|------|----------|--------|-------|--------|--------------|----------|
+| F-0065 | Add OpenCode + Codex CLI to boot scripts | [F-0037](specs/F-0037-ai-cli-tools.md) | P2 | done | SWE-1 | feature/languages | F-0050 (Go required for `go install`) | Added Codex CLI (npm @openai/codex v0.118.0) and OpenCode (go install, v0.0.55) to 07-apps.sh. Both install on first boot and upgrade on every subsequent boot. Commit 97f20fc |
+
+---
+
+## Milestone 12: AI IDEs, CLI Tools, and Timezone Fix
+
+| ID | Feature | Spec | Priority | Status | Owner | Branch | Dependencies | Feedback |
+|----|---------|------|----------|--------|-------|--------|--------------|----------|
+| F-0066 | Add AI IDEs via Nix Home Manager (Cursor, Windsurf, Zed, Aider) | [F-0038](specs/F-0038-milestone-12-ai-ides-tools-timezone.md) | P1 | done | SWE-1 | feature/languages | F-0017 | Added code-cursor, windsurf, zed-editor to home.nix. aider-chat installed via pip (Nix build fails due to sandbox network restrictions). Cursor 2.6.22, Windsurf 1.108.2, Zed 0.229.0, Aider 0.86.2 verified. Commit 8cade9e |
+| F-0067 | Add CLI tools via npm + GitHub Copilot CLI | [F-0038](specs/F-0038-milestone-12-ai-ides-tools-timezone.md) | P1 | done | SWE-1 | feature/languages | F-0018 | Added @sourcegraph/cody and @mariozechner/pi-coding-agent to npm update in 07-apps.sh. Added gh copilot extension install/upgrade. Cody 5.5.26, pi 0.64.0, gh copilot working. Commit 8cade9e |
+| F-0068 | Add sway keybindings for Cursor and Windsurf | [F-0038](specs/F-0038-milestone-12-ai-ides-tools-timezone.md) | P1 | done | SWE-1 | feature/languages | F-0056 | Added CTRL+SHIFT+C (Cursor) and CTRL+SHIFT+W (Windsurf) with Electron flags and env -u LD_LIBRARY_PATH. Commit 8cade9e |
+| F-0069 | Fix timezone to Pacific Time (TZ=America/Los_Angeles) | [F-0038](specs/F-0038-milestone-12-ai-ides-tools-timezone.md) | P1 | done | SWE-2 | feature/languages | F-0033 | Set TZ=America/Los_Angeles in 03-sway.sh (sway-desktop.service), 05-shell.sh (.zshrc template), and sway-status script. Swaybar now shows Pacific time. Commit 6b16472 |
 
 ---
 
