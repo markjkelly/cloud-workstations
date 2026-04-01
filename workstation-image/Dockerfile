@@ -77,6 +77,13 @@ RUN dpkg-divert --add --rename --divert /usr/bin/google-chrome-stable.real /usr/
     chmod +x /usr/bin/google-chrome-stable
 
 
+# Install Tailscale
+RUN curl -fsSL https://pkgs.tailscale.com/stable/ubuntu/noble.noarmor.gpg | tee /usr/share/keyrings/tailscale-archive-keyring.gpg >/dev/null && \
+    curl -fsSL https://pkgs.tailscale.com/stable/ubuntu/noble.tailscale-keyring.list | tee /etc/apt/sources.list.d/tailscale.list && \
+    apt-get update && \
+    apt-get install -y tailscale && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
+
 # Install TigerVNC and noVNC
 COPY --from=novnc-builder /out/noVNC /opt/noVNC
 RUN apt-get update && apt-get install -y \

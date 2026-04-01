@@ -296,6 +296,27 @@ else
 fi
 
 # =============================================================================
+# Tailscale (opt-in — only tested if TAILSCALE_AUTHKEY in ~/.env)
+# =============================================================================
+log ""
+log "--- Tailscale ---"
+if grep -q "TAILSCALE_AUTHKEY" "$HOME_DIR/.env" 2>/dev/null; then
+    if pgrep -x tailscaled >/dev/null 2>&1; then
+        test_pass "tailscaled running"
+    else
+        test_fail "tailscaled not running (TAILSCALE_AUTHKEY is set)"
+    fi
+    if tailscale status >/dev/null 2>&1; then
+        TS_IP=$(tailscale ip -4 2>/dev/null)
+        test_pass "Tailscale connected ($TS_IP)"
+    else
+        test_fail "Tailscale not connected"
+    fi
+else
+    log "  SKIP: Tailscale not configured (no TAILSCALE_AUTHKEY in ~/.env)"
+fi
+
+# =============================================================================
 # Summary
 # =============================================================================
 TOTAL=$((PASS+FAIL+WARN))
