@@ -83,7 +83,7 @@ check_binary "VSCode" "code"
 check_binary "IntelliJ" "idea-oss"
 check_binary "Cursor" "cursor"
 check_binary "Windsurf" "windsurf"
-check_binary "Zed" "zed"
+check_binary "Zed" "zeditor"
 
 # =============================================================================
 # AI CLI Tools
@@ -251,7 +251,7 @@ fi
 # Check tool versions (verifies upgrades actually installed something)
 check_version() {
     local name="$1" cmd="$2"
-    local ver=$(runuser -u $USER -- bash -c ". $NIX_SH && export PATH=$HOME_DIR/.npm-global/bin:$HOME_DIR/gopath/bin:$HOME_DIR/go/bin:$HOME_DIR/.cargo/bin:$HOME_DIR/.pyenv/bin:$HOME_DIR/.rbenv/bin:\$PATH && $cmd" 2>&1 | head -1)
+    local ver=$(runuser -u $USER -- bash -c ". $NIX_SH && export PATH=$HOME_DIR/.npm-global/bin:$HOME_DIR/gopath/bin:$HOME_DIR/go/bin:$HOME_DIR/.cargo/bin:$HOME_DIR/.pyenv/bin:$HOME_DIR/.rbenv/bin:\$PATH && $cmd" 2>&1 | grep -viE "^[0-9]+/[0-9].*WARN |^WARNING" | head -1)
     if [ -n "$ver" ] && ! echo "$ver" | grep -qiE "not found|error|command not found"; then
         test_pass "$name version: $ver"
     else
@@ -261,7 +261,7 @@ check_version() {
 
 check_version "Claude Code" "claude --version"
 check_version "Codex" "codex --version"
-check_version "OpenCode" "opencode version"
+check_version "OpenCode" "opencode -v"
 check_version "Cody" "cody --version"
 check_version "Pi" "pi --version"
 
