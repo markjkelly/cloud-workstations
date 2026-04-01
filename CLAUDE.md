@@ -121,8 +121,12 @@ Agents must be spawned as interactive teammates in separate tmux panes so the PO
 12. **Tag**: After PO approval, tag the release with `git tag -a vX.Y.Z -m "description"` and push tags
 13. **Mandatory updates**: docs/BACKLOG.md, docs/PROGRESS.md, and docs/RELEASENOTES.md MUST be updated every milestone. Git tags MUST be created for every release
 14. **No direct code changes**: The orchestrator (main Claude context) MUST NEVER write or edit application code directly. Only SWE agents write code. Only PM/TPM agents update backlog/progress/release docs
+15. **No live-only fixes**: ALL changes — including quick fixes, config edits, and "just this one thing" — MUST be committed to the repo AND verified through the setup pipeline (`cloud-build-setup.sh`). A change that works on the live system but isn't in the setup script is NOT done. The definition of done is: teardown + re-setup produces a working workstation with the change applied.
+16. **Push before teardown/setup**: Always `git push` to the remote before running `ws.sh setup` so Cloud Build pulls the latest code.
 
 **Violating this pipeline is a process failure.** If time pressure tempts a shortcut, stop and confirm with the PO first.
+
+**Zero tolerance for direct edits.** The orchestrator must NEVER use Edit, Write, or Bash to modify application code, configs, scripts, or any project files directly. Every change goes through an SWE agent via the pipeline. The only files the orchestrator may edit directly are CLAUDE.md (project instructions) and memory files.
 
 ### Roles
 - **PO / CEO** (Your Name) — Product Owner, the human in the loop. Provides feedback, feature requests, and bug reports. Approves direction, tests the app
