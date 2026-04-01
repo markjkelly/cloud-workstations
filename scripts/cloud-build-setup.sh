@@ -173,9 +173,26 @@ else
     test_fail "Artifact Registry '$AR_REPO' not created"
 fi
 
+# Wait for AR to be fully propagated (GCP eventual consistency)
+# Without this, the Docker build may fail to push because AR is not yet visible.
+log "Waiting 30s for Artifact Registry propagation..."
+sleep 30
+
 # =========================================================================
 step "Step 3/19: Build and push Docker image"
 # =========================================================================
+# Verify AR is accessible before building (guards against GCP eventual consistency)
+log "Verifying Artifact Registry accessibility..."
+for i in $(seq 1 6); do
+    if gcloud artifacts repositories describe "$AR_REPO" \
+        --location="$REGION" --project="$PROJECT_ID" >/dev/null 2>&1; then
+        log "  AR accessible (attempt $i)"
+        break
+    fi
+    log "  Waiting for AR (attempt $i/6)..."
+    sleep 10
+done
+
 log "Building Docker image (this takes 10-15 minutes)..."
 cd "${REPO_DIR}/workstation-image"
 if retry 2 30 gcloud builds submit \
