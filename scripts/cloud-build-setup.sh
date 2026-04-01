@@ -100,9 +100,17 @@ test_pass() { PASS=$((PASS + 1)); log "  PASS: $1"; }
 test_fail() { FAIL=$((FAIL + 1)); log "  FAIL: $1"; }
 test_warn() { WARN=$((WARN + 1)); log "  WARN: $1"; }
 
-# SSH helper with retry — runs command on workstation
+# SSH helper with retry and timeout — runs command on workstation
 ws_ssh() {
-    retry 3 10 gcloud workstations ssh "$WORKSTATION" \
+    retry 3 10 timeout 300 gcloud workstations ssh "$WORKSTATION" \
+        --project="$PROJECT_ID" --region="$REGION" \
+        --cluster="$CLUSTER" --config="$CONFIG" \
+        --command="$1"
+}
+
+# SSH helper for long-running commands (15 min timeout, fewer retries)
+ws_ssh_long() {
+    retry 2 15 timeout 900 gcloud workstations ssh "$WORKSTATION" \
         --project="$PROJECT_ID" --region="$REGION" \
         --cluster="$CLUSTER" --config="$CONFIG" \
         --command="$1"
@@ -110,7 +118,7 @@ ws_ssh() {
 
 # Pipe helper — accepts stdin piped to workstation command
 ws_pipe() {
-    retry 3 10 gcloud workstations ssh "$WORKSTATION" \
+    retry 3 10 timeout 300 gcloud workstations ssh "$WORKSTATION" \
         --project="$PROJECT_ID" --region="$REGION" \
         --cluster="$CLUSTER" --config="$CONFIG" \
         --command="$1"
@@ -390,13 +398,22 @@ else
     log "Installing Nix..."
     # Clean up any broken prior install state
     ws_ssh 'rm -rf ~/.nix-profile ~/.local/state/nix ~/.nix-channels ~/.nix-defexpr 2>/dev/null; true'
-    # Install Nix (installs directly to /nix which is persistent)
-    ws_ssh 'curl -L https://nixos.org/nix/install | sh -s -- --no-daemon' || true
+    # Download installer first (fast, won't timeout)
+    if ! ws_ssh 'curl -L -o /tmp/nix-install.sh https://nixos.org/nix/install && chmod +x /tmp/nix-install.sh'; then
+        test_fail "Nix installer download"
+        notify_and_fail "Nix installer download"
+    fi
+    # Run installer separately (the long part — use ws_ssh_long)
+    if ! ws_ssh_long 'sh /tmp/nix-install.sh --no-daemon'; then
+        test_fail "Nix installation"
+        notify_and_fail "Nix installation"
+    fi
     # Verify
     if ws_ssh "${NIX_SOURCE} && nix --version" 2>/dev/null | grep -q "nix"; then
         test_pass "Nix installed"
     else
-        test_fail "Nix installation"
+        test_fail "Nix installation verification"
+        notify_and_fail "Nix installation verification"
     fi
 fi
 
@@ -404,19 +421,32 @@ fi
 step "Step 10/19: Install Nix Home Manager + packages"
 # =========================================================================
 log "Setting up Home Manager and packages (this takes 5-10 minutes)..."
-ws_ssh "${NIX_SOURCE}"'
 
-if ! nix-channel --list | grep -q home-manager; then
-    nix-channel --add https://github.com/nix-community/home-manager/archive/master.tar.gz home-manager
-    nix-channel --update
+# Add channels (fast)
+log "  Adding home-manager channel..."
+if ! ws_ssh "${NIX_SOURCE}"' && if ! nix-channel --list | grep -q home-manager; then nix-channel --add https://github.com/nix-community/home-manager/archive/master.tar.gz home-manager && nix-channel --update; else echo "channel exists"; fi'; then
+    test_fail "Home Manager channel setup"
+    notify_and_fail "Home Manager channel setup"
 fi
 
-if ! command -v home-manager &>/dev/null; then
-    nix-shell "<home-manager>" -A install
+# Install home-manager (medium)
+log "  Installing home-manager..."
+if ! ws_ssh_long "${NIX_SOURCE}"' && if ! command -v home-manager &>/dev/null; then nix-shell "<home-manager>" -A install; else echo "home-manager exists"; fi'; then
+    test_fail "Home Manager install"
+    notify_and_fail "Home Manager install"
 fi
 
-mkdir -p ~/.config/home-manager
-cat > ~/.config/home-manager/home.nix << '"'"'NIXEOF'"'"'
+# Verify home-manager is available
+if ws_ssh "${NIX_SOURCE} && home-manager --version" 2>/dev/null | grep -q "[0-9]"; then
+    test_pass "Home Manager installed"
+else
+    test_fail "Home Manager not available after install"
+    notify_and_fail "Home Manager verification"
+fi
+
+# Create home.nix (fast — use ws_pipe)
+log "  Deploying home.nix..."
+cat << 'NIXEOF' | ws_pipe "mkdir -p ~/.config/home-manager && cat > ~/.config/home-manager/home.nix"
 { config, pkgs, ... }:
 {
   home.username = "user";
@@ -447,9 +477,12 @@ cat > ~/.config/home-manager/home.nix << '"'"'NIXEOF'"'"'
 }
 NIXEOF
 
-home-manager switch
-echo "HOME_MANAGER_DONE"
-' | tail -5
+# Run home-manager switch (long but isolated)
+log "  Running home-manager switch (this is the slow part)..."
+if ! ws_ssh_long "${NIX_SOURCE}"' && home-manager switch'; then
+    test_fail "Home Manager switch"
+    notify_and_fail "Home Manager switch"
+fi
 
 # Verify key packages
 VERIFY=$(ws_ssh "${NIX_SOURCE}"' && echo "sway=$(sway --version 2>/dev/null | head -1)" && echo "nvim=$(nvim --version 2>/dev/null | head -1)" && echo "node=$(node --version 2>/dev/null)"')
@@ -465,7 +498,7 @@ step "Step 11/19: Persist Nix store for restarts"
 # store to /home/user/nix so the startup script (200_persist-nix.sh) can
 # bind-mount it back to /nix on each boot.
 log "Copying /nix to /home/user/nix for restart persistence..."
-ws_ssh '
+ws_ssh_long '
 if [ -d /nix/store ] && [ "$(ls /nix/store/ 2>/dev/null | wc -l)" -gt 0 ]; then
     rm -rf /home/user/nix 2>/dev/null
     cp -a /nix /home/user/nix
@@ -541,10 +574,9 @@ test_pass "tmux.conf deployed"
 step "Step 14/19: Run initial setup"
 # =========================================================================
 log "Running setup.sh (fonts, ZSH, Starship, foot)..."
-gcloud workstations ssh "$WORKSTATION" \
-    --project="$PROJECT_ID" --region="$REGION" \
-    --cluster="$CLUSTER" --config="$CONFIG" \
-    --command="sudo bash /home/user/boot/setup.sh" 2>/dev/null || true
+if ! ws_ssh_long "sudo bash /home/user/boot/setup.sh"; then
+    test_warn "setup.sh returned non-zero (some steps may have failed)"
+fi
 
 # Verify setup results
 SETUP_VERIFY=$(ws_ssh '
@@ -566,14 +598,20 @@ echo "$SETUP_VERIFY" | grep -q "zsh_plugins=yes" && test_pass "ZSH plugins" || t
 step "Step 15/19: Install language build dependencies"
 # =========================================================================
 log "Installing apt build dependencies for pyenv/rbenv compilation..."
-ws_ssh "sudo bash /home/user/boot/07a-lang-deps.sh"
-test_pass "Language build dependencies installed"
+if ws_ssh "sudo bash /home/user/boot/07a-lang-deps.sh"; then
+    test_pass "Language build dependencies installed"
+else
+    test_fail "Language build dependencies install"
+    notify_and_fail "Language build dependencies"
+fi
 
 # =========================================================================
 step "Step 16/19: Install programming languages (Go, Rust, Python, Ruby)"
 # =========================================================================
 log "Installing languages (first-time: 10-15 min for Python/Ruby compilation)..."
-ws_ssh "sudo bash /home/user/boot/07b-languages.sh"
+if ! ws_ssh_long "sudo bash /home/user/boot/07b-languages.sh"; then
+    test_warn "Language install script returned non-zero (some languages may have failed)"
+fi
 
 # Verify language installations
 LANG_VERIFY=$(ws_ssh '
@@ -599,13 +637,17 @@ notify "Progress: Languages Installed" "Project: ${PROJECT_ID}" "Go, Rust, Pytho
 # =========================================================================
 step "Step 17/19: Install AI tools and Antigravity"
 # =========================================================================
-ws_ssh '
+if ws_ssh_long '
 '"${NIX_SOURCE}"'
 export NPM_CONFIG_PREFIX=$HOME/.npm-global
 mkdir -p $HOME/.npm-global/bin
 
-npm install -g @anthropic-ai/claude-code @google/gemini-cli @openai/codex @sourcegraph/cody @mariozechner/pi-coding-agent 2>/dev/null || true
-' || true
+npm install -g @anthropic-ai/claude-code @google/gemini-cli @openai/codex @sourcegraph/cody @mariozechner/pi-coding-agent
+'; then
+    test_pass "NPM AI tools installed"
+else
+    test_warn "NPM AI tools install had errors (some tools may be missing)"
+fi
 
 # Antigravity is pre-installed via apt in the Docker image (/usr/bin/antigravity).
 # No manual download needed.
