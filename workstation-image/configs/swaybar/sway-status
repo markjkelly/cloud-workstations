@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 COLOR_FG="#c0caf5"; COLOR_GREEN="#9ece6a"; COLOR_YELLOW="#e0af68"
 COLOR_RED="#f7768e"; COLOR_BLUE="#7aa2f7"; COLOR_CYAN="#7dcfff"
+export TZ="America/Los_Angeles"
 threshold_color() {
     local val=$1 warn=$2 crit=$3
     if (( val >= crit )); then echo "$COLOR_RED"

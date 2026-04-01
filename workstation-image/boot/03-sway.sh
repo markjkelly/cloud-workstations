@@ -25,6 +25,7 @@ Environment=WLR_LIBINPUT_NO_DEVICES=1
 Environment=XDG_RUNTIME_DIR=/run/user/1000
 Environment=XDG_SESSION_TYPE=wayland
 Environment=LD_LIBRARY_PATH=/var/lib/nvidia/lib64
+Environment=TZ=America/Los_Angeles
 ExecStartPre=/bin/mkdir -p /run/user/1000
 ExecStartPre=/bin/chown user:user /run/user/1000
 ExecStartPre=/bin/chmod 700 /run/user/1000

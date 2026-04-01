@@ -59,6 +59,9 @@ if [ -f "$HOME/.nix-profile/etc/profile.d/nix.sh" ]; then
     . "$HOME/.nix-profile/etc/profile.d/nix.sh"
 fi
 
+# Timezone
+export TZ="America/Los_Angeles"
+
 # PATH additions
 export PATH="$HOME/.npm-global/bin:$HOME/.local/bin:/var/lib/nvidia/bin:$PATH"
 
