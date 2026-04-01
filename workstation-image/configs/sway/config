@@ -112,6 +112,12 @@ bindsym $mod+m exec env DISPLAY=:0 $nix/idea-oss
 # VS Code (Electron app — clear LD_LIBRARY_PATH so nvidia GL doesn't conflict with Nix)
 bindsym $mod+y exec env -u LD_LIBRARY_PATH $nix/code --no-sandbox --ozone-platform=wayland --disable-gpu --disable-dev-shm-usage
 
+# Cursor (Electron app — same flags as VSCode)
+bindsym $mod+c exec env -u LD_LIBRARY_PATH $nix/cursor --no-sandbox --ozone-platform=wayland --disable-gpu --disable-dev-shm-usage
+
+# Windsurf (Electron app — same flags as VSCode)
+bindsym $mod+w exec env -u LD_LIBRARY_PATH $nix/windsurf --no-sandbox --ozone-platform=wayland --disable-gpu --disable-dev-shm-usage
+
 # Clipboard history picker (clipman — needs wofi in PATH and clear LD_LIBRARY_PATH)
 bindsym $mod+a exec env -u LD_LIBRARY_PATH PATH=/home/user/.nix-profile/bin:$PATH $nix/clipman pick --tool wofi
 
