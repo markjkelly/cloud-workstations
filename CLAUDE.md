@@ -128,6 +128,26 @@ Agents must be spawned as interactive teammates in separate tmux panes so the PO
 
 **Zero tolerance for direct edits.** The orchestrator must NEVER use Edit, Write, or Bash to modify application code, configs, scripts, or any project files directly. Every change goes through an SWE agent via the pipeline. The only files the orchestrator may edit directly are CLAUDE.md (project instructions) and memory files.
 
+### Persistence Across Reboots & Rebuilds (Non-Negotiable)
+
+**Every config change must survive three scenarios: reboot, teardown+setup, and fresh project setup.**
+
+The workstation has TWO config systems that can conflict:
+1. **Nix Home Manager** (`~/.config/home-manager/home.nix` + `sway-config`) — runs on every boot via `07-apps.sh` → `home-manager switch`. Creates symlinks to Nix store, **overwriting manual changes**.
+2. **Boot scripts** (`~/boot/*.sh`) — run on every boot via `setup.sh`. Deploy configs, install tools.
+
+**Rules for making changes persist:**
+
+1. **Single source of truth**: The repo at `workstation-image/` is the ONLY source of truth for all configs (sway, wofi, swaybar, snippets, boot scripts)
+2. **Three places must be updated for every config change**:
+   - The **repo config** (e.g., `workstation-image/configs/sway/config`)
+   - The **home-manager source** (e.g., `~/.config/home-manager/sway-config`) — must match the repo config exactly, or Home Manager will overwrite with stale version on next boot
+   - The **setup script** (`scripts/cloud-build-setup.sh`) — must deploy the config for fresh project setups
+3. **Home Manager sway-config MUST match repo sway config**: After any change to `workstation-image/configs/sway/config`, the same change must be applied to `~/.config/home-manager/sway-config` on ALL active workstations
+4. **Boot scripts on disk MUST match repo**: After any change to `workstation-image/boot/*.sh`, copy the updated scripts to `~/boot/` on ALL active workstations
+5. **Test persistence**: After making changes, verify they survive by running `home-manager switch` and `swaymsg reload` — if the change disappears, it's not persistent
+6. **Never edit live-only**: Editing `~/.config/sway/config` directly is useless — it's a symlink to the Nix store managed by Home Manager. Always edit the source at `~/.config/home-manager/sway-config`
+
 ### Roles
 - **PO / CEO** (Your Name) — Product Owner, the human in the loop. Provides feedback, feature requests, and bug reports. Approves direction, tests the app
 - **PM** — Receives all PO feedback. Translates it into detailed product requirements with acceptance criteria. Works with TPM to create backlog items. Creates completion summaries and reports back to PO
