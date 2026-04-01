@@ -165,6 +165,8 @@ The test script runs on every boot and saves results to:
 
 **The definition of done for any feature includes: test added to `10-tests.sh` and passing.**
 
+When adding or modifying any startup/boot script, you MUST also update `docs/STARTUP_SCRIPTS.md` to reflect the change (new script, changed purpose, new logs, etc.).
+
 ### Roles
 - **PO / CEO** (Your Name) — Product Owner, the human in the loop. Provides feedback, feature requests, and bug reports. Approves direction, tests the app
 - **PM** — Receives all PO feedback. Translates it into detailed product requirements with acceptance criteria. Works with TPM to create backlog items. Creates completion summaries and reports back to PO
