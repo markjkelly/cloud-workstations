@@ -328,6 +328,18 @@ if grep -q "TAILSCALE_AUTHKEY" "$HOME_DIR/.env" 2>/dev/null; then
     else
         test_warn "Tailscale SSH status unknown"
     fi
+    # SSH config for Tailscale
+    if grep -q "^PasswordAuthentication yes" /etc/ssh/sshd_config 2>/dev/null; then
+        test_pass "SSH PasswordAuthentication enabled"
+    else
+        test_fail "SSH PasswordAuthentication not enabled"
+    fi
+    # iptables rule for tailscale SSH
+    if iptables -C INPUT -i tailscale0 -p tcp --dport 22 -j ACCEPT 2>/dev/null; then
+        test_pass "iptables: SSH allowed on tailscale0"
+    else
+        test_fail "iptables: SSH not allowed on tailscale0"
+    fi
 else
     log "  SKIP: Tailscale not configured (no TAILSCALE_AUTHKEY in ~/.env)"
 fi

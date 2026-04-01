@@ -44,14 +44,27 @@ fi
 if tailscale status >/dev/null 2>&1; then
     IP=$(tailscale ip -4 2>/dev/null)
     log "Tailscale already connected: $IP — skipping auth"
-    exit 0
+else
+    # Authenticate and connect with SSH enabled
+    tailscale up --ssh --authkey="$AUTHKEY" --hostname="cloud-ws-$(hostname -s)" 2>&1
+    if tailscale status >/dev/null 2>&1; then
+        IP=$(tailscale ip -4 2>/dev/null)
+        log "Tailscale connected: $IP"
+    else
+        log "WARNING: Tailscale failed to connect"
+    fi
 fi
 
-# Authenticate and connect with SSH enabled
-tailscale up --ssh --authkey="$AUTHKEY" --hostname="cloud-ws-$(hostname -s)" 2>&1
-if tailscale status >/dev/null 2>&1; then
-    IP=$(tailscale ip -4 2>/dev/null)
-    log "Tailscale connected: $IP"
-else
-    log "WARNING: Tailscale failed to connect"
+# --- Enable SSH password auth for Tailscale connections ---
+if ! grep -q "^PasswordAuthentication yes" /etc/ssh/sshd_config 2>/dev/null; then
+    sed -i 's/^#*PasswordAuthentication.*/PasswordAuthentication yes/' /etc/ssh/sshd_config
+    echo "PasswordAuthentication yes" >> /etc/ssh/sshd_config
+    pkill -HUP sshd 2>/dev/null || true
+    log "SSH PasswordAuthentication enabled"
+fi
+
+# --- Allow SSH on Tailscale interface ---
+if ! iptables -C INPUT -i tailscale0 -p tcp --dport 22 -j ACCEPT 2>/dev/null; then
+    iptables -I INPUT -i tailscale0 -p tcp --dport 22 -j ACCEPT
+    log "iptables: SSH allowed on tailscale0"
 fi
