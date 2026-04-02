@@ -29,14 +29,16 @@
 - **AR propagation wait**: 30s sleep + active verification before Docker build prevents "Repository not found" push failures.
 - **Boot tests via systemd**: 10-tests.sh runs as ws-boot-tests.service after ws-autolaunch, ensuring all services are up when tests execute.
 
-### gement03 Test Results
-- Fresh teardown+setup: 77 PASS, 0 FAIL, 3 WARN
-- Final rebuild in progress (build ff901040)
+### Final Test Results
+- Full cycle timed: teardown 14 min, build 56 min, boot tests 5 min, total ~76 min
+- Setup script: 52 PASS, 0 FAIL
+- Boot tests: 77 PASS, 0 FAIL (1 false positive — WARN only)
+- All documentation updated to reflect Milestones 9-14 features
 
 ### Next Steps
-- Verify final gement03 rebuild passes with 0 FAIL
-- Test on gement02 for multi-project validation
+- Test on additional projects for multi-project validation
 - Implement build speed optimizations (docs/research/build-speed-optimization.md)
+- Composable install profiles (F-0081)
 
 ---
 

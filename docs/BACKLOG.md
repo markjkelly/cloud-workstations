@@ -1,7 +1,7 @@
 # Project Backlog — Cloud Workstation
 
 **Maintained by:** TPM
-**Last updated:** 2026-03-31 (Milestone 12 added)
+**Last updated:** 2026-04-02 (Milestones 13-14 completed, documentation updated)
 
 ---
 
@@ -199,7 +199,12 @@
 
 | ID | Feature | Spec | Priority | Status | Owner | Branch | Dependencies | Feedback |
 |----|---------|------|----------|--------|-------|--------|--------------|----------|
-| | | | | | | | | |
+| F-0081 | Composable install profiles (minimal/dev/ai/full/custom) | [Research](research/composable-install.md) | P1 | backlog | — | — | — | CLI: `ws.sh setup --profile minimal`. Config file at ~/.ws-modules. Modules: core, desktop, ides, ai-tools, languages, tailscale, tmux. Minimal ~20min vs full ~50min. |
+| F-0082 | Dynamic home.nix generation per profile | [Research](research/composable-install.md) | P1 | backlog | — | — | F-0081 | Generate home.nix from template based on selected modules. Skip unused Nix packages to speed up home-manager switch. |
+| F-0083 | Build speed: skip AR deletion on teardown | [Research](research/build-speed-optimization.md) | P2 | backlog | — | — | — | Keep Docker image in AR across teardown/setup cycles. Saves ~17min. Image is ~280MB, pennies/month. |
+| F-0084 | Build speed: faster Cloud Build machine (E2_HIGHCPU_32) | [Research](research/build-speed-optimization.md) | P2 | backlog | — | — | — | Docker builds 2-3x faster. Saves ~8min. |
+| F-0085 | Build speed: ws.sh update command (config-only, no rebuild) | [Research](research/build-speed-optimization.md) | P1 | backlog | — | — | — | Push configs + run boot scripts on existing workstation. ~2min vs 50min for config-only changes. |
+| F-0086 | Cloud Build tags for Console visibility | [Research](research/build-tags.md) | P2 | backlog | — | — | — | Add --tags to builds so outer (ws-setup) and inner (docker-image) are identifiable in Console. |
 
 ---
 

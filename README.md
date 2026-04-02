@@ -71,7 +71,7 @@ The setup script prints a Cloud Console link. You can also stream logs:
 gcloud builds log BUILD_ID --stream --project=YOUR_PROJECT_ID --region=us-west1
 ```
 
-Setup takes approximately **30-45 minutes**.
+Setup takes approximately **50-60 minutes** (includes Docker build, Nix install, language compilation, and AI tools).
 
 ## After Setup
 
@@ -102,9 +102,12 @@ gcloud workstations describe dev-workstation \
 
 Open `https://<host>` in your browser. The noVNC desktop loads automatically with 4 pre-launched workspaces.
 
-### Daily auto-start
+### Weekday auto-start/stop
 
-A Cloud Scheduler job starts the workstation every day at **7:00 AM Pacific**. No action needed.
+Cloud Scheduler jobs manage the workstation automatically:
+- **Start**: Weekdays (Mon-Fri) at **6:00 AM Pacific**
+- **Stop**: Weekdays (Mon-Fri) at **9:00 PM Pacific**
+- Workstations stay off on weekends to save costs.
 
 ## What's Included
 
@@ -113,15 +116,17 @@ A Cloud Scheduler job starts the workstation every day at **7:00 AM Pacific**. N
 | **Machine** | n1-standard-16 (60GB RAM) + NVIDIA Tesla T4 GPU (16GB VRAM) |
 | **Storage** | 500GB persistent SSD (all data survives reboots) |
 | **Desktop** | Sway (Wayland) with Tokyo Night theme, accessed via noVNC in browser |
-| **Terminal** | foot terminal, ZSH + Starship prompt, Operator Mono Book font (size 18) |
+| **Terminal** | foot terminal, ZSH + Starship prompt, Operator Mono Book font (size 18), tmux with Tokyo Night theme |
 | **Fonts** | Operator Mono, CascadiaCode, CaskaydiaCove Nerd Font, FiraCodeiScript |
 | **Browsers** | Google Chrome, Chromium |
-| **IDEs** | VS Code, Neovim (custom config) |
-| **AI Tools** | Claude Code, Gemini CLI |
+| **IDEs** | VS Code, Cursor, Windsurf, Zed, IntelliJ IDEA, Neovim (custom config) |
+| **AI Tools** | Claude Code, Gemini CLI, Codex CLI, OpenCode, Aider, Cody CLI, pi-coding-agent, GitHub Copilot CLI |
 | **Languages** | Go (latest), Rust (via rustup), Python 3.12 (via pyenv), Ruby 3.3 (via rbenv), Node.js 22 (via Nix) |
-| **Apps** | Antigravity, tmux, ripgrep, fd, jq, ffmpeg, wofi, thunar |
-| **Auto-start** | Cloud Scheduler starts workstation daily at 7AM PT |
+| **Apps** | Antigravity, tmux, ripgrep, fd, jq, ffmpeg, wofi, thunar, clipman |
+| **Networking** | Tailscale VPN (opt-in via `~/.env`) |
+| **Auto-start** | Cloud Scheduler starts workstation weekdays at 6AM PT, stops at 9PM PT |
 | **Boot apps** | 4 workspaces auto-launch: terminal, Chrome, Antigravity, terminal |
+| **Boot tests** | 80+ automated tests run on every boot — results at `~/logs/boot-test-results.txt` |
 | **Packages** | Managed via Nix Home Manager on persistent disk |
 
 ## Keyboard Shortcuts
@@ -130,16 +135,28 @@ All shortcuts use `CTRL+SHIFT` as the modifier (works through noVNC in browser).
 
 | Shortcut | Action |
 |----------|--------|
-| `CTRL+SHIFT+Enter` | New terminal |
+| `CTRL+SHIFT+Enter` | New terminal (foot) |
+| `CTRL+SHIFT+T` | New terminal (foot) |
 | `CTRL+SHIFT+B` | Chrome browser |
 | `CTRL+SHIFT+N` | Antigravity |
 | `CTRL+SHIFT+Y` | VS Code |
+| `CTRL+SHIFT+W` | Windsurf |
+| `CTRL+SHIFT+M` | IntelliJ IDEA |
 | `CTRL+SHIFT+R` | App launcher (wofi) |
-| `CTRL+SHIFT+E` | File manager |
+| `CTRL+SHIFT+A` | Clipboard history (clipman) |
+| `CTRL+SHIFT+S` | Snippet picker |
+| `CTRL+SHIFT+E` | File manager (thunar) |
+| `CTRL+SHIFT+D` | Toggle floating window |
 | `CTRL+SHIFT+Q` | Close window |
 | `CTRL+SHIFT+F` | Toggle fullscreen |
 | `CTRL+SHIFT+U/I/O/P` | Switch to workspace 1/2/3/4 |
 | `CTRL+SHIFT+H/J/K/L` | Switch to workspace 5/6/7/8 |
+| `CTRL+SHIFT+Alt+U/I/O/P` | Move window to workspace 1/2/3/4 |
+| `CTRL+SHIFT+Alt+H/J/K/L` | Move window to workspace 5/6/7/8 |
+| `CTRL+SHIFT+Arrow keys` | Focus window left/right/up/down |
+| `CTRL+SHIFT+,/.` | Grow/shrink window width |
+| `CTRL+SHIFT+-/=` | Shrink/grow window height |
+| `CTRL+SHIFT+Escape` | Exit Sway (with confirmation) |
 
 ## Language Version Management
 
@@ -152,6 +169,47 @@ Languages are managed by native version managers for easy multi-version support:
 | Python | pyenv | `pyenv install 3.11 && pyenv global 3.11` |
 | Ruby | rbenv | `rbenv install 3.2.0 && rbenv global 3.2.0` |
 | Node.js | Nix | Managed via Home Manager |
+
+## tmux + Claude Code Aliases
+
+The workstation includes crash-resistant tmux sessions pre-configured for Claude Code:
+
+| Alias | Description |
+|-------|-------------|
+| `t1` through `t10` | Launch Claude Code in named tmux sessions (`claude-1` through `claude-10`) |
+| `cc` | Alias for `t1` (quick start) |
+| `tdbg` | Launch Claude Code in a debug tmux session with server-level logging to `~/logs/tmux/` |
+
+Sessions use `claude-tmux`, a wrapper that auto-launches `claude --dangerously-skip-permissions` inside tmux. If the session already exists, it reattaches. tmux is configured with Tokyo Night theme, mouse support, true color, and vi copy mode.
+
+## Tailscale VPN (Optional)
+
+Tailscale provides secure SSH access to your workstation without port forwarding or VPNs.
+
+To enable, add these to `~/.env` on your workstation:
+
+```bash
+TAILSCALE_AUTHKEY=tskey-auth-xxxxx   # From https://login.tailscale.com/admin/settings/keys
+USER_PASSWORD=your-ssh-password       # Optional: sets SSH password for the 'user' account
+```
+
+On the next boot, the workstation will:
+1. Auto-install Tailscale (if the binary is missing from the ephemeral root disk)
+2. Start the Tailscale daemon
+3. Authenticate with your auth key
+4. Enable Tailscale SSH
+5. Set the SSH password (if `USER_PASSWORD` is defined)
+
+You can then SSH via `ssh user@<workstation-tailscale-hostname>`.
+
+## Boot Tests
+
+Every boot runs 80+ automated tests to verify the workstation is healthy. Results are saved to:
+
+- `~/logs/boot-test-results.txt` — full PASS/FAIL/WARN details
+- `~/logs/boot-test-summary.txt` — one-line summary (e.g., `PASS: 77 | FAIL: 0 | WARN: 3`)
+
+Tests cover: Nix, GPU, Sway, fonts, shell, AI tools, IDEs, languages, keybindings, clipboard, snippets, and more.
 
 ## Re-running Setup
 
@@ -185,7 +243,10 @@ After teardown, you can re-run `setup.sh` to recreate everything.
 | Issue | Fix |
 |-------|-----|
 | "No GPU quota" | [Request NVIDIA_T4_GPUS quota](https://console.cloud.google.com/iam-admin/quotas) in us-west1 (at least 1) |
-| Build fails mid-way | Re-run `setup.sh` — it picks up where it left off |
+| Build fails mid-way | Re-run `ws.sh setup` — it picks up where it left off (idempotent) |
 | Can't connect via noVNC | Ensure workstation is started, wait 30s for Sway + wayvnc to boot |
 | Apps not on workspaces | Wait 15-20s after boot for auto-launch to complete |
 | Cloud Shell disconnected | No problem — Cloud Build continues independently. Check progress in Cloud Console |
+| IDE keybinding not working | Check `~/logs/boot-test-results.txt` for related FAIL entries |
+| Claude Code not working | Ensure `~/.env` has your API keys — it's sourced automatically on boot |
+| Boot test failures | Run `cat ~/logs/boot-test-results.txt` to see full PASS/FAIL details |

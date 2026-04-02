@@ -15,6 +15,11 @@
 - **PII scrubbed** from all docs (project IDs, emails, names replaced with placeholders)
 - **ZSH aliases** — `~/.zsh/zsh_aliases.sh` now sourced in Home Manager initContent (was missing)
 
+### Verified
+- Full cycle: teardown 14 min + build 56 min + boot tests 5 min = ~76 min total
+- Setup script: 52 PASS, 0 FAIL
+- Boot tests: 77 PASS, 0 FAIL (1 false positive WARN)
+
 ---
 
 ## v1.13 — Setup Script Hardening & Boot Tests (2026-04-01)
