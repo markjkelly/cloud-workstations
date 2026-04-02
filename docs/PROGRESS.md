@@ -1,5 +1,45 @@
 # Development Progress Log — Cloud Workstation
 
+## Session 17 — 2026-04-01/02
+
+### Goals
+- Fix ALL setup/teardown issues so the pipeline is bulletproof for any user
+- Achieve 0 FAIL on boot tests across fresh teardown+setup
+- Add Tailscale, tmux, persistent aliases
+
+### Completed
+
+- **F-0070** (Bulletproof SSH): Added timeouts (5min default, 15min long) to all ws_ssh commands. Split Nix install into download+install. Removed 5 silent `|| true` that hid failures.
+- **F-0071** (AR race fix): Added 30s propagation wait + verification loop after Artifact Registry creation. Docker push no longer fails with "Repository not found".
+- **F-0072** (Verified teardown): All 9 resource types now have `wait_deleted` verification — workstation, config, cluster, AR, NAT, router, scheduler, cloud function, cloud builds.
+- **F-0073** (Boot tests): Created 10-tests.sh with 80+ tests across 12 categories. Runs via systemd service after all services are up. Results at ~/logs/boot-test-{results,summary}.txt.
+- **F-0074** (Unified .zshrc): Moved all shell config into Home Manager programs.zsh.initContent. 05-shell.sh skips .zshrc creation when Home Manager manages it. Tests check home.nix instead of .zshrc.
+- **F-0075** (AI tools in setup): Fixed OpenCode (go install), Aider (pip), GH Copilot (gh extension), .env creation in cloud-build-setup.sh.
+- **F-0076** (Tailscale): Opt-in via TAILSCALE_AUTHKEY in ~/.env. Auto-installs if binary missing (ephemeral root disk). Configures SSH + iptables. Dockerfile also includes tailscale.
+- **F-0077** (tmux): Tokyo Night tmux.conf. claude-tmux/tmux-debug scripts launch Claude with --dangerously-skip-permissions in crash-resistant tmux sessions. t1-t10 aliases use claude-tmux.
+- **F-0078** (.gitignore): Protects .env, SA keys from accidental commit.
+- **F-0079** (PII scrub): Replaced all personal info in docs with placeholders.
+- **F-0080** (STARTUP_SCRIPTS.md): Full documentation of boot sequence.
+
+### Key Decisions
+- **Single source of truth for .zshrc**: Home Manager's programs.zsh, not 05-shell.sh. Boot script defers if Home Manager manages .zshrc.
+- **Tailscale auto-install**: Boot script reinstalls tailscale if binary missing (handles ephemeral root disk without Docker rebuild).
+- **claude-tmux wrapper**: Crash-resistant tmux sessions with --dangerously-skip-permissions. Prevents tmux detach-on-destroy issues with agent teams.
+- **Verified teardown**: Every delete operation is polled until the resource is confirmed gone. Prevents setup/teardown race conditions.
+- **AR propagation wait**: 30s sleep + active verification before Docker build prevents "Repository not found" push failures.
+- **Boot tests via systemd**: 10-tests.sh runs as ws-boot-tests.service after ws-autolaunch, ensuring all services are up when tests execute.
+
+### gement03 Test Results
+- Fresh teardown+setup: 77 PASS, 0 FAIL, 3 WARN
+- Final rebuild in progress (build ff901040)
+
+### Next Steps
+- Verify final gement03 rebuild passes with 0 FAIL
+- Test on gement02 for multi-project validation
+- Implement build speed optimizations (docs/research/build-speed-optimization.md)
+
+---
+
 ## Session 16 — 2026-03-31
 
 ### Goals

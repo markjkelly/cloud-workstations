@@ -1,5 +1,42 @@
 # Release Notes — Cloud Workstation
 
+## v1.14 — Tailscale, tmux, Persistence (2026-04-02)
+
+### Added
+- **Tailscale VPN** — opt-in via `TAILSCALE_AUTHKEY` in `~/.env`. Auto-installs if missing (ephemeral root disk), auto-connects with SSH enabled, configures iptables
+- **USER_PASSWORD** — set SSH password via `~/.env` for Tailscale/Termius access, auto-set on boot
+- **claude-tmux wrapper** — crash-resistant tmux sessions that auto-launch `claude --dangerously-skip-permissions`. Aliases: `t1`-`t10`, `cc`, `tdbg`
+- **tmux-debug** — same as claude-tmux but with server-level logging to `~/logs/tmux/`
+- **tmux.conf** — Tokyo Night theme with true color, mouse, vi copy mode, auto-rename windows to current directory
+- **Boot script 06b-tmux.sh** — deploys tmux.conf + claude-tmux + tmux-debug on boot
+- **.gitignore** — protects `.env`, `*-sa-key.json` from accidental commit
+
+### Fixed
+- **PII scrubbed** from all docs (project IDs, emails, names replaced with placeholders)
+- **ZSH aliases** — `~/.zsh/zsh_aliases.sh` now sourced in Home Manager initContent (was missing)
+
+---
+
+## v1.13 — Setup Script Hardening & Boot Tests (2026-04-01)
+
+### Added
+- **Boot test script** (`10-tests.sh`) — 80+ automated tests across 12 categories, runs via systemd after all services up. Results at `~/logs/boot-test-{results,summary}.txt`
+- **STARTUP_SCRIPTS.md** — full documentation of all 14 boot scripts, execution flow, logs
+
+### Changed
+- **Setup script bulletproofed** — SSH commands have 5-min timeout (15-min for long ops), Nix install split into download+install, silent `|| true` removed
+- **AR race condition fixed** — 30s propagation wait + verification loop after Artifact Registry creation
+- **Verified teardown** — all 9 resource types have `wait_deleted` polling: workstation, config, cluster, AR, NAT, router, scheduler, cloud function, cloud builds
+- **Unified .zshrc** — Home Manager `programs.zsh` is single source of truth; `05-shell.sh` defers when Home Manager manages `.zshrc`
+- **10-tests.sh via systemd** — runs after ws-autolaunch.service instead of during setup.sh, preventing false FAILs from services not yet started
+
+### Fixed
+- **AI tools install** — OpenCode, Aider, GH Copilot now properly install in setup script with error handling
+- **Missing ZSH/Starship** — added to inline home.nix in setup script (was missing `programs.zsh` block)
+- **Test false positives** — Zed binary name (`zeditor`), OpenCode version flag, Aider PATH, GH Copilot extension check
+
+---
+
 ## v1.12 — AI IDEs, CLI Tools, and Timezone Fix (2026-03-31)
 
 ### Added

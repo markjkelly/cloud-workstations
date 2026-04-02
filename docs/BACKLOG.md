@@ -170,6 +170,31 @@
 
 ---
 
+## Milestone 13: Setup Script Hardening & Boot Tests
+
+| ID | Feature | Spec | Priority | Status | Owner | Branch | Dependencies | Feedback |
+|----|---------|------|----------|--------|-------|--------|--------------|----------|
+| F-0070 | Bulletproof SSH commands in setup script | [F-0039](specs/F-0039-setup-script-sync.md) | P0 | done | SWE-1 | feature/languages | — | Added 5-min timeout to ws_ssh, 15-min ws_ssh_long for Nix/languages. Split Nix install into download+install. Removed silent || true. Commit 842b401 |
+| F-0071 | Fix AR race condition in setup | [F-0039](specs/F-0039-setup-script-sync.md) | P0 | done | SWE-1 | feature/languages | F-0070 | Added 30s propagation wait + verification loop after AR creation. Docker push no longer fails with "Repository not found". Commit 0541291 |
+| F-0072 | Verified teardown with wait_deleted | [F-0039](specs/F-0039-setup-script-sync.md) | P0 | done | SWE-1 | feature/languages | — | All 9 resources verified deleted: workstation, config, cluster, AR, NAT, router, scheduler, cloud function, cloud builds. Commits e0d216d, 0df6bb7, 71c2f5a, ce95a43 |
+| F-0073 | Boot test script (10-tests.sh) | [F-0039](specs/F-0039-setup-script-sync.md) | P0 | done | SWE-2 | feature/languages | — | 80+ tests across 12 categories. Runs via systemd after all services up. Results at ~/logs/boot-test-{results,summary}.txt. Commits e20c0c0, a352760 |
+| F-0074 | Unify .zshrc via Home Manager | [F-0039](specs/F-0039-setup-script-sync.md) | P0 | done | SWE-1 | feature/languages | F-0073 | Moved all shell config into programs.zsh.initContent. 05-shell.sh skips .zshrc when Home Manager manages it. Tests check home.nix. Commit 263e7d3 |
+| F-0075 | Fix AI tools install in setup script | [F-0039](specs/F-0039-setup-script-sync.md) | P0 | done | SWE-1 | feature/languages | F-0070 | Fixed OpenCode go install, Aider pip install, GH Copilot extension, .env creation. Proper error handling. Commit 6b5fb40 |
+
+---
+
+## Milestone 14: Tailscale, tmux, Persistence
+
+| ID | Feature | Spec | Priority | Status | Owner | Branch | Dependencies | Feedback |
+|----|---------|------|----------|--------|-------|--------|--------------|----------|
+| F-0076 | Tailscale opt-in via ~/.env | — | P1 | done | SWE-1 | feature/languages | — | 06a-tailscale.sh: auto-install if missing, start daemon, authenticate with authkey, enable SSH, set password, configure iptables. Commits af3be99, 50c4781 |
+| F-0077 | tmux Tokyo Night config + claude-tmux wrapper | — | P1 | done | SWE-1 | feature/languages | — | tmux.conf with Tokyo Night theme, mouse, true color. claude-tmux/tmux-debug scripts launch Claude with --dangerously-skip-permissions. t1-t10 aliases. Commits cec0b9f, dfe3691 |
+| F-0078 | .gitignore for secrets | — | P0 | done | team-lead | feature/languages | — | Protects .env, *-sa-key.json from accidental commit. Commit ee21791 |
+| F-0079 | PII scrub from docs | — | P0 | done | SWE-1 | feature/languages | — | Replaced all personal info (project IDs, emails, names) with placeholders. Commit fd91950 |
+| F-0080 | STARTUP_SCRIPTS.md documentation | — | P1 | done | SWE-2 | feature/languages | — | Full documentation of all 14 boot scripts, execution flow, logs, design decisions. Commit 7a9b0e6 |
+
+---
+
 ## Future Items
 
 | ID | Feature | Spec | Priority | Status | Owner | Branch | Dependencies | Feedback |
