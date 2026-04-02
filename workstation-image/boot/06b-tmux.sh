@@ -17,3 +17,16 @@ if [ -f "$TMUX_SRC" ]; then
 else
     log "WARNING: tmux.conf source not found at $TMUX_SRC"
 fi
+
+# Deploy claude-tmux and tmux-debug scripts
+SCRIPTS_DIR="$REPO_DIR/workstation-image/scripts"
+runuser -u $USER -- mkdir -p "$HOME_DIR/.local/bin"
+
+for script in claude-tmux tmux-debug; do
+    if [ -f "$SCRIPTS_DIR/$script" ]; then
+        cp "$SCRIPTS_DIR/$script" "$HOME_DIR/.local/bin/$script"
+        chmod +x "$HOME_DIR/.local/bin/$script"
+        chown $USER:$USER "$HOME_DIR/.local/bin/$script"
+        log "Deployed $script"
+    fi
+done

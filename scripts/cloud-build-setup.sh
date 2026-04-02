@@ -502,16 +502,17 @@ cat << 'NIXEOF' | ws_pipe "mkdir -p ~/.config/home-manager && cat > ~/.config/ho
       ll = "ls -la";
       vim = "nvim";
       vi = "nvim";
-      t1 = "tmux new-session -A -s 1";
-      t2 = "tmux new-session -A -s 2";
-      t3 = "tmux new-session -A -s 3";
-      t4 = "tmux new-session -A -s 4";
-      t5 = "tmux new-session -A -s 5";
-      t6 = "tmux new-session -A -s 6";
-      t7 = "tmux new-session -A -s 7";
-      t8 = "tmux new-session -A -s 8";
-      t9 = "tmux new-session -A -s 9";
-      t10 = "tmux new-session -A -s 10";
+      t1 = "claude-tmux 1";
+      t2 = "claude-tmux 2";
+      t3 = "claude-tmux 3";
+      t4 = "claude-tmux 4";
+      t5 = "claude-tmux 5";
+      t6 = "claude-tmux 6";
+      t7 = "claude-tmux 7";
+      t8 = "claude-tmux 8";
+      t9 = "claude-tmux 9";
+      t10 = "claude-tmux 10";
+      cc = "claude-tmux";
       ta = "tmux attach";
       tl = "tmux list-sessions";
       tk = "tmux kill-session -t";
@@ -685,6 +686,13 @@ test_pass "Snippet picker deployed"
 cat "${REPO_DIR}/workstation-image/configs/tmux/tmux.conf" | \
     ws_pipe "cat > ~/.tmux.conf"
 test_pass "tmux.conf deployed"
+
+# Deploy claude-tmux and tmux-debug scripts
+cat "${REPO_DIR}/workstation-image/scripts/claude-tmux" | \
+    ws_pipe "mkdir -p ~/.local/bin && cat > ~/.local/bin/claude-tmux && chmod +x ~/.local/bin/claude-tmux"
+cat "${REPO_DIR}/workstation-image/scripts/tmux-debug" | \
+    ws_pipe "cat > ~/.local/bin/tmux-debug && chmod +x ~/.local/bin/tmux-debug"
+test_pass "claude-tmux and tmux-debug deployed"
 
 # =========================================================================
 step "Step 14/19: Run initial setup"
