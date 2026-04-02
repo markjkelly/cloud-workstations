@@ -27,6 +27,13 @@ fi
 
 log "TAILSCALE_AUTHKEY found — starting Tailscale"
 
+# Install tailscale if not present (ephemeral root disk wipes it on reboot)
+if ! command -v tailscale >/dev/null 2>&1; then
+    log "Tailscale binary not found — installing..."
+    curl -fsSL https://tailscale.com/install.sh | sh 2>&1
+    log "Tailscale installed"
+fi
+
 # Ensure state directory exists on persistent disk
 runuser -u $USER -- mkdir -p "$STATE_DIR"
 
