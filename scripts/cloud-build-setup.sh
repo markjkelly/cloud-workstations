@@ -332,6 +332,19 @@ if [ "$WS_STATE" != "STATE_RUNNING" ]; then
     fi
 fi
 
+# Grant SSH access before attempting SSH — compute SA (Cloud Build) and user both need
+# workstations.user on the config, otherwise the SSH loop below will fail for 10 minutes.
+log "Granting workstations.user to compute SA and user on config..."
+gcloud workstations configs add-iam-policy-binding "$CONFIG" \
+    --project="$PROJECT_ID" --region="$REGION" --cluster="$CLUSTER" \
+    --member="serviceAccount:$COMPUTE_SA" --role="roles/workstations.user" 2>/dev/null || true
+if [ -n "$USER_ACCOUNT" ]; then
+    gcloud workstations configs add-iam-policy-binding "$CONFIG" \
+        --project="$PROJECT_ID" --region="$REGION" --cluster="$CLUSTER" \
+        --member="user:$USER_ACCOUNT" --role="roles/workstations.user" 2>/dev/null || true
+fi
+sleep 10  # IAM propagation
+
 # Wait for SSH with extended timeout
 log "Waiting for SSH access..."
 SSH_READY=false
@@ -353,52 +366,21 @@ fi
 notify "Progress: Workstation Running" "Project: ${PROJECT_ID}" "Workstation is up and SSH ready. Installing Nix and packages next (10-15 min)..."
 
 # =========================================================================
-step "Step 8b/19: Grant user access to workstation"
+step "Step 8b/19: Grant user access to workstation (browser UI)"
 # =========================================================================
-# Cloud Workstations require workstation-level IAM (not just project-level)
-# for users to connect via browser. Grant roles/workstations.user to the
-# caller's account so they can access the workstation UI.
+# Config-level IAM (for SSH) was already granted before the SSH loop above.
+# Now grant workstation-level IAM so the user can also connect via the browser UI.
 if [ -n "$USER_ACCOUNT" ]; then
-    log "Granting workstations.user to $USER_ACCOUNT..."
-    # Get current policy, add user, set policy
-    POLICY_FILE=$(mktemp)
-    gcloud workstations get-iam-policy "$WORKSTATION" \
+    log "Granting workstations.user to $USER_ACCOUNT on workstation..."
+    if gcloud workstations add-iam-policy-binding "$WORKSTATION" \
         --config="$CONFIG" --cluster="$CLUSTER" --region="$REGION" \
-        --project="$PROJECT_ID" --format=json > "$POLICY_FILE" 2>/dev/null
-
-    # Add user to existing workstations.user binding (or create it)
-    if grep -q "roles/workstations.user" "$POLICY_FILE"; then
-        # Add user to existing binding if not already present
-        if ! grep -q "$USER_ACCOUNT" "$POLICY_FILE"; then
-            python3 -c "
-import json, sys
-p = json.load(open('$POLICY_FILE'))
-for b in p.get('bindings', []):
-    if b['role'] == 'roles/workstations.user':
-        b['members'].append('user:$USER_ACCOUNT')
-json.dump(p, open('$POLICY_FILE', 'w'))
-"
-        fi
+        --project="$PROJECT_ID" \
+        --member="user:$USER_ACCOUNT" --role="roles/workstations.user" \
+        --quiet 2>/dev/null; then
+        test_pass "Workstation browser access granted to $USER_ACCOUNT"
     else
-        python3 -c "
-import json
-p = json.load(open('$POLICY_FILE'))
-p.setdefault('bindings', []).append({
-    'role': 'roles/workstations.user',
-    'members': ['user:$USER_ACCOUNT']
-})
-json.dump(p, open('$POLICY_FILE', 'w'))
-"
+        test_warn "Could not grant workstation browser access to $USER_ACCOUNT (may already exist)"
     fi
-
-    if gcloud workstations set-iam-policy "$WORKSTATION" "$POLICY_FILE" \
-        --config="$CONFIG" --cluster="$CLUSTER" --region="$REGION" \
-        --project="$PROJECT_ID" --quiet 2>/dev/null; then
-        test_pass "Workstation access granted to $USER_ACCOUNT"
-    else
-        test_warn "Could not grant workstation access to $USER_ACCOUNT"
-    fi
-    rm -f "$POLICY_FILE"
 else
     test_warn "No USER_ACCOUNT provided — skipping workstation IAM grant"
 fi
