@@ -457,6 +457,7 @@ elif [ "$COMMAND" = "teardown" ]; then
                 --router=ws-router --region="$REGION" \
                 --project="$PROJECT_ID" --quiet || log "  WARN: delete may have timed out"
             log "  Deleted"
+            wait_deleted "gcloud_timeout 15 gcloud compute routers nats describe ws-nat --router=ws-router --region=$REGION --project=$PROJECT_ID" "Cloud NAT" 60
         else
             log "  Not found — skipping"
         fi
@@ -472,6 +473,7 @@ elif [ "$COMMAND" = "teardown" ]; then
             gcloud_timeout 120 gcloud compute routers delete ws-router \
                 --region="$REGION" --project="$PROJECT_ID" --quiet || log "  WARN: delete may have timed out"
             log "  Deleted"
+            wait_deleted "gcloud_timeout 15 gcloud compute routers describe ws-router --region=$REGION --project=$PROJECT_ID" "Cloud Router" 60
         else
             log "  Not found — skipping"
         fi
@@ -491,6 +493,11 @@ elif [ "$COMMAND" = "teardown" ]; then
             fi
         done
         log "  Done"
+        for JOB in ws-weekday-start ws-weekday-stop; do
+            if gcloud_timeout 15 gcloud scheduler jobs describe "$JOB" --location="$REGION" --project="$PROJECT_ID" >/dev/null 2>&1; then
+                log "  WARN: $JOB still exists after delete"
+            fi
+        done
     else
         log "  Cloud Scheduler API not enabled — skipping"
     fi
