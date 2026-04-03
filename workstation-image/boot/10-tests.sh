@@ -13,11 +13,19 @@ RESULTS="$LOG_DIR/boot-test-results.txt"
 SUMMARY="$LOG_DIR/boot-test-summary.txt"
 NIX_SH="$HOME_DIR/.nix-profile/etc/profile.d/nix.sh"
 
-PASS=0; FAIL=0; WARN=0
+PASS=0; FAIL=0; WARN=0; SKIP=0
 
 # Source Nix for this script context
 if [ -f "$NIX_SH" ]; then
     . "$NIX_SH"
+fi
+
+# Source module helper for composable install gating
+WS_MODULES_HELPER="$HOME_DIR/.local/bin/ws-modules.sh"
+if [ -f "$WS_MODULES_HELPER" ]; then
+    . "$WS_MODULES_HELPER"
+else
+    ws_module_enabled() { return 0; }  # fallback: all enabled
 fi
 
 runuser -u $USER -- mkdir -p "$LOG_DIR"
@@ -27,6 +35,7 @@ log() { echo "$1" | tee -a "$RESULTS"; }
 test_pass() { PASS=$((PASS+1)); log "  PASS: $1"; }
 test_fail() { FAIL=$((FAIL+1)); log "  FAIL: $1"; }
 test_warn() { WARN=$((WARN+1)); log "  WARN: $1"; }
+test_skip() { SKIP=$((SKIP+1)); log "  SKIP: $1"; }
 
 check_binary() {
     local name="$1" bin="$2"
@@ -83,58 +92,89 @@ echo "" >> "$RESULTS"
 # =============================================================================
 # IDEs
 # =============================================================================
-log "--- IDEs ---"
-check_binary "VSCode" "code"
-check_binary "IntelliJ" "idea-oss"
-check_binary "Cursor" "cursor"
-check_binary "Windsurf" "windsurf"
-check_binary "Zed" "zeditor"
-check_binary "tmux" "tmux"
+if ws_module_enabled "ides"; then
+    log "--- IDEs ---"
+    check_binary "VSCode" "code"
+    check_binary "IntelliJ" "idea-oss"
+    check_binary "Cursor" "cursor"
+    check_binary "Windsurf" "windsurf"
+    check_binary "Zed" "zeditor"
+else
+    log "--- IDEs --- (SKIPPED — module disabled)"
+    test_skip "IDEs (module disabled)"
+fi
+
+# tmux (separate module)
+if ws_module_enabled "tmux"; then
+    check_binary "tmux" "tmux"
+else
+    log "--- tmux --- (SKIPPED — module disabled)"
+    test_skip "tmux (module disabled)"
+fi
 
 # =============================================================================
 # AI CLI Tools
 # =============================================================================
 log ""
-log "--- AI CLI Tools ---"
-check_binary "Claude Code" "claude"
-check_binary "Codex" "codex"
-check_binary "OpenCode" "opencode"
-check_binary "Cody" "cody"
-check_binary "Pi" "pi"
-# Aider (pip, installed to ~/.local/bin)
-if runuser -u $USER -- bash -c "export PYENV_ROOT=$HOME_DIR/.pyenv && export PATH=$HOME_DIR/.local/bin:\$PYENV_ROOT/bin:\$PATH && eval \"\$(pyenv init -)\" && which aider" >/dev/null 2>&1; then
-    test_pass "Aider (aider)"
+if ws_module_enabled "ai-tools"; then
+    log "--- AI CLI Tools ---"
+    check_binary "Claude Code" "claude"
+    check_binary "Codex" "codex"
+    check_binary "OpenCode" "opencode"
+    check_binary "Cody" "cody"
+    check_binary "Pi" "pi"
+    # Aider (pip, installed to ~/.local/bin)
+    if runuser -u $USER -- bash -c "export PYENV_ROOT=$HOME_DIR/.pyenv && export PATH=$HOME_DIR/.local/bin:\$PYENV_ROOT/bin:\$PATH && eval \"\$(pyenv init -)\" && which aider" >/dev/null 2>&1; then
+        test_pass "Aider (aider)"
+    else
+        test_fail "Aider (not found)"
+    fi
+    # GH Copilot (extension)
+    if runuser -u $USER -- bash -c ". $NIX_SH && gh copilot --version" >/dev/null 2>&1; then
+        test_pass "GH Copilot"
+    else
+        test_warn "GH Copilot (extension may not be installed)"
+    fi
+elif ws_module_enabled "ai-tools-minimal"; then
+    log "--- AI CLI Tools (minimal) ---"
+    check_binary "Claude Code" "claude"
+    test_skip "Codex (ai-tools-minimal)"
+    test_skip "OpenCode (ai-tools-minimal)"
+    test_skip "Cody (ai-tools-minimal)"
+    test_skip "Pi (ai-tools-minimal)"
+    test_skip "Aider (ai-tools-minimal)"
+    test_skip "GH Copilot (ai-tools-minimal)"
 else
-    test_fail "Aider (not found)"
-fi
-# GH Copilot (extension)
-if runuser -u $USER -- bash -c ". $NIX_SH && gh copilot --version" >/dev/null 2>&1; then
-    test_pass "GH Copilot"
-else
-    test_warn "GH Copilot (extension may not be installed)"
+    log "--- AI CLI Tools --- (SKIPPED — module disabled)"
+    test_skip "AI CLI Tools (module disabled)"
 fi
 
 # =============================================================================
 # Languages
 # =============================================================================
 log ""
-log "--- Languages ---"
-check_binary "Go" "go"
-check_binary "Rust (rustc)" "rustc"
-check_binary "Cargo" "cargo"
-# Python (needs pyenv init)
-if runuser -u $USER -- bash -c "export PYENV_ROOT=$HOME_DIR/.pyenv && export PATH=\$PYENV_ROOT/bin:\$PATH && eval \"\$(pyenv init -)\" && which python" >/dev/null 2>&1; then
-    test_pass "Python (pyenv)"
+if ws_module_enabled "languages"; then
+    log "--- Languages ---"
+    check_binary "Go" "go"
+    check_binary "Rust (rustc)" "rustc"
+    check_binary "Cargo" "cargo"
+    # Python (needs pyenv init)
+    if runuser -u $USER -- bash -c "export PYENV_ROOT=$HOME_DIR/.pyenv && export PATH=\$PYENV_ROOT/bin:\$PATH && eval \"\$(pyenv init -)\" && which python" >/dev/null 2>&1; then
+        test_pass "Python (pyenv)"
+    else
+        test_fail "Python (pyenv not found)"
+    fi
+    # Ruby (needs rbenv init)
+    if runuser -u $USER -- bash -c "export PATH=$HOME_DIR/.rbenv/bin:\$PATH && eval \"\$($HOME_DIR/.rbenv/bin/rbenv init -)\" && which ruby" >/dev/null 2>&1; then
+        test_pass "Ruby (rbenv)"
+    else
+        test_fail "Ruby (rbenv not found)"
+    fi
 else
-    test_fail "Python (pyenv not found)"
+    log "--- Languages --- (SKIPPED — module disabled)"
+    test_skip "Languages (module disabled)"
 fi
-# Ruby (needs rbenv init)
-if runuser -u $USER -- bash -c "export PATH=$HOME_DIR/.rbenv/bin:\$PATH && eval \"\$($HOME_DIR/.rbenv/bin/rbenv init -)\" && which ruby" >/dev/null 2>&1; then
-    test_pass "Ruby (rbenv)"
-else
-    test_fail "Ruby (rbenv not found)"
-fi
-# Node.js (via Nix)
+# Node.js (via Nix — always part of base)
 check_binary "Node.js" "node"
 check_binary "npm" "npm"
 
@@ -159,18 +199,29 @@ fi
 # =============================================================================
 log ""
 log "--- Config Files ---"
-check_file "Wofi config" "$HOME_DIR/.config/wofi/config"
-check_file "Wofi style" "$HOME_DIR/.config/wofi/style.css"
-check_file "Snippet picker" "$HOME_DIR/.local/bin/snippet-picker"
-check_file "Snippets conf" "$HOME_DIR/.config/snippets/snippets.conf"
+# Desktop module configs
+if ws_module_enabled "desktop"; then
+    check_file "Wofi config" "$HOME_DIR/.config/wofi/config"
+    check_file "Wofi style" "$HOME_DIR/.config/wofi/style.css"
+    check_file "Snippet picker" "$HOME_DIR/.local/bin/snippet-picker"
+    check_file "Snippets conf" "$HOME_DIR/.config/snippets/snippets.conf"
+else
+    test_skip "Wofi/Snippets configs (desktop module disabled)"
+fi
+# Core configs (always)
 check_file "sway-status" "$HOME_DIR/.local/bin/sway-status"
 check_file "Sway config" "$HOME_DIR/.config/sway/config"
-check_file "tmux.conf" "$HOME_DIR/.tmux.conf"
-# Verify tmux.conf syntax is valid
-if runuser -u $USER -- bash -c ". $NIX_SH && tmux -f $HOME_DIR/.tmux.conf start-server \\; kill-server" >/dev/null 2>&1; then
-    test_pass "tmux.conf syntax valid"
+# Tmux module configs
+if ws_module_enabled "tmux"; then
+    check_file "tmux.conf" "$HOME_DIR/.tmux.conf"
+    # Verify tmux.conf syntax is valid
+    if runuser -u $USER -- bash -c ". $NIX_SH && tmux -f $HOME_DIR/.tmux.conf start-server \\; kill-server" >/dev/null 2>&1; then
+        test_pass "tmux.conf syntax valid"
+    else
+        test_fail "tmux.conf has syntax errors"
+    fi
 else
-    test_fail "tmux.conf has syntax errors"
+    test_skip "tmux.conf (tmux module disabled)"
 fi
 check_file ".zshrc" "$HOME_DIR/.zshrc"
 check_file ".env" "$HOME_DIR/.env"
@@ -231,11 +282,15 @@ check_grep "Network block" "network" "$SWAY_STATUS"
 # =============================================================================
 log ""
 log "--- Directory Structure ---"
-check_dir "GOPATH" "$HOME_DIR/gopath"
-check_dir "Go install" "$HOME_DIR/go/bin"
-check_dir "Cargo" "$HOME_DIR/.cargo/bin"
-check_dir "pyenv" "$HOME_DIR/.pyenv"
-check_dir "rbenv" "$HOME_DIR/.rbenv"
+if ws_module_enabled "languages"; then
+    check_dir "GOPATH" "$HOME_DIR/gopath"
+    check_dir "Go install" "$HOME_DIR/go/bin"
+    check_dir "Cargo" "$HOME_DIR/.cargo/bin"
+    check_dir "pyenv" "$HOME_DIR/.pyenv"
+    check_dir "rbenv" "$HOME_DIR/.rbenv"
+else
+    test_skip "Language dirs (languages module disabled)"
+fi
 check_dir "npm-global" "$HOME_DIR/.npm-global"
 check_dir "Nix profile" "$HOME_DIR/.nix-profile"
 
@@ -256,17 +311,6 @@ check_process "clipman" "clipman store"
 log ""
 log "--- Upgrade Scripts ---"
 
-# Check 07-apps.sh ran and completed
-if [ -f "$HOME_DIR/logs/app-update.log" ]; then
-    if grep -q "App update complete" "$HOME_DIR/logs/app-update.log" 2>/dev/null; then
-        test_pass "07-apps.sh completed successfully"
-    else
-        test_fail "07-apps.sh did not complete (check ~/logs/app-update.log)"
-    fi
-else
-    test_fail "07-apps.sh never ran (~/logs/app-update.log missing)"
-fi
-
 # Check tool versions (verifies upgrades actually installed something)
 check_version() {
     local name="$1" cmd="$2"
@@ -278,27 +322,45 @@ check_version() {
     fi
 }
 
-check_version "Claude Code" "claude --version"
-check_version "Codex" "codex --version"
-check_version "OpenCode" "opencode -v"
-check_version "Cody" "cody --version"
-check_version "Pi" "pi --version"
+if ws_module_enabled "ai-tools"; then
+    # Check 07-apps.sh ran and completed
+    if [ -f "$HOME_DIR/logs/app-update.log" ]; then
+        if grep -q "App update complete" "$HOME_DIR/logs/app-update.log" 2>/dev/null; then
+            test_pass "07-apps.sh completed successfully"
+        else
+            test_fail "07-apps.sh did not complete (check ~/logs/app-update.log)"
+        fi
+    else
+        test_fail "07-apps.sh never ran (~/logs/app-update.log missing)"
+    fi
 
-# Aider version (pip, installed to ~/.local/bin — needs pyenv for Python)
-AIDER_VER=$(runuser -u $USER -- bash -c "export PYENV_ROOT=$HOME_DIR/.pyenv && export PATH=$HOME_DIR/.local/bin:\$PYENV_ROOT/bin:\$PATH && eval \"\$(pyenv init -)\" && aider --version" 2>&1 | head -1)
-if [ -n "$AIDER_VER" ] && ! echo "$AIDER_VER" | grep -qiE "not found|error"; then
-    test_pass "Aider version: $AIDER_VER"
-else
-    test_fail "Aider version check failed"
-fi
+    check_version "Claude Code" "claude --version"
+    check_version "Codex" "codex --version"
+    check_version "OpenCode" "opencode -v"
+    check_version "Cody" "cody --version"
+    check_version "Pi" "pi --version"
 
-# GH Copilot extension installed
-if [ -d "$HOME_DIR/.local/share/gh/extensions/gh-copilot" ] || runuser -u $USER -- bash -c ". $NIX_SH && gh extension list" 2>&1 | grep -q "copilot"; then
-    test_pass "GH Copilot extension installed"
-elif ! runuser -u $USER -- bash -c ". $NIX_SH && gh auth status" >/dev/null 2>&1; then
-    test_warn "GH Copilot extension (gh not authenticated)"
+    # Aider version (pip, installed to ~/.local/bin — needs pyenv for Python)
+    AIDER_VER=$(runuser -u $USER -- bash -c "export PYENV_ROOT=$HOME_DIR/.pyenv && export PATH=$HOME_DIR/.local/bin:\$PYENV_ROOT/bin:\$PATH && eval \"\$(pyenv init -)\" && aider --version" 2>&1 | head -1)
+    if [ -n "$AIDER_VER" ] && ! echo "$AIDER_VER" | grep -qiE "not found|error"; then
+        test_pass "Aider version: $AIDER_VER"
+    else
+        test_fail "Aider version check failed"
+    fi
+
+    # GH Copilot extension installed
+    if [ -d "$HOME_DIR/.local/share/gh/extensions/gh-copilot" ] || runuser -u $USER -- bash -c ". $NIX_SH && gh extension list" 2>&1 | grep -q "copilot"; then
+        test_pass "GH Copilot extension installed"
+    elif ! runuser -u $USER -- bash -c ". $NIX_SH && gh auth status" >/dev/null 2>&1; then
+        test_warn "GH Copilot extension (gh not authenticated)"
+    else
+        test_fail "GH Copilot extension not found"
+    fi
+elif ws_module_enabled "ai-tools-minimal"; then
+    check_version "Claude Code" "claude --version"
+    test_skip "Full AI tools versions (ai-tools-minimal profile)"
 else
-    test_fail "GH Copilot extension not found"
+    test_skip "AI tool versions (module disabled)"
 fi
 
 # Home Manager generation is recent (within last 24 hours)
@@ -317,56 +379,65 @@ else
 fi
 
 # =============================================================================
-# Tailscale (opt-in — only fully tested if TAILSCALE_AUTHKEY in ~/.env)
+# Tailscale (opt-in — only tested if module enabled + TAILSCALE_AUTHKEY in ~/.env)
 # =============================================================================
 log ""
-log "--- Tailscale ---"
-check_binary "tailscale" "tailscale"
-if grep -q "TAILSCALE_AUTHKEY" "$HOME_DIR/.env" 2>/dev/null; then
-    check_file "Tailscale state dir" "$HOME_DIR/.tailscale/tailscaled.state"
-    if pgrep -x tailscaled >/dev/null 2>&1; then
-        test_pass "tailscaled running"
+if ws_module_enabled "tailscale"; then
+    log "--- Tailscale ---"
+    check_binary "tailscale" "tailscale"
+    if grep -q "TAILSCALE_AUTHKEY" "$HOME_DIR/.env" 2>/dev/null; then
+        check_file "Tailscale state dir" "$HOME_DIR/.tailscale/tailscaled.state"
+        if pgrep -x tailscaled >/dev/null 2>&1; then
+            test_pass "tailscaled running"
+        else
+            test_fail "tailscaled not running (TAILSCALE_AUTHKEY is set)"
+        fi
+        if tailscale status >/dev/null 2>&1; then
+            TS_IP=$(tailscale ip -4 2>/dev/null)
+            test_pass "Tailscale connected ($TS_IP)"
+        else
+            test_fail "Tailscale not connected"
+        fi
+        if tailscale status --json 2>/dev/null | grep -q '"SSH"'; then
+            test_pass "Tailscale SSH enabled"
+        else
+            test_warn "Tailscale SSH status unknown"
+        fi
+        # SSH config for Tailscale
+        if grep -q "^PasswordAuthentication yes" /etc/ssh/sshd_config 2>/dev/null; then
+            test_pass "SSH PasswordAuthentication enabled"
+        else
+            test_fail "SSH PasswordAuthentication not enabled"
+        fi
+        # iptables rule for tailscale SSH
+        if iptables -C INPUT -i tailscale0 -p tcp --dport 22 -j ACCEPT 2>/dev/null; then
+            test_pass "iptables: SSH allowed on tailscale0"
+        else
+            test_fail "iptables: SSH not allowed on tailscale0"
+        fi
     else
-        test_fail "tailscaled not running (TAILSCALE_AUTHKEY is set)"
-    fi
-    if tailscale status >/dev/null 2>&1; then
-        TS_IP=$(tailscale ip -4 2>/dev/null)
-        test_pass "Tailscale connected ($TS_IP)"
-    else
-        test_fail "Tailscale not connected"
-    fi
-    if tailscale status --json 2>/dev/null | grep -q '"SSH"'; then
-        test_pass "Tailscale SSH enabled"
-    else
-        test_warn "Tailscale SSH status unknown"
-    fi
-    # SSH config for Tailscale
-    if grep -q "^PasswordAuthentication yes" /etc/ssh/sshd_config 2>/dev/null; then
-        test_pass "SSH PasswordAuthentication enabled"
-    else
-        test_fail "SSH PasswordAuthentication not enabled"
-    fi
-    # iptables rule for tailscale SSH
-    if iptables -C INPUT -i tailscale0 -p tcp --dport 22 -j ACCEPT 2>/dev/null; then
-        test_pass "iptables: SSH allowed on tailscale0"
-    else
-        test_fail "iptables: SSH not allowed on tailscale0"
+        log "  SKIP: Tailscale not configured (no TAILSCALE_AUTHKEY in ~/.env)"
     fi
 else
-    log "  SKIP: Tailscale not configured (no TAILSCALE_AUTHKEY in ~/.env)"
+    log "--- Tailscale --- (SKIPPED — module disabled)"
+    test_skip "Tailscale (module disabled)"
 fi
 
 # =============================================================================
 # Summary
 # =============================================================================
-TOTAL=$((PASS+FAIL+WARN))
+TOTAL=$((PASS+FAIL+WARN+SKIP))
 log ""
 log "========================================"
-log "  TOTAL: $TOTAL | PASS: $PASS | FAIL: $FAIL | WARN: $WARN"
+log "  TOTAL: $TOTAL | PASS: $PASS | FAIL: $FAIL | WARN: $WARN | SKIP: $SKIP"
 log "========================================"
 
 # Write one-line summary
-echo "$(TZ=America/Los_Angeles date '+%Y-%m-%d %H:%M:%S %Z') | PASS: $PASS | FAIL: $FAIL | WARN: $WARN" > "$SUMMARY"
+PROFILE_INFO=""
+if [ -f "$HOME_DIR/.ws-modules" ]; then
+    PROFILE_INFO=" | Profile: $(grep '^profile=' "$HOME_DIR/.ws-modules" 2>/dev/null | cut -d= -f2)"
+fi
+echo "$(TZ=America/Los_Angeles date '+%Y-%m-%d %H:%M:%S %Z') | PASS: $PASS | FAIL: $FAIL | WARN: $WARN | SKIP: $SKIP${PROFILE_INFO}" > "$SUMMARY"
 
 # Set ownership
 chown -R $USER:$USER "$LOG_DIR"
