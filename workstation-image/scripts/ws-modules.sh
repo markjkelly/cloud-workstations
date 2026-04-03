@@ -20,7 +20,7 @@
 # (backwards compatible with pre-composable installs).
 # =============================================================================
 
-WS_MODULES_FILE="$HOME/.ws-modules"
+WS_MODULES_FILE="/home/user/.ws-modules"
 
 ws_module_enabled() {
     local module="$1"
