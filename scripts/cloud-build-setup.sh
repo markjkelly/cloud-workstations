@@ -695,31 +695,39 @@ cat "${REPO_DIR}/workstation-image/configs/waybar/style.css" | \
     ws_pipe "cat > ~/.config/waybar/style.css"
 test_pass "Waybar config deployed"
 
-# Deploy wofi config
-cat "${REPO_DIR}/workstation-image/configs/wofi/config" | \
-    ws_pipe "mkdir -p ~/.config/wofi && cat > ~/.config/wofi/config"
-cat "${REPO_DIR}/workstation-image/configs/wofi/style.css" | \
-    ws_pipe "cat > ~/.config/wofi/style.css"
-test_pass "Wofi config deployed"
+# Deploy wofi config (desktop module)
+if ws_ssh '. ~/.local/bin/ws-modules.sh 2>/dev/null && ws_module_enabled desktop && echo yes || echo no' 2>/dev/null | grep -q "yes"; then
+    cat "${REPO_DIR}/workstation-image/configs/wofi/config" | \
+        ws_pipe "mkdir -p ~/.config/wofi && cat > ~/.config/wofi/config"
+    cat "${REPO_DIR}/workstation-image/configs/wofi/style.css" | \
+        ws_pipe "cat > ~/.config/wofi/style.css"
+    test_pass "Wofi config deployed"
 
-# Deploy snippet picker
-cat "${REPO_DIR}/workstation-image/scripts/snippet-picker" | \
-    ws_pipe "mkdir -p ~/.local/bin && cat > ~/.local/bin/snippet-picker && chmod +x ~/.local/bin/snippet-picker"
-cat "${REPO_DIR}/workstation-image/configs/snippets/snippets.conf" | \
-    ws_pipe "mkdir -p ~/.config/snippets && cat > ~/.config/snippets/snippets.conf"
-test_pass "Snippet picker deployed"
+    # Deploy snippet picker
+    cat "${REPO_DIR}/workstation-image/scripts/snippet-picker" | \
+        ws_pipe "mkdir -p ~/.local/bin && cat > ~/.local/bin/snippet-picker && chmod +x ~/.local/bin/snippet-picker"
+    cat "${REPO_DIR}/workstation-image/configs/snippets/snippets.conf" | \
+        ws_pipe "mkdir -p ~/.config/snippets && cat > ~/.config/snippets/snippets.conf"
+    test_pass "Snippet picker deployed"
+else
+    log "Skipping wofi/snippets (module 'desktop' not enabled)"
+fi
 
-# Deploy tmux.conf
-cat "${REPO_DIR}/workstation-image/configs/tmux/tmux.conf" | \
-    ws_pipe "cat > ~/.tmux.conf"
-test_pass "tmux.conf deployed"
+# Deploy tmux.conf (tmux module)
+if ws_ssh '. ~/.local/bin/ws-modules.sh 2>/dev/null && ws_module_enabled tmux && echo yes || echo no' 2>/dev/null | grep -q "yes"; then
+    cat "${REPO_DIR}/workstation-image/configs/tmux/tmux.conf" | \
+        ws_pipe "cat > ~/.tmux.conf"
+    test_pass "tmux.conf deployed"
 
-# Deploy claude-tmux and tmux-debug scripts
-cat "${REPO_DIR}/workstation-image/scripts/claude-tmux" | \
-    ws_pipe "mkdir -p ~/.local/bin && cat > ~/.local/bin/claude-tmux && chmod +x ~/.local/bin/claude-tmux"
-cat "${REPO_DIR}/workstation-image/scripts/tmux-debug" | \
-    ws_pipe "cat > ~/.local/bin/tmux-debug && chmod +x ~/.local/bin/tmux-debug"
-test_pass "claude-tmux and tmux-debug deployed"
+    # Deploy claude-tmux and tmux-debug scripts
+    cat "${REPO_DIR}/workstation-image/scripts/claude-tmux" | \
+        ws_pipe "mkdir -p ~/.local/bin && cat > ~/.local/bin/claude-tmux && chmod +x ~/.local/bin/claude-tmux"
+    cat "${REPO_DIR}/workstation-image/scripts/tmux-debug" | \
+        ws_pipe "cat > ~/.local/bin/tmux-debug && chmod +x ~/.local/bin/tmux-debug"
+    test_pass "claude-tmux and tmux-debug deployed"
+else
+    log "Skipping tmux configs (module 'tmux' not enabled)"
+fi
 
 # =========================================================================
 step "Step 14/19: Run initial setup"
@@ -748,94 +756,130 @@ echo "$SETUP_VERIFY" | grep -q "zsh_plugins=yes" && test_pass "ZSH plugins" || t
 # =========================================================================
 step "Step 15/19: Install language build dependencies"
 # =========================================================================
-log "Installing apt build dependencies for pyenv/rbenv compilation..."
-if ws_ssh "sudo bash /home/user/boot/07a-lang-deps.sh"; then
-    test_pass "Language build dependencies installed"
+if ws_ssh '. ~/.local/bin/ws-modules.sh 2>/dev/null && ws_module_enabled languages && echo yes || echo no' 2>/dev/null | grep -q "yes"; then
+    log "Installing apt build dependencies for pyenv/rbenv compilation..."
+    if ws_ssh "sudo bash /home/user/boot/07a-lang-deps.sh"; then
+        test_pass "Language build dependencies installed"
+    else
+        test_fail "Language build dependencies install"
+        notify_and_fail "Language build dependencies"
+    fi
 else
-    test_fail "Language build dependencies install"
-    notify_and_fail "Language build dependencies"
+    log "Skipping language build dependencies (module 'languages' not enabled)"
 fi
 
 # =========================================================================
 step "Step 16/19: Install programming languages (Go, Rust, Python, Ruby)"
 # =========================================================================
-log "Installing languages (first-time: 10-15 min for Python/Ruby compilation)..."
-if ! ws_ssh_long "sudo bash /home/user/boot/07b-languages.sh"; then
-    test_warn "Language install script returned non-zero (some languages may have failed)"
+if ws_ssh '. ~/.local/bin/ws-modules.sh 2>/dev/null && ws_module_enabled languages && echo yes || echo no' 2>/dev/null | grep -q "yes"; then
+    log "Installing languages (first-time: 10-15 min for Python/Ruby compilation)..."
+    if ! ws_ssh_long "sudo bash /home/user/boot/07b-languages.sh"; then
+        test_warn "Language install script returned non-zero (some languages may have failed)"
+    fi
+
+    # Verify language installations
+    LANG_VERIFY=$(ws_ssh '
+    export GOROOT=$HOME/go
+    export GOPATH=$HOME/gopath
+    export PATH="$GOROOT/bin:$GOPATH/bin:$HOME/.cargo/bin:$HOME/.pyenv/bin:$HOME/.rbenv/bin:$PATH"
+    eval "$($HOME/.pyenv/bin/pyenv init -)" 2>/dev/null
+    eval "$($HOME/.rbenv/bin/rbenv init -)" 2>/dev/null
+    echo "go=$(go version 2>/dev/null | head -1)"
+    echo "rust=$(rustc --version 2>/dev/null)"
+    echo "cargo=$(cargo --version 2>/dev/null)"
+    echo "python=$(python --version 2>/dev/null)"
+    echo "ruby=$(ruby --version 2>/dev/null)"
+    ')
+    echo "$LANG_VERIFY" | grep -q "go=go version" && test_pass "Go installed" || test_warn "Go not verified"
+    echo "$LANG_VERIFY" | grep -q "rust=rustc" && test_pass "Rust installed" || test_warn "Rust not verified"
+    echo "$LANG_VERIFY" | grep -q "cargo=cargo" && test_pass "Cargo installed" || test_warn "Cargo not verified"
+    echo "$LANG_VERIFY" | grep -q "python=Python 3" && test_pass "Python installed" || test_warn "Python not verified"
+    echo "$LANG_VERIFY" | grep -q "ruby=ruby 3" && test_pass "Ruby installed" || test_warn "Ruby not verified"
+
+    notify "Progress: Languages Installed" "Project: ${PROJECT_ID}" "Go, Rust, Python, Ruby installed. Installing AI tools next..."
+else
+    log "Skipping languages (module 'languages' not enabled)"
 fi
-
-# Verify language installations
-LANG_VERIFY=$(ws_ssh '
-export GOROOT=$HOME/go
-export GOPATH=$HOME/gopath
-export PATH="$GOROOT/bin:$GOPATH/bin:$HOME/.cargo/bin:$HOME/.pyenv/bin:$HOME/.rbenv/bin:$PATH"
-eval "$($HOME/.pyenv/bin/pyenv init -)" 2>/dev/null
-eval "$($HOME/.rbenv/bin/rbenv init -)" 2>/dev/null
-echo "go=$(go version 2>/dev/null | head -1)"
-echo "rust=$(rustc --version 2>/dev/null)"
-echo "cargo=$(cargo --version 2>/dev/null)"
-echo "python=$(python --version 2>/dev/null)"
-echo "ruby=$(ruby --version 2>/dev/null)"
-')
-echo "$LANG_VERIFY" | grep -q "go=go version" && test_pass "Go installed" || test_warn "Go not verified"
-echo "$LANG_VERIFY" | grep -q "rust=rustc" && test_pass "Rust installed" || test_warn "Rust not verified"
-echo "$LANG_VERIFY" | grep -q "cargo=cargo" && test_pass "Cargo installed" || test_warn "Cargo not verified"
-echo "$LANG_VERIFY" | grep -q "python=Python 3" && test_pass "Python installed" || test_warn "Python not verified"
-echo "$LANG_VERIFY" | grep -q "ruby=ruby 3" && test_pass "Ruby installed" || test_warn "Ruby not verified"
-
-notify "Progress: Languages Installed" "Project: ${PROJECT_ID}" "Go, Rust, Python, Ruby installed. Installing AI tools next..."
 
 # =========================================================================
 step "Step 17/19: Install AI tools and Antigravity"
 # =========================================================================
-if ws_ssh_long '
-'"${NIX_SOURCE}"'
-export NPM_CONFIG_PREFIX=$HOME/.npm-global
-mkdir -p $HOME/.npm-global/bin
+# Check for ai-tools or ai-tools-minimal (dev profile gets Claude Code only)
+AI_MODULE_CHECK=$(ws_ssh '. ~/.local/bin/ws-modules.sh 2>/dev/null && if ws_module_enabled ai-tools; then echo full; elif ws_module_enabled ai-tools-minimal; then echo minimal; else echo disabled; fi' 2>/dev/null || echo "full")
 
-npm install -g @anthropic-ai/claude-code @google/gemini-cli @openai/codex @sourcegraph/cody @mariozechner/pi-coding-agent
-'; then
-    test_pass "NPM AI tools installed"
+if echo "$AI_MODULE_CHECK" | grep -q "full"; then
+    # Full AI tools: all NPM tools + OpenCode + Aider + gh-copilot
+    if ws_ssh_long '
+    '"${NIX_SOURCE}"'
+    export NPM_CONFIG_PREFIX=$HOME/.npm-global
+    mkdir -p $HOME/.npm-global/bin
+
+    npm install -g @anthropic-ai/claude-code @google/gemini-cli @openai/codex @sourcegraph/cody @mariozechner/pi-coding-agent
+    '; then
+        test_pass "NPM AI tools installed"
+    else
+        test_warn "NPM AI tools install had errors (some tools may be missing)"
+    fi
+
+    # Antigravity is pre-installed via apt in the Docker image (/usr/bin/antigravity).
+    # No manual download needed.
+
+    # Install OpenCode via go install
+    if ws_ssh "${NIX_SOURCE}"' && export GOROOT=$HOME/go GOPATH=$HOME/gopath && export PATH=$GOROOT/bin:$GOPATH/bin:$PATH && go install github.com/opencode-ai/opencode@latest'; then
+        test_pass "OpenCode installed"
+    else
+        test_warn "OpenCode install failed (may work on next boot via 07-apps.sh)"
+    fi
+
+    # Install aider via pip
+    if ws_ssh 'export PYENV_ROOT=$HOME/.pyenv && export PATH=$PYENV_ROOT/bin:$PATH && eval "$(pyenv init -)" && pip install --user aider-chat'; then
+        test_pass "Aider installed"
+    else
+        test_warn "Aider install failed (may work on next boot via 07-apps.sh)"
+    fi
+
+    # Install gh copilot
+    if ws_ssh "${NIX_SOURCE}"' && gh extension install github/gh-copilot 2>&1 || gh extension upgrade gh-copilot 2>&1'; then
+        test_pass "GitHub Copilot CLI installed"
+    else
+        test_warn "GitHub Copilot CLI install failed (may work on next boot via 07-apps.sh)"
+    fi
+
+    # Create default .env if it doesn't exist (user adds secrets manually)
+    ws_ssh 'touch $HOME/.env'
+    test_pass "Default .env created"
+
+    AI_VERIFY=$(ws_ssh '
+    echo "claude=$(~/.npm-global/bin/claude --version 2>/dev/null | head -1)"
+    echo "gemini=$(~/.npm-global/bin/gemini --version 2>/dev/null | head -1)"
+    echo "antigravity=$(which antigravity 2>/dev/null && antigravity --version 2>/dev/null | head -1 || echo missing)"
+    ')
+    echo "$AI_VERIFY" | grep -q "claude=.*Claude" && test_pass "Claude Code" || test_warn "Claude Code not verified"
+    echo "$AI_VERIFY" | grep -q "gemini=[0-9]" && test_pass "Gemini CLI" || test_warn "Gemini CLI not verified"
+    echo "$AI_VERIFY" | grep -q "/usr/bin/antigravity" && test_pass "Antigravity" || test_warn "Antigravity not verified"
+
+elif echo "$AI_MODULE_CHECK" | grep -q "minimal"; then
+    # Minimal AI tools (dev profile): Claude Code only
+    log "Installing Claude Code only (ai-tools-minimal profile)..."
+    if ws_ssh_long '
+    '"${NIX_SOURCE}"'
+    export NPM_CONFIG_PREFIX=$HOME/.npm-global
+    mkdir -p $HOME/.npm-global/bin
+    npm install -g @anthropic-ai/claude-code
+    '; then
+        test_pass "Claude Code installed (ai-tools-minimal)"
+    else
+        test_warn "Claude Code install had errors"
+    fi
+
+    ws_ssh 'touch $HOME/.env'
+    test_pass "Default .env created"
+
 else
-    test_warn "NPM AI tools install had errors (some tools may be missing)"
+    log "Skipping AI tools (module 'ai-tools' not enabled)"
+    ws_ssh 'touch $HOME/.env'
+    test_pass "Default .env created"
 fi
-
-# Antigravity is pre-installed via apt in the Docker image (/usr/bin/antigravity).
-# No manual download needed.
-
-# Install OpenCode via go install
-if ws_ssh "${NIX_SOURCE}"' && export GOROOT=$HOME/go GOPATH=$HOME/gopath && export PATH=$GOROOT/bin:$GOPATH/bin:$PATH && go install github.com/opencode-ai/opencode@latest'; then
-    test_pass "OpenCode installed"
-else
-    test_warn "OpenCode install failed (may work on next boot via 07-apps.sh)"
-fi
-
-# Install aider via pip
-if ws_ssh 'export PYENV_ROOT=$HOME/.pyenv && export PATH=$PYENV_ROOT/bin:$PATH && eval "$(pyenv init -)" && pip install --user aider-chat'; then
-    test_pass "Aider installed"
-else
-    test_warn "Aider install failed (may work on next boot via 07-apps.sh)"
-fi
-
-# Install gh copilot
-if ws_ssh "${NIX_SOURCE}"' && gh extension install github/gh-copilot 2>&1 || gh extension upgrade gh-copilot 2>&1'; then
-    test_pass "GitHub Copilot CLI installed"
-else
-    test_warn "GitHub Copilot CLI install failed (may work on next boot via 07-apps.sh)"
-fi
-
-# Create default .env if it doesn't exist (user adds secrets manually)
-ws_ssh 'touch $HOME/.env'
-test_pass "Default .env created"
-
-AI_VERIFY=$(ws_ssh '
-echo "claude=$(~/.npm-global/bin/claude --version 2>/dev/null | head -1)"
-echo "gemini=$(~/.npm-global/bin/gemini --version 2>/dev/null | head -1)"
-echo "antigravity=$(which antigravity 2>/dev/null && antigravity --version 2>/dev/null | head -1 || echo missing)"
-')
-echo "$AI_VERIFY" | grep -q "claude=.*Claude" && test_pass "Claude Code" || test_warn "Claude Code not verified"
-echo "$AI_VERIFY" | grep -q "gemini=[0-9]" && test_pass "Gemini CLI" || test_warn "Gemini CLI not verified"
-echo "$AI_VERIFY" | grep -q "/usr/bin/antigravity" && test_pass "Antigravity" || test_warn "Antigravity not verified"
 
 # =========================================================================
 step "Step 18/19: Create Cloud Scheduler (weekday start/stop)"
