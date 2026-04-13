@@ -168,6 +168,35 @@ DESKTOP
 }
 
 # =============================================================================
+# Patch noVNC — disable QEMU extended key events
+# =============================================================================
+# noVNC 1.5+ and wayvnc 0.9.1 negotiate QEMU Extended Key Events pseudo-encoding.
+# This causes the main Enter key to be sent with unexpected modifier state,
+# producing garbage escape sequences (e.g. ";9;13~;") in foot terminal.
+# Numpad Enter is unaffected (different XKB scancode path).
+# Fix: remove the encoding from noVNC's advertised list so it falls back to
+# standard RFB key events, which wayvnc handles correctly.
+patch_novnc() {
+    local rfb="/opt/noVNC/core/rfb.js"
+    if [ ! -f "$rfb" ]; then
+        log "[novnc] $rfb not found — skipping patch"
+        return
+    fi
+    if grep -q "DISABLED: QEMU ext key events" "$rfb"; then
+        log "[novnc] rfb.js already patched — skipping"
+        return
+    fi
+    local line
+    line=$(grep -n "encs.push(encodings.pseudoEncodingQEMUExtendedKeyEvent)" "$rfb" | cut -d: -f1)
+    if [ -z "$line" ]; then
+        log "[novnc] QEMU extended key event line not found — skipping patch"
+        return
+    fi
+    sed -i "${line}s/.*/        \/\/ DISABLED: QEMU ext key events break main Enter with wayvnc\/\/ encs.push(encodings.pseudoEncodingQEMUExtendedKeyEvent);/" "$rfb"
+    log "[novnc] Patched rfb.js line $line — QEMU extended key events disabled"
+}
+
+# =============================================================================
 # Mask ws-autolaunch.service — disable workspace auto-launch
 # =============================================================================
 # 03-sway.sh creates ws-autolaunch.service and enables it via a symlink into
@@ -185,6 +214,7 @@ install_terraform
 install_gh
 install_java
 install_eclipse
+patch_novnc
 mask_autolaunch
 
 log "=== Custom tools install complete ==="
