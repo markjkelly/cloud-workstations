@@ -34,6 +34,7 @@ cat > "$FOOT_INI" << 'EOF'
 # Tokyo Night theme with Operator Mono font
 
 [main]
+term=xterm-256color
 font=Operator Mono Book:size=18
 dpi-aware=no
 pad=8x8
@@ -72,3 +73,4 @@ clipboard-paste=Control+Shift+v
 EOF
 chown -R $USER:$USER "$FOOT_DIR"
 log "Created foot.ini with Operator Mono Book:size=18 and Tokyo Night theme"
+
