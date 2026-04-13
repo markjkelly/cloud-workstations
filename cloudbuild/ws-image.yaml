@@ -1,0 +1,19 @@
+# Cloud Build pipeline: build and push custom Cloud Workstation Docker image.
+# Triggered on push to main in markjkelly/cloud-workstations.
+# The connected repo is automatically checked out to /workspace — no clone step needed.
+steps:
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - build
+      - -t
+      - us-central1-docker.pkg.dev/$PROJECT_ID/workstation-images/dev-workstation:$SHORT_SHA
+      - -t
+      - us-central1-docker.pkg.dev/$PROJECT_ID/workstation-images/dev-workstation:latest
+      - workstation-image
+options:
+  machineType: 'E2_HIGHCPU_8'
+  logging: CLOUD_LOGGING_ONLY
+timeout: 7200s
+images:
+  - us-central1-docker.pkg.dev/$PROJECT_ID/workstation-images/dev-workstation:$SHORT_SHA
+  - us-central1-docker.pkg.dev/$PROJECT_ID/workstation-images/dev-workstation:latest
