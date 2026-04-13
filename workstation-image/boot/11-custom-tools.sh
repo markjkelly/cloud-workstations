@@ -22,6 +22,7 @@ LOG_DIR="$HOME_DIR/logs"
 LOG_FILE="$LOG_DIR/custom-tools.log"
 
 TERRAFORM_VERSION="1.14.8"
+GH_VERSION="2.89.0"
 # Temurin LTS — update this string when a new LTS ships; SDKMAN will validate.
 JAVA_VERSION="21.0.5-tem"
 
@@ -90,10 +91,7 @@ install_gh() {
     arch=$(dpkg --print-architecture 2>/dev/null || uname -m)
     [[ "$arch" == "x86_64" ]] && arch="amd64"
 
-    # Fetch latest release version
-    local version
-    version=$(curl -fsSL https://api.github.com/repos/cli/cli/releases/latest \
-        | grep -oP '(?<="tag_name":"v)[^"]+' | head -1)
+    local version="$GH_VERSION"
     local url="https://github.com/cli/cli/releases/download/v${version}/gh_${version}_linux_${arch}.tar.gz"
 
     local tmp
