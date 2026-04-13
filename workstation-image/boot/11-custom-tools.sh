@@ -1,13 +1,14 @@
 #!/bin/bash
 # =============================================================================
-# 11-custom-tools.sh — Terraform, GitHub CLI, Java, Eclipse, systemd masks
+# 11-custom-tools.sh — Terraform, GitHub CLI, Java, Eclipse, fonts, systemd masks
 # =============================================================================
 # Installs tools not included in the upstream ameer00/cloud-workstations profile:
 #   - Terraform (pinned version)
 #   - GitHub CLI (official apt repo)
 #   - Java LTS via SDKMAN
 #   - Eclipse IDE for Java Developers
-# Also masks ws-autolaunch.service to disable workspace auto-launch on boot.
+#   - JetBrains Mono font (for foot terminal)
+# Also patches noVNC rfb.js and masks ws-autolaunch.service on every boot.
 #
 # Numbered 11- to run after all upstream boot scripts complete.
 # Idempotent — safe to run on every boot.
@@ -168,6 +169,20 @@ DESKTOP
 }
 
 # =============================================================================
+# JetBrains Mono font
+# =============================================================================
+install_jetbrains_mono() {
+    if fc-list | grep -qi "JetBrains Mono"; then
+        log "[fonts] JetBrains Mono already installed — skipping"
+        return
+    fi
+    log "[fonts] Installing fonts-jetbrains-mono..."
+    apt-get install -y fonts-jetbrains-mono >> "$LOG_FILE" 2>&1
+    fc-cache -f >> "$LOG_FILE" 2>&1
+    log "[fonts] JetBrains Mono installed"
+}
+
+# =============================================================================
 # Patch noVNC — disable QEMU extended key events
 # =============================================================================
 # noVNC 1.5+ and wayvnc 0.9.1 negotiate QEMU Extended Key Events pseudo-encoding.
@@ -214,6 +229,7 @@ install_terraform
 install_gh
 install_java
 install_eclipse
+install_jetbrains_mono
 patch_novnc
 mask_autolaunch
 
