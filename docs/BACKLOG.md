@@ -1,7 +1,7 @@
 # Project Backlog — Cloud Workstation
 
 **Maintained by:** TPM
-**Last updated:** 2026-04-15 (Milestone 19 — foot terminal font regression: F-0094)
+**Last updated:** 2026-04-15 (Milestone 20 — foot terminal CWD regression: F-0095)
 
 ---
 
@@ -239,6 +239,14 @@ Tracks fork-only work that pre-dated or accompanied v1.17. All items are documen
 | ID | Feature | Spec | Priority | Status | Owner | Branch | Dependencies | Feedback |
 |----|---------|------|----------|--------|-------|--------|--------------|----------|
 | F-0094 | Fix foot terminal font regression after reboot | [F-0094](specs/F-0094-foot-font-regression.md) | P0 | done | SWE-1 | fix/foot-font-regression | F-0030, F-0092 | Root cause: stale `~/boot/06-prompt.sh` was writing `font=JetBrains Mono` (not installed on this workstation), so foot fell back to Noto Sans and emitted the "font does not appear to be monospace" warning every launch. Fix (commit 62d90fc): (1) new `workstation-image/configs/foot/foot.ini` is the single source of truth; (2) `06-prompt.sh` now deploys that file to `~/.config/foot/foot.ini` instead of writing its own inline copy; (3) `scripts/cloud-build-setup.sh` step 13 deploys the same `foot.ini` to `~/boot/foot.ini` so fresh project setups pick it up. `fc-cache` ordering verified (already enforced by `04-fonts.sh` before `06-prompt.sh`). Boot test added in `workstation-image/boot/10-tests.sh` asserting `fc-match "<family>"` and `fc-match "<family>:spacing=mono"` resolve to the configured monospace font (not Noto/sans). Live boot-test-summary: 51→53 PASS, 31→30 FAIL. AC4(a) reboot persistence verified. AC4(b) teardown+setup and AC4(c) fresh-project setup end-to-end verification still pending — PO deciding between verify-before-PR vs verify-post-merge vs SWE-QA light verification. `docs/STARTUP_SCRIPTS.md` unchanged (no boot-script purpose/ordering change). |
+
+---
+
+## Milestone 20: Foot Terminal CWD Regression
+
+| ID | Feature | Spec | Priority | Status | Owner | Branch | Dependencies | Feedback |
+|----|---------|------|----------|--------|-------|--------|--------------|----------|
+| F-0095 | Fix foot terminal CWD regression (third occurrence) | [F-0095](specs/F-0095-foot-cwd-regression.md) | P0 | in-progress | SWE-1 | fix/foot-font-regression | F-0087, F-0094 | Third regression of the same class: newly spawned foot terminals no longer start in `/home/user` — they inherit the launcher's CWD. Previously fixed in `0dd33b3` (`--working-directory=/home/user`) and `e7236a8` (F-0087, `cd ~ &&` guard + 10-tests.sh assertion). Root cause almost certainly a three-places-rule drift between `workstation-image/configs/sway/config`, `~/.config/home-manager/sway-config`, and `scripts/cloud-build-setup.sh` (possibly also repo vs `~/boot/08-workspaces.sh`). SWE must diff all three sources against `0dd33b3` / `e7236a8` before coding and record which hypothesis (H1–H4 in spec) is the real root cause in the commit body. Spec recommends standardizing on `--working-directory=/home/user` (explicit, no shell expansion, same flag works in `08-workspaces.sh` invocations). Must extend `10-tests.sh` with a drift-guard assertion: repo sway config and Home Manager sway-config byte-identical on foot-launch lines, and every `foot` invocation in `08-workspaces.sh` carries the guard — so a fourth regression fails the boot-test summary instead of shipping silently. Acceptance covers reboot, `ws.sh teardown && ws.sh setup`, and fresh-project setup. |
 
 ---
 
