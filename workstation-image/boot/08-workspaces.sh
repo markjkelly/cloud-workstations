@@ -3,7 +3,7 @@
 # 08-workspaces.sh — Auto-launch apps across 4 Sway workspaces
 # =============================================================================
 # Waits for Sway to be ready, then launches:
-#   ws1 = foot terminal, ws2 = Chrome, ws3 = Antigravity, ws4 = foot terminal
+#   ws1 = Chrome, ws2 = Antigravity, ws3 = foot terminal, ws4 = foot terminal
 # Idempotent: skips if windows already exist.
 # Runs as systemd service (ws-autolaunch) after wayvnc.service.
 # =============================================================================
@@ -119,18 +119,18 @@ launch_and_wait() {
     log "WARNING: Timeout (${timeout}s) waiting for window on ws$ws: $*"
 }
 
-# Workspace 1: foot terminal (fast — 5s timeout)
-launch_and_wait 1 5 "$FOOT" --working-directory=/home/user
+# Workspace 1: Google Chrome (Electron — 15s timeout)
+launch_and_wait 1 15 google-chrome-stable --ozone-platform=wayland --disable-dev-shm-usage
 
-# Workspace 2: Google Chrome (Electron — 15s timeout)
-launch_and_wait 2 15 google-chrome-stable --ozone-platform=wayland --disable-dev-shm-usage
-
-# Workspace 3: Antigravity (Electron — 30s timeout, needs longer to initialize)
+# Workspace 2: Antigravity (Electron — 30s timeout, needs longer to initialize)
 if [ -x "$ANTIGRAVITY" ]; then
-    launch_and_wait 3 30 "$ANTIGRAVITY" --no-sandbox --ozone-platform=wayland --disable-gpu --disable-dev-shm-usage
+    launch_and_wait 2 30 "$ANTIGRAVITY" --no-sandbox --ozone-platform=wayland --disable-gpu --disable-dev-shm-usage
 else
-    log "WARNING: Antigravity not found at $ANTIGRAVITY — skipping ws3"
+    log "WARNING: Antigravity not found at $ANTIGRAVITY — skipping ws2"
 fi
+
+# Workspace 3: foot terminal (fast — 5s timeout)
+launch_and_wait 3 5 "$FOOT" --working-directory=/home/user
 
 # Workspace 4: foot terminal (fast — 5s timeout)
 launch_and_wait 4 5 "$FOOT" --working-directory=/home/user
