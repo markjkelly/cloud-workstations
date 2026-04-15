@@ -1,5 +1,12 @@
 # Release Notes — Cloud Workstation
 
+## v1.20 — Xwayland ws1 split fix (2026-04-15)
+
+### Fixed
+- **Xwayland no longer splits workspace 1** (F-0096) — `workstation-image/boot/08-workspaces.sh` now launches Xwayland with `-rootless`, the standard mode under a Wayland compositor. Previously, rootful Xwayland painted a workspace-sized root window that Sway tiled 50/50 alongside the autostart foot terminal on ws1. With `-rootless`, no phantom root surface is created and ws1 opens to a single fullscreen foot terminal matching ws2/ws3/ws4. See `docs/specs/F-0096-xwayland-ws1-split.md`.
+
+---
+
 ## v1.18 — Claude Code Auto-Update Fix (2026-04-15)
 
 Fixes the Claude Code in-process auto-updater so it can write to the
