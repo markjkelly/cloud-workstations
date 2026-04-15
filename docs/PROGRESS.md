@@ -1,5 +1,37 @@
 # Development Progress Log — Cloud Workstation
 
+## Session 21 — 2026-04-15
+
+### Goals
+- Diagnose and fix F-0094: foot terminal falling back to Noto Sans after reboot with "font does not appear to be monospace" warning
+
+### Completed
+- **PM** wrote `docs/specs/F-0094-foot-font-regression.md` with P0 bug spec, hypotheses, requirements (R1–R5), and acceptance criteria (AC1–AC6). Prohibited silencing via `[tweak].font-monospace-warn=no`.
+- **TPM** added Milestone 19 / F-0094 entry to `docs/BACKLOG.md` (P0, owner SWE-1, branch `fix/foot-font-regression`, deps F-0030/F-0092). Initial backlog commit `bf5ce46`.
+- **SWE-1** diagnosed root cause and implemented fix on branch `fix/foot-font-regression`, commit `62d90fc` (pushed):
+  - Root cause: `~/boot/06-prompt.sh` was a stale copy writing `font=JetBrains Mono` inline. JetBrains Mono was not installed on this workstation, so foot fell back to Noto Sans (non-monospace) and emitted the warning every launch.
+  - Created `workstation-image/configs/foot/foot.ini` as the single source of truth for foot config.
+  - Updated `workstation-image/boot/06-prompt.sh` to deploy `~/boot/foot.ini` to `~/.config/foot/foot.ini` instead of writing an inline heredoc.
+  - Updated `scripts/cloud-build-setup.sh` step 13 to deploy the same `foot.ini` to `~/boot/foot.ini` for fresh project setups (three-places rule satisfied).
+  - Verified `fc-cache -fv` ordering: `04-fonts.sh` rebuilds the cache before `06-prompt.sh` runs, so the foot config lands after fonts are indexed.
+  - Added boot test to `workstation-image/boot/10-tests.sh` that greps the primary family from `~/.config/foot/foot.ini`, runs `fc-match "<family>"` and `fc-match "<family>:spacing=mono"`, and asserts the returned font is the configured monospace family (not Noto/DejaVu sans).
+  - Live boot-test-summary on the workstation: 51→53 PASS, 31→30 FAIL.
+- **TPM** updated `docs/BACKLOG.md` to mark F-0094 done with commit SHA and verification status, and updated this `docs/PROGRESS.md`.
+
+### Key Decisions
+- **Repo foot.ini is the source of truth, not an inline heredoc**: the previous approach had `06-prompt.sh` generate `foot.ini` inline, which is exactly what caused the drift (repo changes to the font family didn't propagate to the live deploy). Going forward boot scripts deploy a checked-in config file.
+- **`docs/STARTUP_SCRIPTS.md` not updated**: no boot script's purpose or ordering changed — only the internal mechanism of how `06-prompt.sh` produces `foot.ini`. Documentation entry for 06-prompt.sh remains accurate.
+- **Reboot persistence verified in place (AC4a)**; full teardown+setup (AC4b) and fresh-project setup (AC4c) verification deferred pending PO direction (verify-before-PR vs verify-post-merge vs SWE-QA light verification).
+
+### Next Steps
+- PO decides verification path for AC4(b) and AC4(c).
+- Once PO direction is confirmed, TPM pings PM to write RELEASENOTES.md entry and close out the milestone.
+
+### Open Items
+- End-to-end verification of `ws.sh teardown && ws.sh setup` (AC4b) and fresh-project setup on a new GCP project disk (AC4c).
+
+---
+
 ## Session 20 — 2026-04-15
 
 ### Goals

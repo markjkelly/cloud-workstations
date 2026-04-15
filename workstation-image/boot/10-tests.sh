@@ -213,6 +213,34 @@ check_file "sway-status" "$HOME_DIR/.local/bin/sway-status"
 check_file "Sway config" "$HOME_DIR/.config/sway/config"
 check_file "foot.ini" "$HOME_DIR/.config/foot/foot.ini"
 check_grep "foot font (monospace)" "DejaVu Sans Mono" "$HOME_DIR/.config/foot/foot.ini"
+
+# F-0094: resolve foot's configured primary font through fontconfig to
+# verify it actually lands on the intended monospace family. A bare
+# content-grep is not enough — if the family name is misspelled or the
+# font package is missing, fc-match silently falls back to Noto Sans and
+# foot emits "font does not appear to be monospace" on every launch.
+FOOT_FAMILY=$(grep -E '^font=' "$HOME_DIR/.config/foot/foot.ini" 2>/dev/null \
+    | head -1 | sed -E 's/^font=([^:]+).*/\1/')
+if [ -n "$FOOT_FAMILY" ]; then
+    FC_MATCH=$(runuser -u $USER -- fc-match "$FOOT_FAMILY" 2>/dev/null)
+    if echo "$FC_MATCH" | grep -qiE 'noto.*sans|^[^:]*[Ss]ans[^:]*:.*"[^"]*Sans[^M"]*"'; then
+        test_fail "foot font fc-match falls back to Noto/Sans ($FOOT_FAMILY -> $FC_MATCH)"
+    elif echo "$FC_MATCH" | grep -qi "$FOOT_FAMILY"; then
+        test_pass "foot font fc-match resolves to $FOOT_FAMILY ($FC_MATCH)"
+    else
+        test_fail "foot font fc-match does not match family ($FOOT_FAMILY -> $FC_MATCH)"
+    fi
+    # spacing=mono must also resolve to the same family; otherwise foot
+    # will warn about a non-monospace font even if the family name resolves.
+    FC_MONO=$(runuser -u $USER -- fc-match "${FOOT_FAMILY}:spacing=mono" 2>/dev/null)
+    if echo "$FC_MONO" | grep -qi "$FOOT_FAMILY"; then
+        test_pass "foot font spacing=mono resolves ($FC_MONO)"
+    else
+        test_fail "foot font spacing=mono fallback ($FOOT_FAMILY -> $FC_MONO)"
+    fi
+else
+    test_fail "foot.ini has no [main] font= line"
+fi
 # Tmux module configs
 if ws_module_enabled "tmux"; then
     check_file "tmux.conf" "$HOME_DIR/.tmux.conf"
