@@ -609,9 +609,11 @@ cat << NIXEOF | ws_pipe "mkdir -p ~/.config/home-manager && cat > ~/.config/home
   home.file.".config/foot/foot.ini".text = ''
     [main]
     font=monospace:size=11
-    [colors]
+    [colors-dark]
     background=1a1b26
     foreground=c0caf5
+    [tweak]
+    font-monospace-warn=no
   '';
 
   home.sessionVariables = {
