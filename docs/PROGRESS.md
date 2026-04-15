@@ -1,5 +1,40 @@
 # Development Progress Log — Cloud Workstation
 
+## Session 22 — 2026-04-15
+
+### Goals
+- Diagnose and fix F-0095: foot terminal CWD regression (third occurrence) — newly spawned foot terminals no longer start in `/home/user`, forcing manual `cd ~` on every new terminal
+- Close the drift loop so a fourth regression of this class fails the boot-test summary instead of shipping silently
+
+### Completed
+- **PM** wrote `docs/specs/F-0095-foot-cwd-regression.md` (commit `429def7`) with four root-cause hypotheses (H1–H4), requirements R1–R5 (including mandatory boot-level drift guard in R4), and acceptance criteria AC1–AC6. Spec prohibits silencing via shell aliases or profile hacks.
+- **TPM** added Milestone 20 / F-0095 entry to `docs/BACKLOG.md` on branch `fix/foot-font-regression` (commit `a41e570`) — P0, owner SWE-1, deps F-0087 + F-0094.
+- **SWE** diagnosed and fixed on branch `fix/foot-cwd-regression-f0095`:
+  - Commit `dbcdfc1` — Root cause: **H1 + stale 10-tests.sh assertion**. The existing F-0087 test grepped for the old `exec cd ~ && .*foot` pattern, so when someone standardized back to `0dd33b3`'s `--working-directory=/home/user` style the drift check silently passed instead of catching the resurfaced regression. The repo sway config and `08-workspaces.sh` already carried the correct `--working-directory=/home/user` guard from commits `0dd33b3` / `20d3352`; only `workstation-image/boot/10-tests.sh` needed a change. Three R4 drift guards added: R4a (sway `$mod+Return` / `$mod+t` bindings), R4b (every foot invocation in `08-workspaces.sh`), R4c (repo sway config and `~/.config/home-manager/sway-config` byte-identical on foot-launch lines).
+  - Commit `f47e4ed` — Follow-up from SWE-Test verification: the R4b matcher `(\$FOOT|/foot)[[:space:]]` required trailing whitespace and therefore missed the real live-drift pattern `launch_and_wait 1 5 "$FOOT"` (bare `"$FOOT"` at end-of-line, no args). Broadened to `("\$FOOT"|\$FOOT|/foot)([[:space:]"]|$)` with the `FOOT=` assignment line filtered out — now catches the ws1/ws4 autostart drift the guard was specifically designed to catch.
+- **SWE-Test** live-verified on the drifted workstation (pre-resetup) — R4a FAILs × 2 (sway keybindings drifted back), R4b FAILs (08-workspaces.sh drift, post-f47e4ed fix), R4c SKIPs cleanly (no Home Manager sway-config on this workstation). All three will flip to PASS post-`ws.sh setup` once the repo-correct configs are re-synced. `bash -n` clean on the test script.
+
+### Key Decisions
+- **Standardize on `--working-directory=/home/user`**: per spec recommendation, chosen over `cd ~ && …` because it is explicit, does not depend on shell expansion, and is the identical flag on both sway keybindings and `08-workspaces.sh` `launch_and_wait` invocations. F-0087's shell-guard style is superseded.
+- **Fix lives in the boot test, not the configs**: the repo sway config and `08-workspaces.sh` already had the correct flag; the real failure was that the test couldn't detect when the live deploy drifted away from the repo. Fixing just the test makes future drift noisy instead of silent.
+- **No shell-alias silencing**: deliberately rejected adding a `cd ~` shim in `~/.zshrc` / `~/.profile` or wrapping foot with a CWD-forcing script, per R3. Those would have hidden the drift that F-0095 is specifically about exposing.
+- **`docs/STARTUP_SCRIPTS.md` not updated**: no boot-script purpose or ordering changed — the edit is a regex tightening inside `10-tests.sh` whose documented role already covers it.
+
+### Verification Status
+- **Statically verified (this session)**: diff scope correct (+6/−1 to `10-tests.sh` net across both commits), `bash -n` clean, repo-copy grep shows both `08-workspaces.sh` call sites (lines 117, 130) carry `--working-directory=/home/user`, repo sway config carries the flag on both `$mod+Return` / `$mod+t` bindings.
+- **Live-verified on the drifted workstation (pre-resetup)**: R4a/R4b fail as designed when the live deploy has drifted — this is the AC3 headline validation (drift guard catches regression).
+- **Not yet verified (needs live display + boot sequence)**: AC1 (`$mod+Return` → `pwd == /home/user`), AC2 (autostart ws1/ws4 foot pwd), AC4(b) `ws.sh teardown && ws.sh setup`, AC4(c) fresh-project setup, AC3 tail (all three guards flip to PASS post-setup). AC5 three-places diff deferred until after setup runs. Corruption check (AC3 negative) skipped to respect no-edits constraint on live configs.
+
+### Next Steps
+- PO decides verification path for AC1/AC2/AC4(b)/AC4(c) (verify-before-PR vs verify-post-merge vs SWE-QA light verification) — same choice as F-0094.
+- PM to pick up task #5: RELEASENOTES.md entry + PO report.
+
+### Open Items / Risks
+- **BLOCKING for release merge**: `main` currently has a residual unresolved `UU docs/BACKLOG.md` three-stage conflict (`:2` pre-F-0094 state, `:3` combined F-0095+F-0096 state) with no `.git/MERGE_HEAD` — not a live merge, but an orphan state. F-0096 (Xwayland ws1 split, Milestone 21) is a separate workstream whose ownership is unclear. Escalated to team-lead and then to PO. PM must NOT merge F-0095 to `main` until this is resolved, or the release-notes edit will collide.
+- Standing F-0094 items still open: AC4(b) teardown+setup and AC4(c) fresh-project setup verification.
+
+---
+
 ## Session 21 — 2026-04-15
 
 ### Goals

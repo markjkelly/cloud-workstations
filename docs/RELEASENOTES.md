@@ -16,6 +16,64 @@ See [docs/specs/F-0093-claude-autoupdate-fix.md](specs/F-0093-claude-autoupdate-
 
 ---
 
+## v1.19 — Foot Terminal CWD Regression Drift Guards (2026-04-15)
+
+Third occurrence of the "foot does not start in `/home/user`" class of bug.
+The configs were actually correct — the previous F-0087 boot test had
+gone stale and was still looking for its own `cd ~ &&` pattern, so a
+later drift back to the `--working-directory=/home/user` style (from
+`0dd33b3`) passed the test silently instead of failing it. The fix
+hardens the boot test into three drift guards so a fourth regression
+fails `~/logs/boot-test-summary.txt` on the next boot.
+
+### Fixed
+- **Foot terminal CWD regression** (F-0095) — foot now reliably opens
+  with `pwd=/home/user` from sway `$mod+Return`, `$mod+t`, and the
+  autostart workspace script. Standardized on
+  `--working-directory=/home/user` as the single CWD-guard style;
+  F-0087's `cd ~ &&` wrapper is superseded. Root cause was a stale
+  boot-test assertion, not a config regression — the configs already
+  carried the correct flag
+
+### Changed
+- **`workstation-image/boot/10-tests.sh` — three R4 drift guards**
+  (F-0095) replacing the single F-0087 `cd ~ &&` grep:
+  - **R4a** — every sway keybinding that launches foot must carry
+    `--working-directory=/home/user` (checks `$mod+Return`, `$mod+t`,
+    and any other foot-launching binding in the active
+    `~/.config/sway/config`)
+  - **R4b** — every `foot` invocation in
+    `workstation-image/boot/08-workspaces.sh` must carry the same
+    flag; matcher broadened after SWE-Test caught a regex gap where a
+    bare `"$FOOT"` at end of line slipped through
+  - **R4c** — the repo `workstation-image/configs/sway/config` and
+    the deployed `~/.config/home-manager/sway-config` must be
+    byte-identical on the lines that launch foot, catching
+    three-places-rule drift at boot instead of at the user
+
+### Docs
+- **F-0095 spec** — `docs/specs/F-0095-foot-cwd-regression.md`
+  captures the regression history (`0dd33b3` → F-0087/`e7236a8` →
+  F-0095), the four-hypothesis root-cause framework used during
+  diagnosis, and the drift-guard requirement so any future repeat of
+  this class is caught automatically
+
+### Verification Status
+- **Statically verified:** configs carry the correct flag in all three
+  sources (repo / home-manager source / setup script); R4a/R4b/R4c
+  assertions compile and run
+- **Live-verified on the currently-drifted workstation:** R4 drift
+  guards correctly produce a FAIL in
+  `~/logs/boot-test-summary.txt` when any of the three sources is
+  corrupted — AC3 headline validated
+- **Pending live verification:** AC1 (`$mod+Return` → `pwd`), AC2
+  (autostart foot windows), AC4(b) (teardown + re-setup on this
+  project), AC4(c) (fresh project setup). PO to choose between
+  verify-before-PR, verify-post-merge, or an SWE-QA light-verification
+  pass before Milestone 20 closes
+
+---
+
 ## v1.17 — GCP Organization Alignment, Font Cleanup, Fork Retrospective (2026-04-15)
 
 This release captures the final alignment of the fork with the deployed
