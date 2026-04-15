@@ -219,8 +219,13 @@ bar {
 
 # Disable built-in Xwayland (Nix Xwayland fails: nvidia LD_LIBRARY_PATH breaks
 # transitive libX11 resolution in Nix linker). Use system Xwayland instead.
+# F-0097: pass -rootless so Xwayland does not create a visible X root window
+# that sway would tile onto ws1. This autostart is the single owner of the
+# Xwayland :0 process — 08-workspaces.sh's pgrep guard then skips re-launch.
+# The earlier F-0096 fix edited only 08-workspaces.sh, but this exec wins
+# the race and started Xwayland non-rootless, defeating that change at boot.
 xwayland disable
-exec /usr/bin/Xwayland :0 &
+exec /usr/bin/Xwayland -rootless :0 &
 
 # Clipboard manager — watch clipboard and store history
 # Use full path since sway's shell doesn't have Nix profile in PATH
