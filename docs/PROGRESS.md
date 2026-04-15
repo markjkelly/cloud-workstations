@@ -1,5 +1,38 @@
 # Development Progress Log — Cloud Workstation
 
+## Session 23 — 2026-04-15
+
+### Goals
+- Fix Xwayland splitting workspace 1 on boot (F-0096) — ws1 should open to a single fullscreen foot terminal like ws2/ws3/ws4, not tile foot next to a phantom Xwayland root window.
+
+### Completed
+- **PM** authored `docs/specs/F-0096-xwayland-ws1-split.md` with reproduction, root-cause analysis, two fix options, and acceptance criteria (commit `b8d7915`).
+- **TPM** added F-0096 to `docs/BACKLOG.md` under Milestone 21 (commit `98ac784`).
+- **SWE** implemented Option 2 — added `-rootless` to the Xwayland invocation in `workstation-image/boot/08-workspaces.sh`, updated log lines, and left a comment pointing at F-0096 (commit `2cf39b1`).
+- **SWE-Test + SWE-QA** verified end-to-end on the live workstation: after `swaymsg reload` + re-exec of `08-workspaces.sh`, ws1 shows a single fullscreen foot terminal; no `org.freedesktop.Xwayland` client is visible in `swaymsg -t get_tree`. Boot test suite: **53 PASS / 30 FAIL**, with all 30 FAILs pre-existing hygiene issues unrelated to this fix (mostly AI CLI version probes).
+- **SWE** marked F-0096 Done, tested + verified in `docs/BACKLOG.md` (commit `ae692e6`).
+
+### Key Decisions
+- **Chose `-rootless` over a sway `for_window` scratchpad rule**: root-cause fix vs. symptom-masking. With `-rootless`, Xwayland never spawns the phantom root window in the first place, matching the standard mode for Xwayland under a Wayland compositor. A `for_window` rule would leave a useless process rendering into the void and could silently mask a future regression.
+- **Deferred AC4 (reboot persistence) to the deployment step**: the fix lives in the repo at `workstation-image/boot/08-workspaces.sh`, which the setup pipeline deploys to both `~/boot/` and the image. Verification at reboot requires `ws.sh setup` after merge + push; the live verification confirmed the code path works when re-executed.
+- **Did not add defense-in-depth `for_window` rule**: per the spec's open question, a future regression should surface loudly rather than be silently hidden by a second layer.
+
+### Files Changed
+- `docs/specs/F-0096-xwayland-ws1-split.md` (new)
+- `docs/BACKLOG.md` (Milestone 21 entry, then marked Done)
+- `workstation-image/boot/08-workspaces.sh` (`-rootless` flag + comment)
+
+### Pipeline
+- Full PO → PM → TPM → SWE → SWE-Test/QA → TPM/PM pipeline used via interactive tmux team `fix-xwayland-ws1`.
+
+### Next Steps
+- PM to produce release-notes entry (v1.17.1 bugfix) on `fix/xwayland-ws1-split`.
+- Open PR `fix/xwayland-ws1-split` → `main`.
+- After PO approval: tag `v1.17.1` and push; run `ws.sh setup` to confirm AC4 (reboot persistence) end-to-end.
+- Separate follow-up: triage the 30 pre-existing FAILs in `10-tests.sh` (out of scope for F-0096).
+
+---
+
 ## Session 22 — 2026-04-15
 
 ### Goals

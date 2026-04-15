@@ -226,7 +226,6 @@ Tracks fork-only work that pre-dated or accompanied v1.17. All items are documen
 
 ---
 
-<<<<<<< HEAD
 ## Milestone 18: Claude Code Auto-Update Fix
 
 | ID | Feature | Spec | Priority | Status | Owner | Branch | Dependencies | Feedback |
