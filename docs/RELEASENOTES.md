@@ -1,5 +1,20 @@
 # Release Notes — Cloud Workstation
 
+## v1.17.2 — Xwayland -rootless persistence (2026-04-15)
+
+Patch release covering F-0097. Closes the loop on the F-0096 fix (v1.17.1 /
+v1.20) by making the `-rootless` flag survive reboots, and hardens the
+boot test so any future regression fails at boot instead of silently
+reintroducing the workspace-1 split.
+
+### Fixed
+- **Xwayland `-rootless` now persists across reboots** (F-0097) — Xwayland is now started from sway autostart via `xwayland disable` + `exec /usr/bin/Xwayland -rootless :0 &` in `workstation-image/configs/sway/config`, so the flag is present on every boot. Previously the F-0096 fix only applied during the session it was deployed in; after a reboot, sway's default Xwayland launch took over without `-rootless`, silently reintroducing the 50/50 workspace-1 split. See `docs/specs/F-0097-xwayland-rootless-persistence.md`.
+
+### Changed
+- **`workstation-image/boot/10-tests.sh` — runtime Xwayland assertion** (F-0097) — the boot test now asserts that the *running* Xwayland process command line contains `-rootless` (reads `/proc/<pid>/cmdline` for the live process), rather than only grepping the static config for the flag. Catches the F-0097 class of regression — correct config on disk but wrong process actually running — that a static grep would miss.
+
+---
+
 ## v1.20 — Xwayland ws1 split fix (2026-04-15)
 
 ### Fixed
