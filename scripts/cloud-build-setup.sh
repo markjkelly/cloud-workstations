@@ -12,7 +12,7 @@
 set -euo pipefail
 
 PROJECT_ID="${1:?Usage: cloud-build-setup.sh PROJECT_ID REGION [WEBHOOK_URL] [EMAIL_FUNC_URL] [EMAIL] [USER_ACCOUNT] [PROFILE]}"
-REGION="${2:-us-west1}"
+REGION="${2:-us-central1}"
 WEBHOOK_URL="${3:-}"
 EMAIL_FUNC_URL="${4:-}"
 EMAIL="${5:-}"
@@ -38,11 +38,12 @@ profile_has_module() {
     echo ",$MODULES," | grep -q ",$1,"
 }
 
-CLUSTER="workstation-cluster"
-CONFIG="ws-config"
-WORKSTATION="dev-workstation"
+CLUSTER="main-cluster"
+CONFIG="sway-config"
+WORKSTATION="sway-workstation"
 AR_REPO="workstation-images"
-IMAGE="${REGION}-docker.pkg.dev/${PROJECT_ID}/${AR_REPO}/workstation:latest"
+IMAGE="${REGION}-docker.pkg.dev/${PROJECT_ID}/${AR_REPO}/dev-workstation:latest"
+SWAY_SA="sway-workstation-sa@${PROJECT_ID}.iam.gserviceaccount.com"
 PASS=0; FAIL=0; WARN=0
 START_TIME=$(date +%s)
 
@@ -232,32 +233,47 @@ fi
 cd "${REPO_DIR}"
 
 # =========================================================================
-step "Step 4/19: Ensure default VPC network + Cloud NAT"
+step "Step 4/19: Ensure workstations VPC + Cloud NAT"
 # =========================================================================
-# Ensure default VPC network exists (required for cluster + NAT)
-if gcloud compute networks describe default --project="$PROJECT_ID" >/dev/null 2>&1; then
-    log "Default VPC network exists"
+# Custom VPC for workstations — avoids default network dependency
+VPC_NAME="workstations-vpc"
+SUBNET_NAME="workstations-subnet"
+SUBNET_RANGE="10.0.0.0/24"
+ROUTER_NAME="workstations-router"
+NAT_NAME="workstations-nat"
+
+if gcloud compute networks describe "$VPC_NAME" --project="$PROJECT_ID" >/dev/null 2>&1; then
+    log "VPC $VPC_NAME exists — skipping"
 else
-    log "Creating default VPC network..."
-    gcloud compute networks create default \
-        --subnet-mode=auto --project="$PROJECT_ID" --quiet 2>&1 | head -3
-    log "Default network created"
+    log "Creating VPC $VPC_NAME..."
+    gcloud compute networks create "$VPC_NAME" \
+        --subnet-mode=custom --project="$PROJECT_ID" --quiet 2>&1 | head -3
 fi
 
-if gcloud compute routers describe ws-router \
+if gcloud compute networks subnets describe "$SUBNET_NAME" \
+    --region="$REGION" --project="$PROJECT_ID" >/dev/null 2>&1; then
+    log "Subnet $SUBNET_NAME exists — skipping"
+else
+    log "Creating subnet $SUBNET_NAME..."
+    gcloud compute networks subnets create "$SUBNET_NAME" \
+        --network="$VPC_NAME" --region="$REGION" \
+        --range="$SUBNET_RANGE" --project="$PROJECT_ID"
+fi
+
+if gcloud compute routers describe "$ROUTER_NAME" \
     --region="$REGION" --project="$PROJECT_ID" >/dev/null 2>&1; then
     log "Cloud Router already exists — skipping"
 else
-    retry 2 5 gcloud compute routers create ws-router \
-        --network=default --region="$REGION" --project="$PROJECT_ID"
+    retry 2 5 gcloud compute routers create "$ROUTER_NAME" \
+        --network="$VPC_NAME" --region="$REGION" --project="$PROJECT_ID"
 fi
 
-if gcloud compute routers nats describe ws-nat \
-    --router=ws-router --region="$REGION" --project="$PROJECT_ID" >/dev/null 2>&1; then
+if gcloud compute routers nats describe "$NAT_NAME" \
+    --router="$ROUTER_NAME" --region="$REGION" --project="$PROJECT_ID" >/dev/null 2>&1; then
     log "Cloud NAT already exists — skipping"
 else
-    retry 2 5 gcloud compute routers nats create ws-nat \
-        --router=ws-router --region="$REGION" \
+    retry 2 5 gcloud compute routers nats create "$NAT_NAME" \
+        --router="$ROUTER_NAME" --region="$REGION" \
         --auto-allocate-nat-external-ips \
         --nat-all-subnet-ip-ranges --project="$PROJECT_ID"
 fi
@@ -272,7 +288,8 @@ if gcloud workstations clusters describe "$CLUSTER" \
 else
     log "Creating cluster (5-10 minutes)..."
     retry 2 30 gcloud workstations clusters create "$CLUSTER" \
-        --region="$REGION" --project="$PROJECT_ID"
+        --region="$REGION" --project="$PROJECT_ID" \
+        --network="$VPC_NAME" --subnetwork="$SUBNET_NAME"
 fi
 # Verify
 if gcloud workstations clusters describe "$CLUSTER" \
@@ -283,21 +300,35 @@ else
 fi
 
 # =========================================================================
-step "Step 6/19: Grant AR access to service accounts"
+step "Step 6/19: Create service account + grant AR access"
 # =========================================================================
 COMPUTE_SA="${PROJECT_NUMBER}-compute@developer.gserviceaccount.com"
 WS_SA="service-${PROJECT_NUMBER}@gcp-sa-workstations.iam.gserviceaccount.com"
 
-# Grant AR reader to both the Workstations service agent AND the compute SA
-# (compute SA is used as the workstation's service account for image pulling)
-for SA in "$WS_SA" "$COMPUTE_SA"; do
+# Create dedicated service account for sway workstation VMs
+if gcloud iam service-accounts describe "$SWAY_SA" \
+    --project="$PROJECT_ID" >/dev/null 2>&1; then
+    log "Service account $SWAY_SA exists — skipping"
+else
+    log "Creating service account sway-workstation-sa..."
+    gcloud iam service-accounts create sway-workstation-sa \
+        --display-name="Sway Workstation VM Service Account" \
+        --project="$PROJECT_ID"
+fi
+
+# Grant AR reader to workstation SA (for image pull) and Cloud Build SA (for setup)
+for SA in "$SWAY_SA" "$COMPUTE_SA" "$WS_SA"; do
     gcloud artifacts repositories add-iam-policy-binding "$AR_REPO" \
         --location="$REGION" \
         --member="serviceAccount:${SA}" \
         --role="roles/artifactregistry.reader" \
         --project="$PROJECT_ID" --quiet --format=none 2>&1 || true
 done
-test_pass "AR reader granted to Workstations SA and Compute SA"
+# Cloud Build SA needs workstations.user to SSH into the workstation
+gcloud projects add-iam-policy-binding "$PROJECT_ID" \
+    --member="serviceAccount:$COMPUTE_SA" \
+    --role="roles/workstations.user" --quiet --format=none 2>&1 || true
+test_pass "Service account created, AR reader granted"
 
 # =========================================================================
 step "Step 7/19: Create Workstation Config"
@@ -306,15 +337,14 @@ if gcloud workstations configs describe "$CONFIG" \
     --cluster="$CLUSTER" --region="$REGION" --project="$PROJECT_ID" >/dev/null 2>&1; then
     log "Config already exists — skipping"
 else
-    # Must specify --service-account so workstation VMs can pull the custom image
     retry 2 10 gcloud workstations configs create "$CONFIG" \
         --cluster="$CLUSTER" --region="$REGION" \
-        --machine-type=n1-standard-16 \
-        --accelerator-type=nvidia-tesla-t4 --accelerator-count=1 \
-        --pd-disk-size=500 --pd-disk-type=pd-ssd \
+        --machine-type=n2-standard-8 \
+        --pd-disk-size=200 --pd-disk-type=pd-balanced \
         --container-custom-image="$IMAGE" \
-        --service-account="$COMPUTE_SA" \
-        --idle-timeout=14400 --running-timeout=43200 \
+        --service-account="$SWAY_SA" \
+        --service-account-scopes="https://www.googleapis.com/auth/cloud-platform" \
+        --idle-timeout=7200 --running-timeout=43200 \
         --disable-public-ip-addresses \
         --shielded-secure-boot --shielded-vtpm --shielded-integrity-monitoring \
         --project="$PROJECT_ID"
@@ -901,54 +931,53 @@ else
 fi
 
 # =========================================================================
-step "Step 18/19: Create Cloud Scheduler (weekday start/stop)"
+step "Step 18/19: Create Cloud Scheduler (daily stop at 8PM Central)"
 # =========================================================================
 WS_API_BASE="https://workstations.googleapis.com/v1/projects/${PROJECT_ID}/locations/${REGION}/workstationClusters/${CLUSTER}/workstationConfigs/${CONFIG}/workstations/${WORKSTATION}"
+SCHEDULER_SA="workstation-scheduler@${PROJECT_ID}.iam.gserviceaccount.com"
 
-# Remove old daily scheduler if exists
-gcloud scheduler jobs delete ws-daily-start \
-    --location="$REGION" --project="$PROJECT_ID" --quiet 2>/dev/null || true
-
-# Weekday start: 6AM Mon-Fri Pacific
-if gcloud scheduler jobs describe ws-weekday-start \
-    --location="$REGION" --project="$PROJECT_ID" >/dev/null 2>&1; then
-    log "Weekday start scheduler already exists — skipping"
+# Create scheduler service account if needed
+if gcloud iam service-accounts describe "$SCHEDULER_SA" \
+    --project="$PROJECT_ID" >/dev/null 2>&1; then
+    log "Scheduler service account exists — skipping"
 else
-    retry 2 5 gcloud scheduler jobs create http ws-weekday-start \
-        --project="$PROJECT_ID" --location="$REGION" \
-        --schedule="0 6 * * 1-5" --time-zone="America/Los_Angeles" \
-        --uri="${WS_API_BASE}:start" \
-        --http-method=POST \
-        --oauth-service-account-email="$COMPUTE_SA" \
-        --oauth-token-scope="https://www.googleapis.com/auth/cloud-platform" || true
+    gcloud iam service-accounts create workstation-scheduler \
+        --display-name="Cloud Scheduler — stop workstation at 8pm Central" \
+        --project="$PROJECT_ID"
 fi
 
-# Weekday stop: 9PM Mon-Fri Pacific
-if gcloud scheduler jobs describe ws-weekday-stop \
+# Grant scheduler SA workstations.user on the workstation
+gcloud workstations add-iam-policy-binding "$WORKSTATION" \
+    --config="$CONFIG" --cluster="$CLUSTER" --region="$REGION" \
+    --project="$PROJECT_ID" \
+    --member="serviceAccount:$SCHEDULER_SA" \
+    --role="roles/workstations.user" --quiet --format=none 2>/dev/null || true
+
+# Remove old schedulers if they exist (name change)
+for old_job in ws-daily-start ws-weekday-start ws-weekday-stop; do
+    gcloud scheduler jobs delete "$old_job" \
+        --location="$REGION" --project="$PROJECT_ID" --quiet 2>/dev/null || true
+done
+
+# Daily stop: 8PM Central (handles DST automatically)
+if gcloud scheduler jobs describe stop-workstation-8pm-central \
     --location="$REGION" --project="$PROJECT_ID" >/dev/null 2>&1; then
-    log "Weekday stop scheduler already exists — skipping"
+    log "Stop scheduler already exists — skipping"
 else
-    retry 2 5 gcloud scheduler jobs create http ws-weekday-stop \
+    retry 2 5 gcloud scheduler jobs create http stop-workstation-8pm-central \
         --project="$PROJECT_ID" --location="$REGION" \
-        --schedule="0 21 * * 1-5" --time-zone="America/Los_Angeles" \
+        --schedule="0 20 * * *" --time-zone="America/Chicago" \
         --uri="${WS_API_BASE}:stop" \
         --http-method=POST \
-        --oauth-service-account-email="$COMPUTE_SA" \
+        --oauth-service-account-email="$SCHEDULER_SA" \
         --oauth-token-scope="https://www.googleapis.com/auth/cloud-platform" || true
 fi
 
-# Verify both
-if gcloud scheduler jobs describe ws-weekday-start \
+if gcloud scheduler jobs describe stop-workstation-8pm-central \
     --location="$REGION" --project="$PROJECT_ID" >/dev/null 2>&1; then
-    test_pass "Cloud Scheduler 'ws-weekday-start' (6AM Mon-Fri)"
+    test_pass "Cloud Scheduler 'stop-workstation-8pm-central' (8PM daily Central)"
 else
-    test_warn "Weekday start scheduler not verified"
-fi
-if gcloud scheduler jobs describe ws-weekday-stop \
-    --location="$REGION" --project="$PROJECT_ID" >/dev/null 2>&1; then
-    test_pass "Cloud Scheduler 'ws-weekday-stop' (9PM Mon-Fri)"
-else
-    test_warn "Weekday stop scheduler not verified"
+    test_warn "Stop scheduler not verified"
 fi
 
 # =========================================================================
@@ -1068,7 +1097,7 @@ echo " SSH:   gcloud workstations ssh $WORKSTATION \\"
 echo "          --config=$CONFIG --cluster=$CLUSTER \\"
 echo "          --region=$REGION --project=$PROJECT_ID"
 echo ""
-echo " Cloud Scheduler auto-starts daily at 7AM Pacific."
+echo " Cloud Scheduler auto-stops daily at 8PM Central (start manually when needed)."
 echo " Connect via browser at the URL above (noVNC desktop)."
 echo ""
 echo " Installed: Sway (Tokyo Night), Nix, ZSH, Starship,"

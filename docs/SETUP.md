@@ -1,6 +1,8 @@
 # Cloud Workstation Setup Guide
 
-Complete guide for recreating the Cloud Workstation from scratch in the `YOUR_PROJECT_ID` GCP project. This covers every component: GCP infrastructure, Docker image, Nix package manager, Sway desktop, application suite, GPU configuration, and Antigravity.
+Complete guide for recreating the Cloud Workstation from scratch in the `YOUR_PROJECT_ID` GCP project. This covers every component: GCP infrastructure, Docker image, Nix package manager, Sway desktop, application suite, and Antigravity.
+
+> **Machine spec (current deployment):** `n2-standard-8` (8 vCPU, 32GB RAM), 200GB `pd-balanced` persistent disk, no GPU. The GPU sections below (`02-nvidia.sh`, waybar GPU module, etc.) are preserved for reference — `02-nvidia.sh` is a no-op when no GPU is present.
 
 **Reference blog:** https://medium.com/google-cloud/running-antigravity-on-a-browser-tab-6298bb7e47c4
 
@@ -331,9 +333,9 @@ gcloud workstations configs create ws-config \
 
 | Parameter | Value | Notes |
 |-----------|-------|-------|
-| Machine type | `n1-standard-16` | 16 vCPU, 60 GB RAM. **NOT `g2-standard-16`** -- g2 is not supported by Cloud Workstations |
-| GPU | `nvidia-tesla-t4` | Tesla T4, 16GB VRAM. **NOT `nvidia-l4`** -- L4 is not supported as a workstation accelerator |
-| Persistent disk | 500 GB `pd-ssd` | Mounted at `/home`, persists across stop/start |
+| Machine type | `n2-standard-8` | 8 vCPU, 32 GB RAM (current deployment) |
+| GPU | None | Not required. `02-nvidia.sh` is a no-op when no GPU is present |
+| Persistent disk | 200 GB `pd-balanced` | Mounted at `/home`, persists across stop/start |
 | Idle timeout | 14400 seconds (4 hours) | Integer only, no `s` suffix |
 | Running timeout | 43200 seconds (12 hours) | Maximum session length |
 | Public IP | Disabled | Required by org policy `constraints/compute.vmExternalIpAccess` |
@@ -1118,7 +1120,7 @@ Sway Compositor (WLR_BACKENDS=headless)
 
 | Location | Storage Type | Survives Restart | Contents |
 |----------|-------------|-----------------|----------|
-| `/home/user/` | Persistent (500GB pd-ssd) | Yes | User data, configs, Nix store backup, Antigravity, npm globals |
+| `/home/user/` | Persistent (200GB pd-balanced) | Yes | User data, configs, Nix store backup, Antigravity, npm globals |
 | `/home/user/nix/` | Persistent | Yes | Nix store contents (bind-mounted to /nix) |
 | `/home/user/.nix-profile/` | Persistent | Yes | Nix profile symlinks |
 | `/home/user/.config/` | Persistent | Yes | Sway, Waybar, Neovim, foot configs |

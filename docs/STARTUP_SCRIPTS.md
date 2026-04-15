@@ -7,9 +7,9 @@ Summary of all boot scripts that run on every workstation start. Scripts execute
 | Order | Script | Purpose | Idempotent | Time |
 |-------|--------|---------|------------|------|
 | 1 | `01-nix.sh` | Restore Nix bind mount from persistent disk to `/nix` | Yes — checks if mounted | ~5s |
-| 2 | `02-nvidia.sh` | GPU driver setup (ldconfig, PATH for nvidia-smi) | Yes — overwrites profile | ~2s |
+| 2 | `02-nvidia.sh` | GPU driver setup (ldconfig, PATH for nvidia-smi) — no-ops if no GPU present | Yes — overwrites profile | ~2s |
 | 3 | `03-sway.sh` | Create sway-desktop, wayvnc, ws-autolaunch systemd services | Yes — overwrites services | ~3s |
-| 4 | `04-fonts.sh` | Install Nerd Fonts (Operator Mono, Cascadia, Fira) from `~/boot/fonts/` | Yes — copies + fc-cache | ~5s |
+| 4 | `04-fonts.sh` | Install Operator Mono OTFs from `~/boot/fonts/` (open-source fonts come via Nix) | Yes — copies + fc-cache | ~5s |
 | 5 | `05-shell.sh` | ZSH default shell, plugins (syntax-highlighting, autosuggestions), generate `.zshrc` | Yes — guarded append, overwrite | ~3s |
 | 6 | `06-prompt.sh` | Install Starship prompt, deploy foot terminal config | Yes — overwrites configs | ~5s |
 | 6a | `06a-tailscale.sh` | Tailscale VPN (opt-in via `TAILSCALE_AUTHKEY` in `~/.env`). Starts tailscaled, authenticates, enables SSH, configures SSH password auth, adds iptables rule for SSH on tailscale0 | Yes — checks running/connected | ~5s |
@@ -76,7 +76,7 @@ Boot scripts are gated by the composable install module system. The `~/.ws-modul
 ## Key Design Decisions
 
 1. **All scripts are idempotent** — safe to run multiple times. No duplicate entries, no state corruption.
-2. **Persistent disk** — all installs go to `$HOME` on the 500GB SSD. The Docker image is ephemeral; only `~/boot/` scripts and configs persist.
+2. **Persistent disk** — all installs go to `$HOME` on the persistent disk. The Docker image is ephemeral; only `~/boot/` scripts and configs persist.
 3. **Home Manager manages Nix apps** — `07-apps.sh` runs `nix-channel --update && home-manager switch` to upgrade all Nix-managed tools (IDEs, dev tools, Sway ecosystem).
 4. **npm manages AI CLI tools** — Claude Code, Codex, Cody, Pi installed globally to `~/.npm-global/`.
 5. **Native version managers for languages** — Go (tarball), Rust (rustup), Python (pyenv), Ruby (rbenv) for multi-version support.
