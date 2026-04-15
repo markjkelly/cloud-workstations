@@ -1,7 +1,7 @@
 # Project Backlog — Cloud Workstation
 
 **Maintained by:** TPM
-**Last updated:** 2026-04-15 (Milestone 18 — Claude Code auto-update fix: F-0093)
+**Last updated:** 2026-04-15 (Milestone 19 — foot terminal font regression: F-0094)
 
 ---
 
@@ -231,6 +231,14 @@ Tracks fork-only work that pre-dated or accompanied v1.17. All items are documen
 | ID | Feature | Spec | Priority | Status | Owner | Branch | Dependencies | Feedback |
 |----|---------|------|----------|--------|-------|--------|--------------|----------|
 | F-0093 | Fix Claude Code auto-update (persistent npm prefix) | [F-0093](specs/F-0093-claude-autoupdate-fix.md) | P1 | done | SWE-1 | fix/claude-autoupdate | F-0089 | `install_claude_code` in `11-custom-tools.sh` uses `--prefix` inline only; `npm config get prefix` returns `/usr`, so Claude's in-process auto-updater hits EACCES on `/usr/lib/node_modules`. Fix: idempotently write `prefix=/home/user/.npm-global` to `~/.npmrc` (owned by user). Add boot test in `10-tests.sh` asserting `npm config get prefix`. Apply same fix live on workstation (no live-only changes). |
+
+---
+
+## Milestone 19: Foot Terminal Font Regression
+
+| ID | Feature | Spec | Priority | Status | Owner | Branch | Dependencies | Feedback |
+|----|---------|------|----------|--------|-------|--------|--------------|----------|
+| F-0094 | Fix foot terminal font regression after reboot | [F-0094](specs/F-0094-foot-font-regression.md) | P0 | done | SWE-1 | fix/foot-font-regression | F-0030, F-0092 | Root cause: stale `~/boot/06-prompt.sh` was writing `font=JetBrains Mono` (not installed on this workstation), so foot fell back to Noto Sans and emitted the "font does not appear to be monospace" warning every launch. Fix (commit 62d90fc): (1) new `workstation-image/configs/foot/foot.ini` is the single source of truth; (2) `06-prompt.sh` now deploys that file to `~/.config/foot/foot.ini` instead of writing its own inline copy; (3) `scripts/cloud-build-setup.sh` step 13 deploys the same `foot.ini` to `~/boot/foot.ini` so fresh project setups pick it up. `fc-cache` ordering verified (already enforced by `04-fonts.sh` before `06-prompt.sh`). Boot test added in `workstation-image/boot/10-tests.sh` asserting `fc-match "<family>"` and `fc-match "<family>:spacing=mono"` resolve to the configured monospace font (not Noto/sans). Live boot-test-summary: 51→53 PASS, 31→30 FAIL. AC4(a) reboot persistence verified. AC4(b) teardown+setup and AC4(c) fresh-project setup end-to-end verification still pending — PO deciding between verify-before-PR vs verify-post-merge vs SWE-QA light verification. `docs/STARTUP_SCRIPTS.md` unchanged (no boot-script purpose/ordering change). |
 
 ---
 
