@@ -271,7 +271,48 @@ check_grep "Windsurf keybinding" "mod+w.*windsurf" "$SWAY_CFG"
 check_grep "Apps button click" "button1.*wofi" "$SWAY_CFG"
 check_grep "Antigravity keybinding" "antigravity" "$SWAY_CFG"
 check_grep "Snippet picker keybinding" "snippet-picker" "$SWAY_CFG"
-check_grep "foot starts in HOME" "exec cd ~ && .*foot" "$SWAY_CFG"
+# F-0095: foot CWD drift guard. Standardized on
+# --working-directory=/home/user (commits 0dd33b3, 20d3352). The earlier
+# "cd ~ && $nix/foot" style from F-0087 does not work in sway exec without
+# an explicit shell invocation, so this is the only permitted form.
+check_grep "foot \$mod+Return starts in /home/user" \
+    'bindsym \$mod+Return exec .*foot.*--working-directory=/home/user' "$SWAY_CFG"
+check_grep "foot \$mod+t starts in /home/user" \
+    'bindsym \$mod+t exec .*foot.*--working-directory=/home/user' "$SWAY_CFG"
+
+# R4b: autostart workspace script must carry the same guard on every foot
+# invocation. Check the live ~/boot copy (what actually runs on boot). A
+# missing flag here was the root cause of F-0095 (the old cd ~ && style
+# from F-0087 had silently been undone).
+WS_SCRIPT="$HOME_DIR/boot/08-workspaces.sh"
+if [ -f "$WS_SCRIPT" ]; then
+    FOOT_LINES=$(grep -E '(\$FOOT|/foot)[[:space:]]' "$WS_SCRIPT" 2>/dev/null || true)
+    if [ -z "$FOOT_LINES" ]; then
+        test_warn "08-workspaces.sh has no foot invocations to check"
+    elif echo "$FOOT_LINES" | grep -vq -- "--working-directory=/home/user"; then
+        test_fail "08-workspaces.sh has foot invocation(s) missing --working-directory=/home/user"
+    else
+        test_pass "08-workspaces.sh foot invocations all carry --working-directory=/home/user"
+    fi
+else
+    test_fail "08-workspaces.sh not found at $WS_SCRIPT"
+fi
+
+# R4c: drift guard — if home-manager is managing sway config, the
+# home-manager source and the live config must be byte-identical on the
+# foot-launch lines. Catches H1 (home-manager sway-config drift) at boot.
+HM_SWAY="$HOME_DIR/.config/home-manager/sway-config"
+if [ -f "$HM_SWAY" ]; then
+    LIVE_FOOT=$(grep -E '^bindsym \$mod\+(Return|t) exec .*foot' "$SWAY_CFG" | sort)
+    HM_FOOT=$(grep -E '^bindsym \$mod\+(Return|t) exec .*foot' "$HM_SWAY" | sort)
+    if [ "$LIVE_FOOT" = "$HM_FOOT" ] && [ -n "$LIVE_FOOT" ]; then
+        test_pass "sway foot-launch lines match between live config and home-manager source"
+    else
+        test_fail "sway foot-launch lines drift between $SWAY_CFG and $HM_SWAY"
+    fi
+else
+    test_skip "home-manager sway-config not present (config deployed directly by setup)"
+fi
 
 # =============================================================================
 # Shell Config
