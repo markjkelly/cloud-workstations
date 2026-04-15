@@ -51,7 +51,7 @@ User=user
 Environment=XDG_RUNTIME_DIR=/run/user/1000
 Environment=WAYLAND_DISPLAY=wayland-1
 ExecStartPre=/bin/sleep 3
-ExecStart=/home/user/.nix-profile/bin/wayvnc --output=HEADLESS-1 0.0.0.0 5901
+ExecStart=/home/user/.nix-profile/bin/wayvnc --keyboard=us --output=HEADLESS-1 0.0.0.0 5901
 Restart=on-failure
 RestartSec=5
 
@@ -124,3 +124,4 @@ if [ -x /home/user/.nix-profile/bin/sway ]; then
 else
     log "WARNING: /home/user/.nix-profile/bin/sway not found — skipping service start (run home-manager switch first)"
 fi
+
