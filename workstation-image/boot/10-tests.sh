@@ -380,6 +380,60 @@ fi
 check_dir "Nix profile" "$HOME_DIR/.nix-profile"
 
 # =============================================================================
+# F-0096: Xwayland rootless invocation (no root window tiled on ws1)
+# =============================================================================
+# Two guards:
+#   (a) Static: the live ~/boot/08-workspaces.sh must invoke Xwayland with
+#       -rootless — the regression shipped because the flag was absent.
+#   (b) Live: swaymsg -t get_tree must not contain a window with
+#       app_id == "org.freedesktop.Xwayland" on any workspace. Without
+#       -rootless, Xwayland spawns a visible root that Sway tiles next to
+#       the foot terminal on ws1.
+log ""
+log "--- Xwayland rootless (F-0096) ---"
+WS_SCRIPT="$HOME_DIR/boot/08-workspaces.sh"
+if [ -f "$WS_SCRIPT" ]; then
+    if grep -qE 'Xwayland[[:space:]]+-rootless' "$WS_SCRIPT"; then
+        test_pass "08-workspaces.sh invokes Xwayland with -rootless"
+    else
+        test_fail "08-workspaces.sh missing -rootless on Xwayland invocation (F-0096 regression)"
+    fi
+else
+    test_fail "08-workspaces.sh not found at $WS_SCRIPT (F-0096 check)"
+fi
+
+SWAY_SOCK=$(ls /run/user/1000/sway-ipc.*.sock 2>/dev/null | head -1)
+if [ -n "$SWAY_SOCK" ] && command -v python3 >/dev/null 2>&1; then
+    XWAY_ROOT_COUNT=$(runuser -u $USER -- env WAYLAND_DISPLAY=wayland-1 \
+        XDG_RUNTIME_DIR=/run/user/1000 SWAYSOCK="$SWAY_SOCK" \
+        bash -c ". $NIX_SH && swaymsg -t get_tree" 2>/dev/null | python3 -c "
+import json, sys
+try:
+    tree = json.load(sys.stdin)
+except Exception:
+    print(-1); sys.exit(0)
+count = 0
+def walk(n):
+    global count
+    if n.get('app_id') == 'org.freedesktop.Xwayland':
+        count += 1
+    for c in n.get('nodes', []) + n.get('floating_nodes', []):
+        walk(c)
+walk(tree)
+print(count)
+" 2>/dev/null)
+    if [ "${XWAY_ROOT_COUNT:-0}" = "0" ]; then
+        test_pass "no Xwayland root window present in sway tree"
+    elif [ "$XWAY_ROOT_COUNT" = "-1" ]; then
+        test_warn "sway tree unreadable — cannot verify Xwayland root window absence"
+    else
+        test_fail "Xwayland root window(s) present in sway tree: $XWAY_ROOT_COUNT (F-0096 regression)"
+    fi
+else
+    test_skip "Xwayland root window check (sway socket unavailable or python3 missing)"
+fi
+
+# =============================================================================
 # Services (may not be running during boot script phase)
 # =============================================================================
 log ""
