@@ -65,12 +65,18 @@ if [ "${WINDOW_COUNT:-0}" -gt 1 ]; then
 fi
 
 # --- Start Xwayland for X11 apps (IntelliJ) ---
+# F-0096: pass -rootless so Xwayland does NOT create a visible root window
+# that Sway would tile onto the active workspace (ws1). In rootless mode
+# Xwayland only creates surfaces for individual X11 clients, which is the
+# correct behavior under a Wayland compositor. Without this flag, ws1
+# booted with a 50/50 split between the Xwayland root window and the
+# autostart foot terminal.
 if ! pgrep -f "Xwayland :0" >/dev/null 2>&1; then
-    log "Starting Xwayland on :0..."
-    sway_cmd exec "/usr/bin/Xwayland :0" 2>/dev/null
+    log "Starting Xwayland on :0 (rootless)..."
+    sway_cmd exec "/usr/bin/Xwayland -rootless :0" 2>/dev/null
     sleep 2
     if pgrep -f "Xwayland :0" >/dev/null 2>&1; then
-        log "Xwayland started on :0"
+        log "Xwayland started on :0 (rootless)"
     else
         log "WARNING: Xwayland failed to start"
     fi

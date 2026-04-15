@@ -1,7 +1,7 @@
 # Project Backlog — Cloud Workstation
 
 **Maintained by:** TPM
-**Last updated:** 2026-04-15 (Milestone 20 — foot terminal CWD regression: F-0095)
+**Last updated:** 2026-04-15 (Milestone 21 — Xwayland ws1 split: F-0096)
 
 ---
 
@@ -247,6 +247,14 @@ Tracks fork-only work that pre-dated or accompanied v1.17. All items are documen
 | ID | Feature | Spec | Priority | Status | Owner | Branch | Dependencies | Feedback |
 |----|---------|------|----------|--------|-------|--------|--------------|----------|
 | F-0095 | Fix foot terminal CWD regression (third occurrence) | [F-0095](specs/F-0095-foot-cwd-regression.md) | P0 | in-progress | SWE-1 | fix/foot-font-regression | F-0087, F-0094 | Third regression of the same class: newly spawned foot terminals no longer start in `/home/user` — they inherit the launcher's CWD. Previously fixed in `0dd33b3` (`--working-directory=/home/user`) and `e7236a8` (F-0087, `cd ~ &&` guard + 10-tests.sh assertion). Root cause almost certainly a three-places-rule drift between `workstation-image/configs/sway/config`, `~/.config/home-manager/sway-config`, and `scripts/cloud-build-setup.sh` (possibly also repo vs `~/boot/08-workspaces.sh`). SWE must diff all three sources against `0dd33b3` / `e7236a8` before coding and record which hypothesis (H1–H4 in spec) is the real root cause in the commit body. Spec recommends standardizing on `--working-directory=/home/user` (explicit, no shell expansion, same flag works in `08-workspaces.sh` invocations). Must extend `10-tests.sh` with a drift-guard assertion: repo sway config and Home Manager sway-config byte-identical on foot-launch lines, and every `foot` invocation in `08-workspaces.sh` carries the guard — so a fourth regression fails the boot-test summary instead of shipping silently. Acceptance covers reboot, `ws.sh teardown && ws.sh setup`, and fresh-project setup. |
+
+---
+
+## Milestone 21: Xwayland Workspace 1 Split Regression
+
+| ID | Feature | Spec | Priority | Status | Owner | Branch | Dependencies | Feedback |
+|----|---------|------|----------|--------|-------|--------|--------------|----------|
+| F-0096 | Fix Xwayland root window splitting workspace 1 at boot | [F-0096](specs/F-0096-xwayland-ws1-split.md) | P0 | done (tested + verified) | SWE / SWE-Test-QA | fix/xwayland-ws1-split | F-0027, F-0029, F-0056, F-0073 | **Completed 2026-04-15 (Milestone 21).** Chose Option 2 — added `-rootless` to Xwayland invocation in `workstation-image/boot/08-workspaces.sh` (commit 2cf39b1). Live verification: `swaymsg -t get_tree` shows ws1=foot only (no Xwayland root), ws2=Chrome, ws3=Antigravity, ws4=foot. `ps` confirms `/usr/bin/Xwayland -rootless :0` running; `DISPLAY=:0 xdpyinfo` still returns a working X server. `10-tests.sh` F-0096 section (static grep for `-rootless` + live swaymsg tree check for `app_id=org.freedesktop.Xwayland`) both PASS. Pre-existing 30 FAILs in the test suite are unrelated (AI CLI version probes, missing `.tmux.conf`/`.env`, home.nix pattern checks). AC1–AC3 verified on live workstation; AC4 (reboot / teardown+setup / fresh-project) deferred to deployment. Original: At boot, ws1 tiles two windows side-by-side — the Xwayland root window (`app_id=org.freedesktop.Xwayland`, `name=Xwayland on :0`) on the left and the autostart foot terminal on the right — instead of a single fullscreen foot. Confirmed live via `swaymsg -t get_tree`. Root cause: `workstation-image/boot/08-workspaces.sh:70` runs `sway_cmd exec "/usr/bin/Xwayland :0"`, which starts Xwayland without `-rootless` and tiles its root window onto the active workspace. Three implementation options for the SWE to choose from (documented in the spec): (1) sway `for_window [app_id="org.freedesktop.Xwayland"]` rule to scratchpad/hide the root; (2) add `-rootless` to the Xwayland invocation (recommended — root-cause fix, one-line change); (3) move Xwayland startup into a dedicated systemd user service outside `sway_cmd exec`. Fix must preserve IntelliJ's `DISPLAY=:0` path (F-0056) and add a `10-tests.sh` drift guard asserting no Xwayland root window on any workspace after autostart. Three-places rule applies if both repo and `~/boot/08-workspaces.sh` (plus `scripts/cloud-build-setup.sh` if sway config changes) are touched. Acceptance covers reboot, `ws.sh teardown && ws.sh setup`, and fresh-project setup. |
 
 ---
 
