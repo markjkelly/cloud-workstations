@@ -15,7 +15,6 @@ User invokes `/release` with a version number (e.g., `/release v0.5.0`).
    ```
    git -c user.name="Your Name" -c user.email="your-email@example.com" commit -am "Release vX.Y.Z: summary"
    ```
-   Include `Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>` in the commit message
 4. **Create an annotated git tag:**
    ```
    git -c user.name="Your Name" -c user.email="your-email@example.com" tag -a vX.Y.Z -m "Release vX.Y.Z: summary"

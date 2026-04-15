@@ -187,7 +187,6 @@ in the backlog before implementation begins and updated when completed.
 ### Other Conventions
 - **Branching:** Feature branches (`feature/<name>`) off `main`
 - **Platform Engineer (PE) owns all GCP interactions:** Cloud Run deployment, Dockerfile, IAM/service accounts, logging, monitoring, billing, free tier quota tracking, reliability, troubleshooting
-- **Co-Author:** All commits include `Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>`
 
 ## GCP Free Tier (Non-Negotiable)
 
