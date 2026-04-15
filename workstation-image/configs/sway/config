@@ -91,8 +91,8 @@ set $nix /home/user/.nix-profile/bin
 # -----------------------------------------------------------------------------
 
 # Terminal (foot)
-bindsym $mod+Return exec cd ~ && $nix/foot
-bindsym $mod+t exec cd ~ && $nix/foot
+bindsym $mod+Return exec $nix/foot --working-directory=/home/user
+bindsym $mod+t exec $nix/foot --working-directory=/home/user
 
 # Application Launcher (wofi)
 bindsym $mod+r exec env -u LD_LIBRARY_PATH XDG_DATA_DIRS=/home/user/.nix-profile/share:/usr/share:/usr/local/share $nix/wofi --show drun --allow-images

@@ -100,7 +100,6 @@ Agents must be spawned as interactive teammates in separate tmux panes so the PO
 
 **Never use background subprocess agents (Agent tool without `team_name`).** The PO must always be able to see agent activity in tmux panes. Parallel work should be visible, not hidden.
 
-**All agents MUST use the Opus 4.6 model (`claude-opus-4-6`).** When spawning teammates with the `Agent` tool, always set `model: "claude-opus-4-6"` unless the PO explicitly specifies a different model. No agent should default to a lesser model.
 
 
 ### Mandatory Development Pipeline (Non-Negotiable)

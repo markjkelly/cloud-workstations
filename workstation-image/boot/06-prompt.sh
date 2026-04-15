@@ -74,3 +74,13 @@ clipboard-paste=Control+Shift+v
 EOF
 chown -R $USER:$USER "$FOOT_DIR"
 log "Created foot.ini with DejaVu Sans Mono:size=14 and Tokyo Night theme"
+
+# --- Deploy Starship config ---
+STARSHIP_CONF="$HOME_DIR/.config/starship.toml"
+runuser -u $USER -- mkdir -p "$HOME_DIR/.config"
+cat > "$STARSHIP_CONF" << 'EOF'
+[git_branch]
+symbol = "git:"
+EOF
+chown $USER:$USER "$STARSHIP_CONF"
+log "Deployed starship.toml (plain-text git branch symbol)"

@@ -114,7 +114,7 @@ launch_and_wait() {
 }
 
 # Workspace 1: foot terminal (fast — 5s timeout)
-launch_and_wait 1 5 "$FOOT"
+launch_and_wait 1 5 "$FOOT" --working-directory=/home/user
 
 # Workspace 2: Google Chrome (Electron — 15s timeout)
 launch_and_wait 2 15 google-chrome-stable --ozone-platform=wayland --disable-dev-shm-usage
@@ -127,7 +127,7 @@ else
 fi
 
 # Workspace 4: foot terminal (fast — 5s timeout)
-launch_and_wait 4 5 "$FOOT"
+launch_and_wait 4 5 "$FOOT" --working-directory=/home/user
 
 # Switch back to workspace 1
 sleep 1
