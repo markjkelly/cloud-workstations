@@ -471,6 +471,60 @@ else
 fi
 
 # =============================================================================
+# F-0098: Workspace autostart launch order
+# =============================================================================
+# PO layout: ws1 = Chrome, ws2 = Antigravity, ws3 = foot, ws4 = foot.
+# Verify 08-workspaces.sh issues launch_and_wait calls in that order.
+log ""
+log "--- Workspace autostart order (F-0098) ---"
+WS_SCRIPT="$HOME_DIR/boot/08-workspaces.sh"
+if [ -f "$WS_SCRIPT" ]; then
+    ORDER=$(grep -E '^[[:space:]]*launch_and_wait[[:space:]]+[1-4][[:space:]]' "$WS_SCRIPT" \
+        | awk '{print $2}' | xargs)
+    if [ "$ORDER" = "1 2 3 4" ]; then
+        test_pass "08-workspaces.sh launches workspaces in order 1 2 3 4"
+    else
+        test_fail "08-workspaces.sh launch order is '$ORDER' (expected '1 2 3 4')"
+    fi
+
+    WS1_LINE=$(grep -nE '^[[:space:]]*launch_and_wait[[:space:]]+1[[:space:]]' "$WS_SCRIPT" | head -1)
+    if echo "$WS1_LINE" | grep -q "google-chrome-stable"; then
+        test_pass "08-workspaces.sh ws1 launches google-chrome-stable"
+    else
+        test_fail "08-workspaces.sh ws1 does not launch Chrome (line: $WS1_LINE)"
+    fi
+
+    WS2_LINE=$(grep -nE '^[[:space:]]*launch_and_wait[[:space:]]+2[[:space:]]' "$WS_SCRIPT" | head -1)
+    if echo "$WS2_LINE" | grep -q '"\$ANTIGRAVITY"'; then
+        test_pass "08-workspaces.sh ws2 launches Antigravity"
+    else
+        test_fail "08-workspaces.sh ws2 does not launch Antigravity (line: $WS2_LINE)"
+    fi
+
+    WS3_LINE=$(grep -nE '^[[:space:]]*launch_and_wait[[:space:]]+3[[:space:]]' "$WS_SCRIPT" | head -1)
+    if echo "$WS3_LINE" | grep -q '"\$FOOT"'; then
+        test_pass "08-workspaces.sh ws3 launches foot terminal"
+    else
+        test_fail "08-workspaces.sh ws3 does not launch foot (line: $WS3_LINE)"
+    fi
+
+    WS4_LINE=$(grep -nE '^[[:space:]]*launch_and_wait[[:space:]]+4[[:space:]]' "$WS_SCRIPT" | head -1)
+    if echo "$WS4_LINE" | grep -q '"\$FOOT"'; then
+        test_pass "08-workspaces.sh ws4 launches foot terminal"
+    else
+        test_fail "08-workspaces.sh ws4 does not launch foot (line: $WS4_LINE)"
+    fi
+
+    if grep -qE '^#.*ws1 = Chrome, ws2 = Antigravity, ws3 = foot terminal, ws4 = foot terminal' "$WS_SCRIPT"; then
+        test_pass "08-workspaces.sh header comment reflects new order"
+    else
+        test_fail "08-workspaces.sh header comment does not reflect new order (F-0098)"
+    fi
+else
+    test_fail "08-workspaces.sh not found at $WS_SCRIPT (F-0098 check)"
+fi
+
+# =============================================================================
 # Services (may not be running during boot script phase)
 # =============================================================================
 log ""
