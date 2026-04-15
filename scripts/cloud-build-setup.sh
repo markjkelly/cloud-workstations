@@ -142,6 +142,7 @@ ws_pipe() {
     retry 3 10 timeout 300 gcloud workstations ssh "$WORKSTATION" \
         --project="$PROJECT_ID" --region="$REGION" \
         --cluster="$CLUSTER" --config="$CONFIG" \
+        --ssh-flag="-T" \
         --command="$1"
 }
 
@@ -519,6 +520,7 @@ cat << NIXEOF | ws_pipe "mkdir -p ~/.config/home-manager && cat > ~/.config/home
 
   home.packages = with pkgs; [
     ${NIX_PKG_LIST}
+    cascadia-code fira-code jetbrains-mono
   ];
 
   programs.zsh = {
@@ -606,16 +608,6 @@ cat << NIXEOF | ws_pipe "mkdir -p ~/.config/home-manager && cat > ~/.config/home
   home.file.".config/sway/config".source = /home/user/.config/home-manager/sway-config;
   home.file.".config/waybar/config".source = /home/user/.config/home-manager/waybar-config.json;
   home.file.".config/waybar/style.css".source = /home/user/.config/home-manager/waybar-style.css;
-  home.file.".config/foot/foot.ini".text = ''
-    [main]
-    font=monospace:size=11
-    [colors-dark]
-    background=1a1b26
-    foreground=c0caf5
-    [tweak]
-    font-monospace-warn=no
-  '';
-
   home.sessionVariables = {
     EDITOR = "nvim";
     VISUAL = "nvim";
@@ -693,10 +685,15 @@ else
     test_fail "Boot scripts deployment (only $SCRIPT_COUNT files)"
 fi
 
-log "Deploying fonts..."
-tar czf /tmp/dev-fonts.tar.gz -C "${REPO_DIR}/dev-fonts" .
-cat /tmp/dev-fonts.tar.gz | ws_pipe "mkdir -p ~/boot/fonts && cd ~/boot/fonts && tar xzf -"
-test_pass "Fonts deployed"
+log "Deploying Operator Mono fonts (proprietary — not in Nix)..."
+tar czf /tmp/operator-mono.tar.gz -C "${REPO_DIR}/dev-fonts/Operator-Mono" .
+cat /tmp/operator-mono.tar.gz | ws_pipe "mkdir -p ~/boot/fonts && tar xzf - -C ~/boot/fonts"
+OP_COUNT=$(ws_ssh "find ~/boot/fonts -name '*.otf' | wc -l")
+if [ "${OP_COUNT:-0}" -ge 1 ]; then
+    test_pass "Operator Mono fonts deployed ($OP_COUNT files)"
+else
+    test_fail "Operator Mono font deployment (0 OTF files found in ~/boot/fonts)"
+fi
 
 # =========================================================================
 step "Step 13/19: Deploy configs"
@@ -760,14 +757,16 @@ fi
 # Verify setup results
 SETUP_VERIFY=$(ws_ssh '
 '"${NIX_SOURCE}"'
-echo "fonts=$(fc-list 2>/dev/null | grep -ci "operator mono")"
+echo "fonts_operator=$(fc-list 2>/dev/null | grep -ci "operator mono")"
+echo "fonts_cascadia=$(fc-list 2>/dev/null | grep -ci "cascadia")"
 echo "zshrc=$(test -f ~/.zshrc && echo yes || echo no)"
 echo "starship=$(~/.local/bin/starship --version 2>/dev/null | head -1)"
 echo "foot=$(test -f ~/.config/foot/foot.ini && echo yes || echo no)"
 echo "zsh_plugins=$(test -d ~/.zsh/zsh-syntax-highlighting && echo yes || echo no)"
 ')
 
-echo "$SETUP_VERIFY" | grep -q "fonts=[1-9]" && test_pass "Operator Mono fonts" || test_warn "Fonts not verified"
+echo "$SETUP_VERIFY" | grep -q "fonts_operator=[1-9]" && test_pass "Operator Mono fonts (OTF)" || test_warn "Operator Mono not in fc-list (may need fc-cache)"
+echo "$SETUP_VERIFY" | grep -q "fonts_cascadia=[1-9]" && test_pass "Cascadia Code (Nix)" || test_warn "Cascadia Code not in fc-list (home-manager may need switch)"
 echo "$SETUP_VERIFY" | grep -q "zshrc=yes" && test_pass ".zshrc created" || test_warn ".zshrc not verified"
 echo "$SETUP_VERIFY" | grep -q "starship" && test_pass "Starship prompt" || test_warn "Starship not verified"
 echo "$SETUP_VERIFY" | grep -q "foot=yes" && test_pass "foot.ini config" || test_warn "foot config not verified"

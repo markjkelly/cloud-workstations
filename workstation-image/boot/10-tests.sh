@@ -212,7 +212,7 @@ fi
 check_file "sway-status" "$HOME_DIR/.local/bin/sway-status"
 check_file "Sway config" "$HOME_DIR/.config/sway/config"
 check_file "foot.ini" "$HOME_DIR/.config/foot/foot.ini"
-check_grep "foot font-monospace-warn" "font-monospace-warn=no" "$HOME_DIR/.config/foot/foot.ini"
+check_grep "foot font (monospace)" "DejaVu Sans Mono" "$HOME_DIR/.config/foot/foot.ini"
 # Tmux module configs
 if ws_module_enabled "tmux"; then
     check_file "tmux.conf" "$HOME_DIR/.tmux.conf"
