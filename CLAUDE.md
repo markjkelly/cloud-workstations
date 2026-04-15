@@ -60,21 +60,17 @@ Build a Cloud Workstation in GCP Project ID YOUR_PROJECT_ID with Google Antigrav
 
 ## Team Workflow
 
-This project uses a multi-agent team structure.
+This project uses a single sequential pipeline agent (Sonnet 4.6) for all implementation work.
 
-### Feedback → Backlog → Execution Pipeline
+### Feedback → Pipeline → Release
 
 **This is the mandatory workflow for all user feedback and requests:**
 
-1. **PO (Your Name)** provides feedback, feature requests, or bug reports to the **PM**
-2. **PM** translates PO feedback into a product spec in `docs/specs/F-NNNN-slug.md` with detailed requirements and acceptance criteria, then works with the **TPM** to create/update work items in docs/BACKLOG.md with priority, scope, and dependencies
-3. **TPM** assigns individual work items to the appropriate **SWE agents** (scaling from 1–3 SWEs as needed) and coordinates parallel execution
-4. **SWE agents** implement on feature branches, following the existing codebase conventions
-5. **SWE agents** hand off completed work to **SWE-Test** (automated tests) and **SWE-QA** (E2E testing) for end-to-end verification
-6. Once coding, functionality, and testing are complete, SWEs update docs/BACKLOG.md marking items as completed, tested, and verified, then inform the **TPM**
-7. **TPM** updates docs/PROGRESS.md with session details, waits for all work items in the milestone to be completed, then informs the **PM**
-8. **PM** updates docs/RELEASENOTES.md with the new version, creates a summary of all completed work, and reports back to the **PO**
-9. **Tag the release** with `git tag -a vX.Y.Z` after PO approval and push tags
+1. **PO** provides feedback, feature requests, or bug reports to the orchestrator
+2. **Orchestrator** spawns a single pipeline agent (`model: "sonnet"`) with full pipeline instructions
+3. **Pipeline agent** executes all steps sequentially: spec → backlog → implement → test → QA → backlog update → progress → release notes → PR
+4. **Orchestrator** relays the agent's summary (PR URL, version, what changed) to the PO
+5. **PO approves** → orchestrator (or pipeline agent) merges PR, creates git tag, pushes
 
 **Every piece of feedback goes through this pipeline — no skipping steps.**
 
@@ -82,50 +78,50 @@ This project uses a multi-agent team structure.
 
 ### Agent-Only Execution Rule (Non-Negotiable)
 
-**All project work must be performed by a designated Agent role.** No work is done directly — it is always delegated to the appropriate agent (PM, TPM, SWE-1 through SWE-3, SWE-Test, SWE-QA, Platform Engineer, Reviewer). If a task requires a role or specialization that does not exist in the current team roster, **stop and check with the PO (Your Name)** before proceeding. The PO will decide whether to create a new agent role or reassign the work.
+**All project work must be performed by a pipeline agent.** The orchestrator (main Claude context) never writes application code or project docs directly — it always delegates to a single pipeline agent. The only files the orchestrator may edit directly are `CLAUDE.md` (project instructions) and memory files.
 
-### Interactive Agent Teams via Tmux (Non-Negotiable)
+### Single Sequential Pipeline Agent
 
-**All agent work MUST use interactive Agent Teams (TeamCreate), NOT subprocess agents.**
+**All pipeline work is executed by one agent using `model: "sonnet"` (Sonnet 4.6).** This agent plays all roles in sequence — PM, TPM, SWE, SWE-Test, SWE-QA — within a single run, eliminating inter-agent coordination overhead.
 
-Agents must be spawned as interactive teammates in separate tmux panes so the PO can observe and interact with each agent in real time. The correct workflow is:
+**How to spawn the pipeline agent:**
 
-1. **Create a team** with `TeamCreate` (e.g., `team_name: "feature-xyz"`)
-2. **Create tasks** with `TaskCreate` — one per work item, with clear descriptions
-3. **Spawn teammates** using the `Agent` tool with `team_name` parameter — this launches each agent in its own tmux pane
-4. **Assign tasks** via `TaskUpdate` with `owner` set to the agent name
-5. **Coordinate** via `SendMessage` — agents report progress and results back to the team lead
-6. **Shutdown gracefully** — send `shutdown_request` to each agent when work is complete
-7. **Clean up** with `TeamDelete` after all agents have shut down
+```
+Agent(
+  description: "Pipeline: <feature slug>",
+  model: "sonnet",
+  prompt: "<full pipeline instructions — see Mandatory Development Pipeline below>"
+)
+```
 
-**Never use background subprocess agents (Agent tool without `team_name`).** The PO must always be able to see agent activity in tmux panes. Parallel work should be visible, not hidden.
-
-
+The agent runs in the background (no TeamCreate, no tmux panes). The orchestrator waits for the agent to complete and return a summary, then relays the result to the PO.
 
 ### Mandatory Development Pipeline (Non-Negotiable)
 
-**All PO feedback and feature requests MUST follow this pipeline — no shortcuts, no exceptions:**
+**All PO feedback and feature requests MUST follow this pipeline — no shortcuts, no exceptions.**
 
-1. **PO → PM**: PO provides feedback, feature requests, or bug reports to the PM Agent
-2. **PM → Spec**: PM creates a product spec in `docs/specs/F-NNNN-slug.md` (copy from `docs/specs/TEMPLATE.md`) with detailed requirements and acceptance criteria
-3. **PM → TPM**: PM works with TPM to create work items in docs/BACKLOG.md with priority, scope, and dependencies (linking to the spec)
-4. **TPM → SWE**: TPM assigns individual work items to SWE agents (1–3 SWEs, scaled based on workload). Each SWE picks up their assigned item and implements on a feature branch
-5. **SWE → Testing**: After implementation, SWEs hand off to SWE-Test (runs all automated tests — existing tests must pass, new tests added for new functionality) and SWE-QA (E2E testing)
-6. **SWE → Backlog Update**: Once coding, functionality, and testing are complete, SWEs update docs/BACKLOG.md marking items as completed, tested, and verified
-7. **SWE → TPM**: SWEs inform TPM that their work items are done
-8. **TPM → Progress**: TPM updates docs/PROGRESS.md with session details (what was done, decisions, next steps)
-9. **TPM → PM**: TPM waits for all work items in the milestone to be completed, then informs PM
-10. **PM → Release Notes**: PM updates docs/RELEASENOTES.md with the new version entry (Added, Changed, Fixed sections)
-11. **PM → PO**: PM creates a summary of all completed work and reports back to the PO
-12. **Tag**: After PO approval, tag the release with `git tag -a vX.Y.Z -m "description"` and push tags
-13. **Mandatory updates**: docs/BACKLOG.md, docs/PROGRESS.md, and docs/RELEASENOTES.md MUST be updated every milestone. Git tags MUST be created for every release
-14. **No direct code changes**: The orchestrator (main Claude context) MUST NEVER write or edit application code directly. Only SWE agents write code. Only PM/TPM agents update backlog/progress/release docs
-15. **No live-only fixes**: ALL changes — including quick fixes, config edits, and "just this one thing" — MUST be committed to the repo AND verified through the setup pipeline (`cloud-build-setup.sh`). A change that works on the live system but isn't in the setup script is NOT done. The definition of done is: teardown + re-setup produces a working workstation with the change applied.
-16. **Push before teardown/setup**: Always `git push` to the remote before running `ws.sh setup` so Cloud Build pulls the latest code.
+The pipeline agent executes all steps sequentially in a single run:
+
+1. **Spec**: Create a product spec in `docs/specs/F-NNNN-slug.md` (copy from `docs/specs/TEMPLATE.md`) with requirements and acceptance criteria. Use the next available F-number from `docs/BACKLOG.md`.
+2. **Backlog**: Add a work item to `docs/BACKLOG.md` referencing the spec, marked In Progress.
+3. **Implement**: Create a feature branch `feature/<slug>`, make all code/config changes.
+4. **Test**: Add or update tests in `workstation-image/boot/10-tests.sh` to cover the change.
+5. **QA**: Read and verify the implementation is correct; confirm all affected files are updated.
+6. **Backlog update**: Mark the backlog item as completed, tested, and verified.
+7. **Progress**: Update `docs/PROGRESS.md` with session number, date, what was done, decisions, and next steps.
+8. **Release notes**: Add a new patch/minor version entry to `docs/RELEASENOTES.md`.
+9. **Commit & PR**: Commit all changes on the feature branch (verbose message, no Co-Authored-By trailers), push, open a PR against `main`.
+10. **Report**: Return a concise summary to the orchestrator: what changed, PR URL, version number.
+
+After PO approval the orchestrator (or pipeline agent if re-invoked) merges the PR, tags the release (`git tag -a vX.Y.Z`), and pushes the tag.
+
+**Mandatory updates every milestone:** docs/BACKLOG.md, docs/PROGRESS.md, docs/RELEASENOTES.md. Git tags MUST be created for every release.
+
+**No live-only fixes:** ALL changes — including quick fixes, config edits, and "just this one thing" — MUST be committed to the repo AND verified through the setup pipeline (`cloud-build-setup.sh`). A change that works on the live system but isn't in the setup script is NOT done.
+
+**Push before teardown/setup:** Always `git push` before running `ws.sh setup` so Cloud Build pulls the latest code.
 
 **Violating this pipeline is a process failure.** If time pressure tempts a shortcut, stop and confirm with the PO first.
-
-**Zero tolerance for direct edits.** The orchestrator must NEVER use Edit, Write, or Bash to modify application code, configs, scripts, or any project files directly. Every change goes through an SWE agent via the pipeline. The only files the orchestrator may edit directly are CLAUDE.md (project instructions) and memory files.
 
 ### Persistence Across Reboots & Rebuilds (Non-Negotiable)
 
@@ -167,16 +163,9 @@ The test script runs on every boot and saves results to:
 When adding or modifying any startup/boot script, you MUST also update `docs/STARTUP_SCRIPTS.md` to reflect the change (new script, changed purpose, new logs, etc.).
 
 ### Roles
-- **PO / CEO** (Your Name) — Product Owner, the human in the loop. Provides feedback, feature requests, and bug reports. Approves direction, tests the app
-- **PM** — Receives all PO feedback. Translates it into detailed product requirements with acceptance criteria. Works with TPM to create backlog items. Creates completion summaries and reports back to PO
-- **TPM** — Coordinates between agents. Allocates individual work items to SWEs. Tracks blockers and dependencies. Waits for all milestone items to complete before reporting to PM. Maintains docs/PROGRESS.md and docs/BACKLOG.md
-- **SWE-1** — General Engineer 1
-- **SWE-2** — General Engineer 2
-- **SWE-3** — General Engineer 3
-- **SWE-Test** — Test coverage and quality assurance. Runs all automated tests after SWE implementation. Ensures existing tests pass and new tests are added for new functionality
-- **SWE-QA** — QA and browser testing. Headless Chromium screenshots via puppeteer-core, visual verification, Lighthouse audits, E2E smoke tests. Validates end-to-end functionality
-- **Platform Engineer (PE)** — GCP expert (DevOps + SRE). Owns all infrastructure: Cloud Run deployment, Dockerfile, IAM/service accounts, monitoring, billing, free tier quota tracking, troubleshooting via GCP logs, reliability engineering
-- **Reviewer** — Code review, quality/security/performance checks
+- **PO / CEO** (Your Name) — Product Owner, the human in the loop. Provides feedback, feature requests, and bug reports. Approves direction, tests the app.
+- **Pipeline Agent** (Sonnet 4.6) — Single agent that plays all implementation roles sequentially: PM (spec), TPM (backlog/progress/release notes), SWE (code), SWE-Test (tests), SWE-QA (verification). Spawned by the orchestrator with `model: "sonnet"`.
+- **Platform Engineer (PE)** — GCP expert (DevOps + SRE). Owns all infrastructure: Cloud Run deployment, Dockerfile, IAM/service accounts, monitoring, billing, free tier quota tracking, troubleshooting via GCP logs, reliability engineering. Spawned as a pipeline agent with `model: "sonnet"` when GCP work is needed.
 
 ### Backlog Tracking (Non-Negotiable)
 
