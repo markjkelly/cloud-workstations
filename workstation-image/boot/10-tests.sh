@@ -286,7 +286,12 @@ check_grep "foot \$mod+t starts in /home/user" \
 # from F-0087 had silently been undone).
 WS_SCRIPT="$HOME_DIR/boot/08-workspaces.sh"
 if [ -f "$WS_SCRIPT" ]; then
-    FOOT_LINES=$(grep -E '(\$FOOT|/foot)[[:space:]]' "$WS_SCRIPT" 2>/dev/null || true)
+    # Match any line that invokes foot — bare "$FOOT" at end of line,
+    # "$FOOT" with trailing args, or a literal /foot path (with or
+    # without surrounding quotes / trailing args). Excludes the shell
+    # variable assignment line (FOOT="…") so we only check call sites.
+    FOOT_LINES=$(grep -nE '(\"\$FOOT\"|\$FOOT|/foot)([[:space:]"]|$)' "$WS_SCRIPT" 2>/dev/null \
+        | grep -vE '^[0-9]+:FOOT=' || true)
     if [ -z "$FOOT_LINES" ]; then
         test_warn "08-workspaces.sh has no foot invocations to check"
     elif echo "$FOOT_LINES" | grep -vq -- "--working-directory=/home/user"; then
