@@ -1,5 +1,42 @@
 # Development Progress Log — Cloud Workstation
 
+## Session 24 — 2026-04-15
+
+### Goals
+- Close out Milestone 22 / F-0097: make Xwayland's `-rootless` flag survive a full reboot so the ws1 split fix from F-0096 stays fixed on live sessions, not just on in-session re-execs of `08-workspaces.sh`.
+
+### Completed
+- **PM** authored `docs/specs/F-0097-xwayland-rootless-persistence.md` identifying F-0097 as a persistence regression on top of the F-0096 code fix.
+- **TPM** added F-0097 to `docs/BACKLOG.md` under Milestone 22 (commit `117f210`).
+- **SWE** implemented the fix on branch `fix/xwayland-rootless-persistence` (commit `77a6b93`): added `xwayland disable` plus `exec /usr/bin/Xwayland -rootless :0 &` to the sway config autostart block so Xwayland is started with `-rootless` directly by sway on session startup. The existing `08-workspaces.sh` boot-script guard is kept as belt-and-braces but is no longer the primary mechanism — the earlier guard was racing sway IPC availability on cold boot, which is why the flag was being dropped after reboot even though the F-0096 fix was in place.
+- **SWE-Test** strengthened `workstation-image/boot/10-tests.sh` with a runtime assertion: `pgrep -af Xwayland | grep -- -rootless`, which fails the boot-test summary if the live Xwayland process is ever running without `-rootless`. This turns a silent regression into a loud one, matching the F-0095 drift-guard philosophy.
+- **SWE-QA** verified live on the workstation post-reboot: Xwayland PID 2816 is running with `-rootless` in its argv; ws1 renders a single fullscreen foot terminal with no phantom Xwayland root client in `swaymsg -t get_tree`.
+- **PR #11** merged to `main` as `399408b`.
+- **SWE-1** marked F-0097 done in `docs/BACKLOG.md` (commit `e505fd0`), keeping the combined Milestone 21/22 row per the existing F-0096/F-0097 convention.
+
+### Key Decisions
+- **Start Xwayland from sway autostart, not from a boot-script `sway_cmd exec`**: the boot-script approach depended on sway IPC being ready when the script ran, which was racy on cold boot. Having sway itself start Xwayland via `exec` in its own config removes the race entirely — sway is necessarily running by the time it processes its own `exec` lines.
+- **Keep the `08-workspaces.sh` guard as belt-and-braces**: even though the sway-autostart path is now primary, the script guard stays in place so any future drift (e.g. someone removes the sway-config `exec` line) is caught by the same mechanism that originally shipped with F-0096. Cost is zero, defensive value is non-zero.
+- **Runtime assertion in `10-tests.sh`, not static grep**: the earlier F-0096 test only checked that the repo config *contained* `-rootless`. That passed even when the live Xwayland was running without the flag (which is exactly what F-0097 was). Asserting on the live `pgrep` output is the only check that would have caught F-0097 at boot time.
+
+### Files Changed
+- `docs/specs/F-0097-xwayland-rootless-persistence.md` (new)
+- `docs/BACKLOG.md` (Milestone 22 entry, then marked done)
+- `workstation-image/configs/sway/config` and `~/.config/home-manager/sway-config` (autostart `xwayland disable` + `exec /usr/bin/Xwayland -rootless :0 &`)
+- `workstation-image/boot/10-tests.sh` (runtime `pgrep` assertion)
+
+### Pipeline
+- Full PO → PM → TPM → SWE → SWE-Test/QA → TPM → PM pipeline via interactive tmux team `fix-xwayland-rootless-persistence`. Merged as PR #11 (`399408b`).
+
+### Next Steps
+- Monitor the next few reboot cycles for any regression of the `-rootless` flag — the `10-tests.sh` runtime assertion should catch it in the boot-test summary if it recurs.
+- Milestone 22 closeout: PM to produce release-notes entry and report back to PO; tag on PO approval.
+
+### Open Items / Risks
+- None specific to F-0097. Standing F-0094 AC4(b)/AC4(c) items remain open from earlier milestones.
+
+---
+
 ## Session 23 — 2026-04-15
 
 ### Goals
