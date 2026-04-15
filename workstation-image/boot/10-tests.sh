@@ -380,17 +380,26 @@ fi
 check_dir "Nix profile" "$HOME_DIR/.nix-profile"
 
 # =============================================================================
-# F-0096: Xwayland rootless invocation (no root window tiled on ws1)
+# F-0096 / F-0097: Xwayland rootless invocation (no root window tiled on ws1)
 # =============================================================================
-# Two guards:
-#   (a) Static: the live ~/boot/08-workspaces.sh must invoke Xwayland with
-#       -rootless — the regression shipped because the flag was absent.
-#   (b) Live: swaymsg -t get_tree must not contain a window with
+# Three guards:
+#   (a) Static (08-workspaces.sh): historical — the live ~/boot/08-workspaces.sh
+#       invokes Xwayland with -rootless. Kept from F-0096 but insufficient on
+#       its own: v1.17.1 passed this check while the running process was
+#       still non-rootless (F-0097).
+#   (a2) Static (sway config): the sway autostart owner of Xwayland :0 must
+#       also pass -rootless. This is the exec that actually wins the boot
+#       race, so the flag has to live here.
+#   (b) Runtime (pgrep): the single Xwayland :0 process currently on the
+#       system must have -rootless in its argv. This is the authoritative
+#       check — it catches the F-0097 failure mode where the file on disk
+#       is correct but the running process was started from elsewhere.
+#   (c) Live (swaymsg): swaymsg -t get_tree must not contain a window with
 #       app_id == "org.freedesktop.Xwayland" on any workspace. Without
 #       -rootless, Xwayland spawns a visible root that Sway tiles next to
 #       the foot terminal on ws1.
 log ""
-log "--- Xwayland rootless (F-0096) ---"
+log "--- Xwayland rootless (F-0096 / F-0097) ---"
 WS_SCRIPT="$HOME_DIR/boot/08-workspaces.sh"
 if [ -f "$WS_SCRIPT" ]; then
     if grep -qE 'Xwayland[[:space:]]+-rootless' "$WS_SCRIPT"; then
@@ -400,6 +409,34 @@ if [ -f "$WS_SCRIPT" ]; then
     fi
 else
     test_fail "08-workspaces.sh not found at $WS_SCRIPT (F-0096 check)"
+fi
+
+# F-0097 (a2): sway config autostart — the real launcher of Xwayland :0
+if [ -f "$SWAY_CFG" ]; then
+    if grep -qE '^exec[[:space:]]+/usr/bin/Xwayland[[:space:]]+-rootless[[:space:]]+:0' "$SWAY_CFG"; then
+        test_pass "sway config autostart invokes Xwayland with -rootless"
+    else
+        test_fail "sway config autostart missing -rootless on Xwayland :0 exec (F-0097 regression)"
+    fi
+fi
+
+# F-0097 (b): runtime check — the Xwayland :0 process actually running on
+# this boot must have -rootless in its argv. A static grep is insufficient
+# because sway's autostart can race with 08-workspaces.sh; only ps -o args=
+# on the live PID tells us which launcher won.
+XWAY_PIDS=$(pgrep -x Xwayland 2>/dev/null | xargs)
+XWAY_PID_COUNT=$(echo "$XWAY_PIDS" | wc -w)
+if [ -z "$XWAY_PIDS" ]; then
+    test_warn "no Xwayland :0 process running (may start later)"
+elif [ "$XWAY_PID_COUNT" -gt 1 ]; then
+    test_fail "multiple Xwayland :0 processes running (pids: $XWAY_PIDS)"
+else
+    XWAY_ARGS=$(ps -p "$XWAY_PIDS" -o args= 2>/dev/null | xargs)
+    if echo "$XWAY_ARGS" | grep -qw -- '-rootless'; then
+        test_pass "running Xwayland :0 has -rootless (args: $XWAY_ARGS)"
+    else
+        test_fail "running Xwayland :0 missing -rootless (args: $XWAY_ARGS) (F-0097 regression)"
+    fi
 fi
 
 SWAY_SOCK=$(ls /run/user/1000/sway-ipc.*.sock 2>/dev/null | head -1)

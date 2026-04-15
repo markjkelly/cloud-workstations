@@ -1,7 +1,7 @@
 # Project Backlog — Cloud Workstation
 
 **Maintained by:** TPM
-**Last updated:** 2026-04-15 (Milestone 21 — Xwayland ws1 split: F-0096)
+**Last updated:** 2026-04-15 (Milestone 22 — Xwayland `-rootless` persistence fix: F-0097)
 
 ---
 
@@ -255,6 +255,14 @@ Tracks fork-only work that pre-dated or accompanied v1.17. All items are documen
 | ID | Feature | Spec | Priority | Status | Owner | Branch | Dependencies | Feedback |
 |----|---------|------|----------|--------|-------|--------|--------------|----------|
 | F-0096 | Fix Xwayland root window splitting workspace 1 at boot | [F-0096](specs/F-0096-xwayland-ws1-split.md) | P0 | done (tested + verified) | SWE / SWE-Test-QA | fix/xwayland-ws1-split | F-0027, F-0029, F-0056, F-0073 | **Completed 2026-04-15 (Milestone 21).** Chose Option 2 — added `-rootless` to Xwayland invocation in `workstation-image/boot/08-workspaces.sh` (commit 2cf39b1). Live verification: `swaymsg -t get_tree` shows ws1=foot only (no Xwayland root), ws2=Chrome, ws3=Antigravity, ws4=foot. `ps` confirms `/usr/bin/Xwayland -rootless :0` running; `DISPLAY=:0 xdpyinfo` still returns a working X server. `10-tests.sh` F-0096 section (static grep for `-rootless` + live swaymsg tree check for `app_id=org.freedesktop.Xwayland`) both PASS. Pre-existing 30 FAILs in the test suite are unrelated (AI CLI version probes, missing `.tmux.conf`/`.env`, home.nix pattern checks). AC1–AC3 verified on live workstation; AC4 (reboot / teardown+setup / fresh-project) deferred to deployment. Original: At boot, ws1 tiles two windows side-by-side — the Xwayland root window (`app_id=org.freedesktop.Xwayland`, `name=Xwayland on :0`) on the left and the autostart foot terminal on the right — instead of a single fullscreen foot. Confirmed live via `swaymsg -t get_tree`. Root cause: `workstation-image/boot/08-workspaces.sh:70` runs `sway_cmd exec "/usr/bin/Xwayland :0"`, which starts Xwayland without `-rootless` and tiles its root window onto the active workspace. Three implementation options for the SWE to choose from (documented in the spec): (1) sway `for_window [app_id="org.freedesktop.Xwayland"]` rule to scratchpad/hide the root; (2) add `-rootless` to the Xwayland invocation (recommended — root-cause fix, one-line change); (3) move Xwayland startup into a dedicated systemd user service outside `sway_cmd exec`. Fix must preserve IntelliJ's `DISPLAY=:0` path (F-0056) and add a `10-tests.sh` drift guard asserting no Xwayland root window on any workspace after autostart. Three-places rule applies if both repo and `~/boot/08-workspaces.sh` (plus `scripts/cloud-build-setup.sh` if sway config changes) are touched. Acceptance covers reboot, `ws.sh teardown && ws.sh setup`, and fresh-project setup. |
+
+---
+
+## Milestone 22: Xwayland `-rootless` Persistence Fix (F-0096 Regression)
+
+| ID | Feature | Spec | Priority | Status | Owner | Branch | Dependencies | Feedback |
+|----|---------|------|----------|--------|-------|--------|--------------|----------|
+| F-0097 | Fix Xwayland `-rootless` flag not persisting after reboot | [F-0097](specs/F-0097-xwayland-rootless-persistence.md) | P0 | in-progress | SWE-1 | fix/xwayland-rootless-persistence | F-0096 | **P0 regression of just-shipped F-0096 (v1.17.1).** After reboot, `pgrep -af Xwayland` shows `/usr/bin/Xwayland :0` — the `-rootless` flag is missing from the running process even though `workstation-image/boot/08-workspaces.sh` and `~/boot/08-workspaces.sh` both contain `sway_cmd exec "/usr/bin/Xwayland -rootless :0"`. Workspace 1 is split 50/50 again. The F-0096 static-grep test still PASSES, so the current test only proves the string is typed into the script, not that the running Xwayland process actually honors it. This is a P0 test-coverage gap as much as a functional regression. SWE must (1) identify why the flag is dropped at runtime (candidates: stale/duplicate Xwayland invocation elsewhere in boot path, sway autostart ordering, a second `exec Xwayland` in sway config or home-manager source, systemd user unit pre-starting Xwayland before `08-workspaces.sh`, `DISPLAY=:0` race with F-0056 IntelliJ path), (2) implement the fix in the correct source-of-truth files, and (3) strengthen `10-tests.sh` so the bad state is detectable — the test must assert the **running** Xwayland process command line contains `-rootless` (e.g., `pgrep -af Xwayland \| grep -- -rootless`) in addition to the existing static grep and sway-tree assertion. Three-places rule applies: repo `workstation-image/boot/08-workspaces.sh`, live `~/boot/08-workspaces.sh`, and `scripts/cloud-build-setup.sh` must all agree. Acceptance covers reboot, `ws.sh teardown && ws.sh setup`, and fresh-project setup — the runtime assertion must PASS in all three. |
 
 ---
 

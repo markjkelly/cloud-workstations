@@ -46,7 +46,10 @@ Docker entrypoint
 
 systemd (after Sway starts)
   ├── ws-autolaunch.service
-  │     └── 08-workspaces.sh (launches apps + Xwayland)
+  │     └── 08-workspaces.sh (launches apps; Xwayland is started
+  │         by the sway config's `exec /usr/bin/Xwayland -rootless :0`
+  │         autostart — 08-workspaces.sh only re-launches if that
+  │         is somehow absent — see F-0097)
   └── ws-boot-tests.service (After=ws-autolaunch, 30s delay)
         └── 10-tests.sh (run ~82 verification tests)
 ```
