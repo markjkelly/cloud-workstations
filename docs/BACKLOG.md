@@ -1,7 +1,7 @@
 # Project Backlog — Cloud Workstation
 
 **Maintained by:** TPM
-**Last updated:** 2026-04-15 (Milestone 17 — fork docs catch-up: F-0088, F-0089, F-0090, F-0091)
+**Last updated:** 2026-04-15 (Milestone 18 — Claude Code auto-update fix: F-0093)
 
 ---
 
@@ -223,6 +223,14 @@ Tracks fork-only work that pre-dated or accompanied v1.17. All items are documen
 | F-0090 | VNC keyboard compatibility (wayvnc + noVNC + foot) | [F-0090](specs/F-0090-vnc-keyboard-compat.md) | P1 | done | SWE-1 | main | F-0001 | `wayvnc --keyboard=us`, `foot.ini term=xterm-256color`, boot-time patch of noVNC `rfb.js` to disable QEMU extended key events. Commits 493d541, eb2d56c, f0c4e54 |
 | F-0091 | Align setup script with deployed GCP Organization configuration | [F-0091](specs/F-0091-gcp-org-alignment.md) | P0 | done | PE | main | F-0034, F-0088 | `cloud-build-setup.sh` rewritten for the deployed configuration: us-central1, main-cluster, sway-config, sway-workstation, dev-workstation:latest, n2-standard-8, 200GB pd-balanced, no GPU, 2h idle, workstations-vpc, sway-workstation-sa, 8PM Central stop. README/SETUP/STARTUP_SCRIPTS updated to match (machine spec + 02-nvidia no-op note). Commits df99d3d, fe29dfe |
 | F-0092 | Foot terminal font cleanup (DejaVu Sans Mono single source) | — | P2 | done | SWE-1 | main | — | Switched foot font to DejaVu Sans Mono (system-present), removed Home Manager `programs.foot` double-write that was resolving `font=monospace` to Noto Sans Regular and warning on every launch. Added Nix `cascadia-code`/`fira-code`/`jetbrains-mono` packages so fresh setups get open-source fonts without the Operator Mono tarball path. `cloud-build-setup.sh` only uploads Operator Mono (~264K) via `gcloud ssh -T` to stay under the 300s timeout, with a real OTF count verify. Commits 6fef7ff, f871cd1, 5c714dd, 0aca479, 1639c59 |
+
+---
+
+## Milestone 18: Claude Code Auto-Update Fix
+
+| ID | Feature | Spec | Priority | Status | Owner | Branch | Dependencies | Feedback |
+|----|---------|------|----------|--------|-------|--------|--------------|----------|
+| F-0093 | Fix Claude Code auto-update (persistent npm prefix) | [F-0093](specs/F-0093-claude-autoupdate-fix.md) | P1 | done | SWE-1 | fix/claude-autoupdate | F-0089 | `install_claude_code` in `11-custom-tools.sh` uses `--prefix` inline only; `npm config get prefix` returns `/usr`, so Claude's in-process auto-updater hits EACCES on `/usr/lib/node_modules`. Fix: idempotently write `prefix=/home/user/.npm-global` to `~/.npmrc` (owned by user). Add boot test in `10-tests.sh` asserting `npm config get prefix`. Apply same fix live on workstation (no live-only changes). |
 
 ---
 

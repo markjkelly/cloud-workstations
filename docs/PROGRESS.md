@@ -910,3 +910,48 @@ Fork-only commits mapped to specs/backlog items:
 - For daily work, use `your-private-repo` (private repo with personal values)
 - To share improvements, cherry-pick from private to public repo
 - Colleagues: clone public repo → run configure.sh → run ws.sh setup
+
+---
+
+## Session 21 — 2026-04-15
+
+### Date
+2026-04-15
+
+### Milestone
+Milestone 18 — Claude Code Auto-Update Fix (F-0093)
+
+### Goals
+- Fix Claude Code's in-process auto-updater failing with EACCES on `/usr/lib/node_modules`
+- Make the npm user prefix (`/home/user/.npm-global`) persistent across shells and auto-update subprocesses
+- Ensure the fix survives teardown + re-setup (no live-only changes)
+
+### Completed
+- **PM** produced `docs/specs/F-0093-claude-autoupdate-fix.md` capturing root cause (Claude auto-updater invokes `npm install -g` and reads `npm config get prefix`, which returned `/usr` because only `--prefix` was passed inline during install) and acceptance criteria
+- **SWE-1** fixed `workstation-image/boot/11-custom-tools.sh::install_claude_code` to idempotently write `prefix=/home/user/.npm-global` into `~/.npmrc` (user-owned, preserves any existing non-prefix entries) in addition to the existing `--prefix` install flag, so `npm config get prefix` resolves correctly for all future invocations including Claude's auto-update subprocess
+- **SWE-1** added a boot test in `workstation-image/boot/10-tests.sh` asserting `npm config get prefix` returns `/home/user/.npm-global`, so regressions are caught on every boot
+- **SWE-1** updated `docs/STARTUP_SCRIPTS.md` to describe the new `~/.npmrc` persistence behavior in the `11-custom-tools.sh` entry
+- **PO** confirmed the live fix works on the running workstation — `claude update` no longer fails and the in-process auto-updater completes cleanly
+
+### Agent Team
+- PM: spec authoring (F-0093)
+- SWE-1: boot script fix, test, docs
+- TPM: backlog + progress updates (this entry)
+
+### Files Changed
+- `workstation-image/boot/11-custom-tools.sh` — idempotent `~/.npmrc` prefix write in `install_claude_code`
+- `workstation-image/boot/10-tests.sh` — new assertion on `npm config get prefix`
+- `docs/STARTUP_SCRIPTS.md` — documented the new behavior
+- `docs/specs/F-0093-claude-autoupdate-fix.md` — new spec
+- `docs/BACKLOG.md` — F-0093 marked done in Milestone 18
+- `docs/PROGRESS.md` — this entry
+
+### Decisions
+- **Write `~/.npmrc` instead of exporting `NPM_CONFIG_PREFIX`**: Claude's auto-updater shells out to `npm install -g` from its own process; `~/.npmrc` is read unconditionally by npm regardless of environment, making it the most robust place for the fix
+- **Idempotent edit over clobber**: the fix only adds/replaces the `prefix=` line so any future user-added `.npmrc` entries (registry tokens, proxy, etc.) are preserved
+- **No changes to the PATH-level install**: `npm install -g --prefix=/home/user/.npm-global` continues to work; the `.npmrc` fix is purely to cover invocations that don't pass `--prefix` (auto-update, ad-hoc user `npm -g`)
+
+### Next Steps
+- SWE-1 commits the branch `fix/claude-autoupdate` and opens a PR (task #3, blocked by this TPM update and the PM RELEASENOTES update)
+- PM adds a v1.18 entry to `docs/RELEASENOTES.md` (task #2)
+- After merge + PO approval: `git tag -a v1.18` and push tags

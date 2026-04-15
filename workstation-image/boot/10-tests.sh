@@ -295,6 +295,14 @@ else
     test_skip "Language dirs (languages module disabled)"
 fi
 check_dir "npm-global" "$HOME_DIR/.npm-global"
+# npm global prefix must point at persistent disk so Claude Code's
+# auto-updater (and any `npm -g`) doesn't EACCES on /usr/lib/node_modules.
+npm_prefix=$(runuser -u $USER -- npm config get prefix 2>/dev/null)
+if [ "$npm_prefix" = "$HOME_DIR/.npm-global" ]; then
+    test_pass "npm prefix = $npm_prefix"
+else
+    test_fail "npm prefix is '$npm_prefix' (expected $HOME_DIR/.npm-global)"
+fi
 check_dir "Nix profile" "$HOME_DIR/.nix-profile"
 
 # =============================================================================

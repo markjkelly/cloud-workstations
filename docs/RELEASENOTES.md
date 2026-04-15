@@ -1,5 +1,21 @@
 # Release Notes — Cloud Workstation
 
+## v1.18 — Claude Code Auto-Update Fix (2026-04-15)
+
+Fixes the Claude Code in-process auto-updater so it can write to the
+persistent disk instead of failing with `EACCES` on the ephemeral
+`/usr/lib/node_modules` path.
+
+See [docs/specs/F-0093-claude-autoupdate-fix.md](specs/F-0093-claude-autoupdate-fix.md).
+
+### Fixed
+- **Claude Code auto-updater `EACCES` on `/usr/lib/node_modules`** (F-0093) — the in-process auto-updater no longer fails when Claude tries to self-upgrade. Root cause: `install_claude_code` in `workstation-image/boot/11-custom-tools.sh` passed `--prefix=/home/user/.npm-global` inline only, so `npm config get prefix` still returned `/usr` (the base-image default) and any later `npm -g` invocation — including Claude Code's auto-updater — tried to write to the root-owned ephemeral `/usr/lib/node_modules`. Fix: `install_claude_code` now idempotently writes `prefix=/home/user/.npm-global` to `~/.npmrc`, so every `npm -g` invocation targets the persistent disk
+
+### Added
+- **Boot test for npm prefix** — `workstation-image/boot/10-tests.sh` now asserts `npm config get prefix` equals `/home/user/.npm-global`, catching any regression that would silently break the Claude Code auto-updater on future boots
+
+---
+
 ## v1.17 — GCP Organization Alignment, Font Cleanup, Fork Retrospective (2026-04-15)
 
 This release captures the final alignment of the fork with the deployed
