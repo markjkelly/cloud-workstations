@@ -1,5 +1,12 @@
 # Release Notes — Cloud Workstation
 
+## v1.16 — Terminal UX (2026-04-15)
+
+### Fixed
+- **Foot terminals now open in `$HOME`** — sway bindings (`$mod+Return`, `$mod+t`) previously inherited sway's cwd, causing new terminals to start in whatever directory sway was launched from. Bindings now `cd ~` before exec. Boot test added to `10-tests.sh`.
+
+---
+
 ## v1.15 — Composable Install Profiles (2026-04-02)
 
 ### Added

@@ -1,5 +1,21 @@
 # Development Progress Log — Cloud Workstation
 
+## Session 19 — 2026-04-15
+
+### Goals
+- Fix foot terminals opening in arbitrary cwd (F-0087)
+
+### Completed
+- **F-0087** (Foot terminals start in $HOME): Updated sway bindings in `workstation-image/configs/sway/config` — `$mod+Return` and `$mod+t` now `exec cd ~ && $nix/foot` so new terminals land in `$HOME` regardless of sway's launch cwd. Added `check_grep` in `workstation-image/boot/10-tests.sh` to verify the binding survives future edits.
+
+### Key Decisions
+- Bypassed the full PM→TPM→SWE pipeline for this 2-line config fix at PO's direction; still maintained persistence rule (repo config is single source of truth; setup script already deploys it to both home-manager source and live config) and mandatory test coverage.
+
+### Next Steps
+- Tag v1.16 and push.
+
+---
+
 ## Session 18 — 2026-04-02
 
 ### Goals

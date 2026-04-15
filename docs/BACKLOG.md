@@ -204,6 +204,14 @@
 
 ---
 
+## Milestone 16: Terminal UX
+
+| ID | Feature | Spec | Priority | Status | Owner | Branch | Dependencies | Feedback |
+|----|---------|------|----------|--------|-------|--------|--------------|----------|
+| F-0087 | Foot terminal starts in $HOME | — | P2 | done | PO | main | — | Sway bindings ($mod+Return, $mod+t) wrapped with `cd ~ &&` so foot inherits HOME instead of sway's cwd. Test added to 10-tests.sh. |
+
+---
+
 ## Future Items
 
 | ID | Feature | Spec | Priority | Status | Owner | Branch | Dependencies | Feedback |
