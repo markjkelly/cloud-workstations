@@ -1,13 +1,15 @@
 #!/bin/bash
 # =============================================================================
-# 11-custom-tools.sh — Terraform, GitHub CLI, Java, Eclipse, systemd masks
+# 11-custom-tools.sh — Terraform, GitHub CLI, Java, Eclipse, fonts, systemd masks
 # =============================================================================
 # Installs tools not included in the upstream ameer00/cloud-workstations profile:
 #   - Terraform (pinned version)
 #   - GitHub CLI (official apt repo)
 #   - Java LTS via SDKMAN
 #   - Eclipse IDE for Java Developers
-# Also masks ws-autolaunch.service to disable workspace auto-launch on boot.
+#   - Claude Code (npm global, persistent in ~/.npm-global)
+#   - JetBrains Mono font (for foot terminal)
+# Also patches noVNC rfb.js and masks ws-autolaunch.service on every boot.
 #
 # Numbered 11- to run after all upstream boot scripts complete.
 # Idempotent — safe to run on every boot.
@@ -21,6 +23,7 @@ LOG_DIR="$HOME_DIR/logs"
 LOG_FILE="$LOG_DIR/custom-tools.log"
 
 TERRAFORM_VERSION="1.14.8"
+GH_VERSION="2.89.0"
 # Temurin LTS — update this string when a new LTS ships; SDKMAN will validate.
 JAVA_VERSION="21.0.5-tem"
 
@@ -37,15 +40,18 @@ log "=== Custom tools install started ==="
 # =============================================================================
 # Terraform
 # =============================================================================
+# Installs to ~/.local/bin/ (persistent disk) — /usr/local/bin is ephemeral.
 install_terraform() {
     local version="$TERRAFORM_VERSION"
+    local bin_dir="$HOME_DIR/.local/bin"
+    local bin="$bin_dir/terraform"
     local arch
     arch=$(dpkg --print-architecture 2>/dev/null || uname -m)
     [[ "$arch" == "x86_64" ]] && arch="amd64"
 
-    if command -v terraform &>/dev/null; then
+    if [ -x "$bin" ]; then
         local installed
-        installed=$(terraform version -json 2>/dev/null \
+        installed=$("$bin" version -json 2>/dev/null \
             | grep -oP '(?<="terraform_version":")[^"]+' || true)
         if [[ "$installed" == "$version" ]]; then
             log "[Terraform] $version already installed — skipping"
@@ -61,34 +67,44 @@ install_terraform() {
 
     curl -fsSL "$url" -o "${tmp}/terraform.zip" >> "$LOG_FILE" 2>&1
     unzip -q "${tmp}/terraform.zip" -d "$tmp"
-    install -o root -g root -m 0755 "${tmp}/terraform" /usr/local/bin/terraform
+    runuser -u $USER -- mkdir -p "$bin_dir"
+    install -o $USER -g $USER -m 0755 "${tmp}/terraform" "$bin"
 
-    log "[Terraform] Installed: $(terraform version 2>/dev/null | head -1)"
+    log "[Terraform] Installed: $($bin version 2>/dev/null | head -1)"
 }
 
 # =============================================================================
 # GitHub CLI
 # =============================================================================
+# Installs binary to ~/.local/bin/ (persistent disk) — apt installs to
+# /usr/bin which is ephemeral and lost on restart.
 install_gh() {
-    if command -v gh &>/dev/null; then
-        log "[gh] $(gh --version | head -1) already installed — skipping"
+    local bin_dir="$HOME_DIR/.local/bin"
+    local bin="$bin_dir/gh"
+
+    if [ -x "$bin" ]; then
+        log "[gh] $("$bin" --version | head -1) already installed — skipping"
         return
     fi
 
     log "[gh] Installing GitHub CLI..."
-    curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
-        | dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg 2>/dev/null
-    chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg
+    local arch
+    arch=$(dpkg --print-architecture 2>/dev/null || uname -m)
+    [[ "$arch" == "x86_64" ]] && arch="amd64"
 
-    echo "deb [arch=$(dpkg --print-architecture) \
-signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] \
-https://cli.github.com/packages stable main" \
-        | tee /etc/apt/sources.list.d/github-cli.list > /dev/null
+    local version="$GH_VERSION"
+    local url="https://github.com/cli/cli/releases/download/v${version}/gh_${version}_linux_${arch}.tar.gz"
 
-    apt-get update -q >> "$LOG_FILE" 2>&1
-    apt-get install -y gh >> "$LOG_FILE" 2>&1
+    local tmp
+    tmp=$(mktemp -d)
+    trap "rm -rf '$tmp'" RETURN
 
-    log "[gh] Installed: $(gh --version | head -1)"
+    curl -fsSL "$url" -o "${tmp}/gh.tar.gz" >> "$LOG_FILE" 2>&1
+    tar -xzf "${tmp}/gh.tar.gz" -C "$tmp" >> "$LOG_FILE" 2>&1
+    runuser -u $USER -- mkdir -p "$bin_dir"
+    install -o $USER -g $USER -m 0755 "${tmp}/gh_${version}_linux_${arch}/bin/gh" "$bin"
+
+    log "[gh] Installed: $("$bin" --version | head -1)"
 }
 
 # =============================================================================
@@ -168,6 +184,67 @@ DESKTOP
 }
 
 # =============================================================================
+# Claude Code
+# =============================================================================
+# Installs to ~/.npm-global/bin (persistent disk).
+# npm itself is in the base image (/usr/bin/npm) so it's always available.
+install_claude_code() {
+    local bin="$HOME_DIR/.npm-global/bin/claude"
+
+    if [ -x "$bin" ]; then
+        log "[claude] $(\"$bin\" --version 2>/dev/null | head -1) already installed — skipping"
+        return
+    fi
+
+    log "[claude] Installing Claude Code..."
+    runuser -u $USER -- npm install -g @anthropic-ai/claude-code --prefix "$HOME_DIR/.npm-global" >> "$LOG_FILE" 2>&1
+    log "[claude] Installed: $(\"$bin\" --version 2>/dev/null | head -1)"
+}
+
+# =============================================================================
+# JetBrains Mono font
+# =============================================================================
+install_jetbrains_mono() {
+    if fc-list | grep -qi "JetBrains Mono"; then
+        log "[fonts] JetBrains Mono already installed — skipping"
+        return
+    fi
+    log "[fonts] Installing fonts-jetbrains-mono..."
+    apt-get install -y fonts-jetbrains-mono >> "$LOG_FILE" 2>&1
+    fc-cache -f >> "$LOG_FILE" 2>&1
+    log "[fonts] JetBrains Mono installed"
+}
+
+# =============================================================================
+# Patch noVNC — disable QEMU extended key events
+# =============================================================================
+# noVNC 1.5+ and wayvnc 0.9.1 negotiate QEMU Extended Key Events pseudo-encoding.
+# This causes the main Enter key to be sent with unexpected modifier state,
+# producing garbage escape sequences (e.g. ";9;13~;") in foot terminal.
+# Numpad Enter is unaffected (different XKB scancode path).
+# Fix: remove the encoding from noVNC's advertised list so it falls back to
+# standard RFB key events, which wayvnc handles correctly.
+patch_novnc() {
+    local rfb="/opt/noVNC/core/rfb.js"
+    if [ ! -f "$rfb" ]; then
+        log "[novnc] $rfb not found — skipping patch"
+        return
+    fi
+    if grep -q "DISABLED: QEMU ext key events" "$rfb"; then
+        log "[novnc] rfb.js already patched — skipping"
+        return
+    fi
+    local line
+    line=$(grep -n "encs.push(encodings.pseudoEncodingQEMUExtendedKeyEvent)" "$rfb" | cut -d: -f1)
+    if [ -z "$line" ]; then
+        log "[novnc] QEMU extended key event line not found — skipping patch"
+        return
+    fi
+    sed -i "${line}s/.*/        \/\/ DISABLED: QEMU ext key events break main Enter with wayvnc\/\/ encs.push(encodings.pseudoEncodingQEMUExtendedKeyEvent);/" "$rfb"
+    log "[novnc] Patched rfb.js line $line — QEMU extended key events disabled"
+}
+
+# =============================================================================
 # Mask ws-autolaunch.service — disable workspace auto-launch
 # =============================================================================
 # 03-sway.sh creates ws-autolaunch.service and enables it via a symlink into
@@ -185,6 +262,9 @@ install_terraform
 install_gh
 install_java
 install_eclipse
+install_claude_code
+install_jetbrains_mono
+patch_novnc
 mask_autolaunch
 
 log "=== Custom tools install complete ==="
