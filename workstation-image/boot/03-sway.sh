@@ -102,24 +102,6 @@ EOF
 ln -sf /etc/systemd/system/ws-boot-tests.service /etc/systemd/system/multi-user.target.wants/
 log "Created ws-boot-tests.service (runs 10-tests.sh after Sway)"
 
-# --- F-0100: Deploy wayvnc quality config ---
-# Sets quality=9 (max JPEG fidelity) so wayvnc uses high-quality encoding
-# for the tight/ZRLE codec. Deployed on every boot since /home persists but
-# config may not be present on first boot or after a fresh-project setup.
-WAYVNC_CFG="/home/user/.config/wayvnc/config"
-if [ ! -f "$WAYVNC_CFG" ] || ! grep -q "quality=9" "$WAYVNC_CFG" 2>/dev/null; then
-    mkdir -p "$(dirname "$WAYVNC_CFG")"
-    cat > "$WAYVNC_CFG" << 'EOF'
-# wayvnc quality settings (F-0100)
-# quality: 1–9 JPEG quality scale for tight/ZRLE encoding (9 = maximum fidelity)
-quality=9
-EOF
-    chown -R user:user /home/user/.config/wayvnc
-    log "Deployed wayvnc quality config to $WAYVNC_CFG"
-else
-    log "wayvnc config already present with quality=9 — skipping"
-fi
-
 # --- Disable and mask TigerVNC ---
 rm -f /etc/systemd/system/multi-user.target.wants/tigervnc.service
 # Must rm first — ln -sf fails on overlay fs with regular files

@@ -1,7 +1,7 @@
 # Project Backlog — Cloud Workstation
 
 **Maintained by:** TPM
-**Last updated:** 2026-04-15 (Milestone 23 — noVNC Resolution & Clarity: F-0100 done)
+**Last updated:** 2026-04-15 (Milestone 23 — noVNC Resolution & Clarity: F-0100 reverted)
 
 ---
 
@@ -270,7 +270,7 @@ Tracks fork-only work that pre-dated or accompanied v1.17. All items are documen
 
 | ID | Feature | Spec | Priority | Status | Owner | Branch | Dependencies | Feedback |
 |----|---------|------|----------|--------|-------|--------|--------------|----------|
-| F-0100 | noVNC resolution and display clarity improvements (1080p + 1440p) | [F-0100](specs/F-0100-novnc-resolution.md) | P1 | done | SWE-1 | feature/novnc-resolution | F-0016, F-0090 | Three-part improvement: (1) **Dynamic resolution** — add a `ws-resolution` helper script (e.g. `ws-resolution 1920x1080` / `ws-resolution 2560x1440`) that calls `swaymsg output HEADLESS-1 resolution <WxH>` at runtime and persists the chosen resolution to `~/.config/ws-resolution` so the next boot restores it via a boot-script hook; (2) **wayvnc quality** — create `~/.config/wayvnc/config` with high-quality tight encoding settings (quality=9, subsampling=none or jpeg); (3) **noVNC client defaults** — configure noVNC scaling mode (remote resizing or scale-to-window), JPEG quality, and compression level via the noVNC `app/ui.js` defaults patch (same approach as the existing rfb.js QEMU key patch in `11-custom-tools.sh`), so the browser opens at full fidelity without manual tuning. Target: 1:1 pixel-sharp rendering at 1920×1080 on FHD displays, and crisp output at 2560×1440 on QHD displays. Add `10-tests.sh` assertions: wayvnc config file present, resolution helper on PATH, sway output reports expected resolution. Three-places rule applies to any sway config changes. |
+| F-0100 | noVNC resolution and display clarity improvements (1080p + 1440p) | [F-0100](specs/F-0100-novnc-resolution.md) | P1 | reverted | SWE-1 | feature/novnc-resolution | F-0016, F-0090 | **REVERTED 2026-04-15:** wayvnc crashed on every boot because `~/.config/wayvnc/config` contained `quality=9` — wayvnc has no `quality` config key; the invalid key caused an immediate exit and restart loop. noVNC ui.js quality/resize patches produced no visible improvement. All F-0100 code removed: `ws-resolution` helper, wayvnc config, deploy blocks in `03-sway.sh` and `cloud-build-setup.sh`, resolution restore in `08-workspaces.sh`, `patch_novnc_ui()` in `11-custom-tools.sh`, and F-0100 test assertions. Baseline noVNC/wayvnc behavior restored. |
 
 ---
 

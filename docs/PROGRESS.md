@@ -1,5 +1,55 @@
 # Development Progress Log — Cloud Workstation
 
+## Session 26 — 2026-04-15 (F-0100 Revert — wayvnc crash + noVNC patch failure)
+
+**Completed:** Full revert of F-0100 (noVNC resolution and display clarity)
+
+**What happened:**
+After shipping F-0100 (commit 445ab64), the workstation became inaccessible
+because wayvnc entered a systemd restart loop. Root cause: the deployed
+`~/.config/wayvnc/config` contained `quality=9`, but wayvnc has no `quality`
+config key. The invalid key caused wayvnc to exit immediately on startup.
+The config was renamed to `~/.config/wayvnc/config.bad` manually to restore
+connectivity.
+
+Additionally, the noVNC ui.js quality/resize patches in `patch_novnc_ui()`
+produced no visible improvement — inspection of the live `/opt/noVNC/app/ui.js`
+confirmed the patches were never applied (file showed original `quality=6` and
+`resize='off'` values). The patches had no effect.
+
+**What changed (all removals):**
+- Deleted `workstation-image/bin/ws-resolution` from repo
+- Deleted `workstation-image/configs/wayvnc/config` from repo (and empty `wayvnc/` dir)
+- Removed F-0100 wayvnc quality config deploy block from `workstation-image/boot/03-sway.sh`
+- Removed F-0100 resolution restore block from `workstation-image/boot/08-workspaces.sh`
+- Removed F-0100 test assertions from `workstation-image/boot/10-tests.sh`
+- Removed `patch_novnc_ui()` function and its call from `workstation-image/boot/11-custom-tools.sh`
+- Removed ws-resolution and wayvnc config deploy blocks from `scripts/cloud-build-setup.sh`
+- Appended Revert section to `docs/specs/F-0100-novnc-resolution.md`
+- Marked F-0100 as `reverted` in `docs/BACKLOG.md`
+
+**Live system cleanup:**
+- Removed `~/.config/wayvnc/config.bad`
+- Removed `~/.local/bin/ws-resolution`
+- Copied updated `03-sway.sh`, `08-workspaces.sh`, `10-tests.sh`, `11-custom-tools.sh` to `~/boot/`
+- noVNC `ui.js` was already at baseline (original `quality=6`, `resize='off'`) — no undo needed
+
+**Key decisions:**
+- wayvnc's config file format does not support a `quality` key. The spec's
+  "Out of Scope" note said "unknown options are ignored by older wayvnc versions"
+  but this was incorrect — wayvnc rejects unknown keys and exits.
+- The entire F-0100 feature is reverted rather than partially fixed; the noVNC
+  ui.js patches also had no demonstrable effect so there is no value in keeping
+  any part of the feature.
+- No new spec was written — the revert decision was documented in the existing
+  F-0100 spec under a new "## Revert" section.
+
+**Next steps:**
+- F-0095 (foot CWD regression) still in-progress
+- wayvnc quality improvement, if revisited, needs a different approach (e.g.
+  wayvnc CLI flags rather than a config file, once the supported options are
+  verified against the installed wayvnc version)
+
 ## Session 25 — 2026-04-15 (F-0100 noVNC Resolution & Clarity)
 
 **Completed:** F-0100 — noVNC resolution and display clarity improvements

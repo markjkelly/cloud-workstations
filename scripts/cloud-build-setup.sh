@@ -744,16 +744,6 @@ cat "${REPO_DIR}/workstation-image/configs/swaybar/sway-status" | \
     ws_pipe "mkdir -p ~/.local/bin && cat > ~/.local/bin/sway-status && chmod +x ~/.local/bin/sway-status"
 test_pass "sway-status deployed"
 
-# Deploy ws-resolution helper (F-0100)
-cat "${REPO_DIR}/workstation-image/bin/ws-resolution" | \
-    ws_pipe "mkdir -p ~/.local/bin && cat > ~/.local/bin/ws-resolution && chmod +x ~/.local/bin/ws-resolution"
-test_pass "ws-resolution deployed to ~/.local/bin/ws-resolution"
-
-# Deploy wayvnc quality config (F-0100)
-cat "${REPO_DIR}/workstation-image/configs/wayvnc/config" | \
-    ws_pipe "mkdir -p ~/.config/wayvnc && cat > ~/.config/wayvnc/config"
-test_pass "wayvnc config deployed to ~/.config/wayvnc/config"
-
 cat "${REPO_DIR}/workstation-image/configs/waybar/config.jsonc" | \
     ws_pipe "mkdir -p ~/.config/waybar && cat > ~/.config/waybar/config.jsonc"
 cat "${REPO_DIR}/workstation-image/configs/waybar/style.css" | \

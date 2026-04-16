@@ -261,44 +261,6 @@ patch_novnc() {
 }
 
 # =============================================================================
-# Patch noVNC ui.js — set quality=9 and remote-resize mode as defaults (F-0100)
-# =============================================================================
-# noVNC's ui.js ships with:
-#   quality=6  (visibly lossy at close range)
-#   resize='off'  (no scaling — the canvas clips at the browser viewport)
-# Patch to:
-#   quality=9  (maximum JPEG fidelity — bandwidth is not a constraint on Cloud WS)
-#   resize='remote'  (server-side resizing: Sway resizes its framebuffer to match
-#                     the browser window, giving 1:1 pixel mapping at any size)
-# Pattern mirrors the rfb.js QEMU key events patch above: idempotency guard on a
-# unique comment string, then sed in-place on the exact initSetting lines.
-patch_novnc_ui() {
-    local ui="/opt/noVNC/app/ui.js"
-    if [ ! -f "$ui" ]; then
-        log "[novnc-ui] $ui not found — skipping patch"
-        return
-    fi
-    if grep -q "F-0100: quality=9" "$ui"; then
-        log "[novnc-ui] ui.js already patched — skipping"
-        return
-    fi
-    # Patch quality: 6 → 9
-    if grep -q "UI.initSetting('quality', 6)" "$ui"; then
-        sed -i "s/UI\.initSetting('quality', 6)/UI.initSetting('quality', 9); \/\/ F-0100: quality=9/" "$ui"
-        log "[novnc-ui] Patched ui.js quality: 6 → 9"
-    else
-        log "[novnc-ui] quality=6 line not found — skipping quality patch"
-    fi
-    # Patch resize: 'off' → 'remote'
-    if grep -q "UI.initSetting('resize', 'off')" "$ui"; then
-        sed -i "s/UI\.initSetting('resize', 'off')/UI.initSetting('resize', 'remote'); \/\/ F-0100: remote-resize/" "$ui"
-        log "[novnc-ui] Patched ui.js resize: 'off' → 'remote'"
-    else
-        log "[novnc-ui] resize='off' line not found — skipping resize patch"
-    fi
-}
-
-# =============================================================================
 # Mask ws-autolaunch.service — disable workspace auto-launch
 # =============================================================================
 # 03-sway.sh creates ws-autolaunch.service and enables it via a symlink into
@@ -319,7 +281,6 @@ install_eclipse
 install_claude_code
 install_jetbrains_mono
 patch_novnc
-patch_novnc_ui
 mask_autolaunch
 
 log "=== Custom tools install complete ==="

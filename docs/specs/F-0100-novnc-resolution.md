@@ -69,3 +69,31 @@ output at 2560×1440 on QHD displays, with zero manual tuning required.
   only confirmed option. Additional options (subsampling, etc.) may be added in
   a future wayvnc release. The config is deployed regardless — unknown options
   are ignored by older wayvnc versions.
+
+## Revert
+
+**Date:** 2026-04-15
+**Reason:** F-0100 was reverted in full due to two compounding issues:
+
+1. **wayvnc config crash (P0):** The deployed `~/.config/wayvnc/config`
+   contained `quality=9`. wayvnc does not support a `quality` config key —
+   it has no quality configuration option in its config file format. The
+   presence of this invalid key caused wayvnc to exit immediately on startup,
+   entering a systemd restart loop and making the desktop inaccessible. The
+   config had to be renamed to `~/.config/wayvnc/config.bad` manually to
+   restore connectivity.
+
+2. **noVNC ui.js patches produced no visible improvement:** The `patch_novnc_ui()`
+   function in `11-custom-tools.sh` patched `initSetting('quality', 6)` →
+   `quality=9` and `initSetting('resize', 'off')` → `resize='remote'`, but
+   inspection of the live `/opt/noVNC/app/ui.js` showed the patches were not
+   applied (the file still contained the original values). Even if they had
+   been applied, the PO observed no meaningful visual improvement in the noVNC
+   session quality.
+
+**Resolution:** All F-0100 code was removed: `ws-resolution` helper script,
+wayvnc config file, wayvnc config deploy blocks in `03-sway.sh` and
+`cloud-build-setup.sh`, the resolution restore block in `08-workspaces.sh`,
+the `patch_novnc_ui()` function and its call in `11-custom-tools.sh`, and
+all F-0100 assertions in `10-tests.sh`. Baseline noVNC/wayvnc behavior is
+restored.

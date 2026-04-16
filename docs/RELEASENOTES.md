@@ -1,5 +1,18 @@
 # Release Notes — Cloud Workstation
 
+## v1.21.1 — Revert F-0100 noVNC/wayvnc quality patches (2026-04-15)
+
+Patch release reverting F-0100 in full. The feature caused a P0 outage
+(wayvnc crash loop) and produced no visible improvement.
+
+### Reverted
+- **wayvnc quality config removed** — `~/.config/wayvnc/config` containing `quality=9` caused wayvnc to crash immediately on startup and enter a systemd restart loop. wayvnc does not support a `quality` config key; the invalid key is rejected outright rather than silently ignored. Config file and all deploy code removed from `03-sway.sh` and `cloud-build-setup.sh`.
+- **`ws-resolution` helper removed** — `workstation-image/bin/ws-resolution` script and its deploy block in `cloud-build-setup.sh` removed. The resolution restore hook in `08-workspaces.sh` was also removed. Sway uses its default HEADLESS-1 output resolution.
+- **noVNC ui.js patches removed** — `patch_novnc_ui()` function removed from `11-custom-tools.sh`. The function patched `initSetting('quality', 6)` and `initSetting('resize', 'off')` in `/opt/noVNC/app/ui.js`, but inspection of the live file confirmed the patches were never applied and produced no visible improvement. noVNC retains its shipped defaults (`quality=6`, `resize='off'`).
+- **F-0100 boot test assertions removed** — all F-0100 assertions in `10-tests.sh` removed (ws-resolution binary check, wayvnc config presence/content check, noVNC ui.js patch checks).
+
+---
+
 ## v1.21 — noVNC Resolution & Clarity (2026-04-15)
 
 ### Added
