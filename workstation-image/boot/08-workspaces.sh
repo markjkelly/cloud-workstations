@@ -139,3 +139,19 @@ launch_and_wait 4 5 "$FOOT" --working-directory=/home/user
 sleep 1
 sway_cmd "workspace number 1"
 log "All workspaces launched, switched to workspace 1"
+
+# --- F-0100: Restore persisted resolution ---
+# If ~/.config/ws-resolution exists (written by ws-resolution helper), apply it
+# to HEADLESS-1 now that Sway is confirmed running.
+PERSIST_RES="$HOME_DIR/.config/ws-resolution"
+if [[ -f "$PERSIST_RES" ]]; then
+    SAVED_RES="$(cat "$PERSIST_RES")"
+    if [[ "$SAVED_RES" =~ ^[0-9]+x[0-9]+$ ]]; then
+        log "Restoring persisted resolution: $SAVED_RES"
+        sway_cmd "output HEADLESS-1 resolution $SAVED_RES" \
+            && log "Resolution restored to $SAVED_RES" \
+            || log "WARNING: failed to restore resolution $SAVED_RES"
+    else
+        log "WARNING: ~/.config/ws-resolution has invalid format ('$SAVED_RES') — skipping"
+    fi
+fi

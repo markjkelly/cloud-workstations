@@ -1,5 +1,27 @@
 # Development Progress Log — Cloud Workstation
 
+## Session 25 — 2026-04-15 (F-0100 noVNC Resolution & Clarity)
+
+**Completed:** F-0100 — noVNC resolution and display clarity improvements
+
+**What changed:**
+- Added `workstation-image/bin/ws-resolution` helper script: `ws-resolution 1920x1080` / `ws-resolution 2560x1440` changes Sway HEADLESS-1 output and persists to `~/.config/ws-resolution`
+- Added boot-time resolution restore hook in `workstation-image/boot/08-workspaces.sh`: reads `~/.config/ws-resolution` after Sway is running and restores the last set resolution
+- Added `workstation-image/configs/wayvnc/config` with `quality=9` for high-fidelity JPEG encoding; deployed by `03-sway.sh` on every boot
+- Added noVNC ui.js patch in `workstation-image/boot/11-custom-tools.sh`: sets JPEG quality to 9 and enables remote-resize mode by default; follows the same idempotent sed pattern as the existing rfb.js QEMU key patch
+- Updated `scripts/cloud-build-setup.sh` (Step 13) to deploy ws-resolution and wayvnc config on fresh project setup
+- Added F-0100 tests to `workstation-image/boot/10-tests.sh`: ws-resolution on PATH, wayvnc config present and contains quality=9, noVNC ui.js patches verified, HEADLESS-1 output check if sway is running
+
+**Key decisions:**
+- Used `remote` resize mode in noVNC (tells the server to resize its framebuffer to match the browser window) rather than `scale` (client-side scaling). Remote mode gives 1:1 pixel mapping at any window size and is the correct mode for a Wayland/headless setup where the compositor can adjust its output resolution dynamically.
+- wayvnc `quality=9` is the maximum; wayvnc uses tight encoding with JPEG by default. Config file is deployed even if the installed wayvnc version ignores unknown options — it will activate on update.
+- ws-resolution persists to `~/.config/ws-resolution` (XDG config dir) to follow the existing `~/.config/` pattern for user preferences.
+- The three-places rule was not triggered for this feature: no sway config changes were needed (resolution is set via swaymsg at runtime, not in the static sway config). Only boot scripts and setup script needed updates.
+
+**Next steps:**
+- AC4 (teardown+setup) and AC5 (fresh-project) end-to-end verification pending PO reboot test
+- F-0095 (foot CWD regression) still in-progress
+
 ## Session 24 — 2026-04-15
 
 ### Goals

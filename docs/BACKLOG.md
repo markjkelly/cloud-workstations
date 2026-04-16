@@ -1,7 +1,7 @@
 # Project Backlog — Cloud Workstation
 
 **Maintained by:** TPM
-**Last updated:** 2026-04-15 (Milestone 22 — Xwayland `-rootless` persistence fix: F-0097)
+**Last updated:** 2026-04-15 (Milestone 23 — noVNC Resolution & Clarity: F-0100 done)
 
 ---
 
@@ -263,6 +263,46 @@ Tracks fork-only work that pre-dated or accompanied v1.17. All items are documen
 | ID | Feature | Spec | Priority | Status | Owner | Branch | Dependencies | Feedback |
 |----|---------|------|----------|--------|-------|--------|--------------|----------|
 | F-0097 | Fix Xwayland `-rootless` flag not persisting after reboot | [F-0097](specs/F-0097-xwayland-rootless-persistence.md) | P0 | done | SWE-1 | fix/xwayland-rootless-persistence | F-0096 | **Completed 2026-04-15 (PR #11 merged, commit 399408b).** Root cause: `08-workspaces.sh` ran only on first boot via `ws-autolaunch`, but on subsequent boots sway's autostart started Xwayland without `-rootless`. Fix: moved `exec /usr/bin/Xwayland -rootless :0 &` plus `xwayland disable` into sway autostart (home-manager `sway-config` line 228). Live verification: running process is `/usr/bin/Xwayland -rootless :0`. `10-tests.sh` strengthened with runtime `pgrep` assertion so a regression fails boot tests instead of shipping silently. Original: **P0 regression of just-shipped F-0096 (v1.17.1).** After reboot, `pgrep -af Xwayland` shows `/usr/bin/Xwayland :0` — the `-rootless` flag is missing from the running process even though `workstation-image/boot/08-workspaces.sh` and `~/boot/08-workspaces.sh` both contain `sway_cmd exec "/usr/bin/Xwayland -rootless :0"`. Workspace 1 is split 50/50 again. The F-0096 static-grep test still PASSES, so the current test only proves the string is typed into the script, not that the running Xwayland process actually honors it. This is a P0 test-coverage gap as much as a functional regression. SWE must (1) identify why the flag is dropped at runtime (candidates: stale/duplicate Xwayland invocation elsewhere in boot path, sway autostart ordering, a second `exec Xwayland` in sway config or home-manager source, systemd user unit pre-starting Xwayland before `08-workspaces.sh`, `DISPLAY=:0` race with F-0056 IntelliJ path), (2) implement the fix in the correct source-of-truth files, and (3) strengthen `10-tests.sh` so the bad state is detectable — the test must assert the **running** Xwayland process command line contains `-rootless` (e.g., `pgrep -af Xwayland \| grep -- -rootless`) in addition to the existing static grep and sway-tree assertion. Three-places rule applies: repo `workstation-image/boot/08-workspaces.sh`, live `~/boot/08-workspaces.sh`, and `scripts/cloud-build-setup.sh` must all agree. Acceptance covers reboot, `ws.sh teardown && ws.sh setup`, and fresh-project setup — the runtime assertion must PASS in all three. |
+
+---
+
+## Milestone 23: noVNC Resolution & Clarity
+
+| ID | Feature | Spec | Priority | Status | Owner | Branch | Dependencies | Feedback |
+|----|---------|------|----------|--------|-------|--------|--------------|----------|
+| F-0100 | noVNC resolution and display clarity improvements (1080p + 1440p) | [F-0100](specs/F-0100-novnc-resolution.md) | P1 | done | SWE-1 | feature/novnc-resolution | F-0016, F-0090 | Three-part improvement: (1) **Dynamic resolution** — add a `ws-resolution` helper script (e.g. `ws-resolution 1920x1080` / `ws-resolution 2560x1440`) that calls `swaymsg output HEADLESS-1 resolution <WxH>` at runtime and persists the chosen resolution to `~/.config/ws-resolution` so the next boot restores it via a boot-script hook; (2) **wayvnc quality** — create `~/.config/wayvnc/config` with high-quality tight encoding settings (quality=9, subsampling=none or jpeg); (3) **noVNC client defaults** — configure noVNC scaling mode (remote resizing or scale-to-window), JPEG quality, and compression level via the noVNC `app/ui.js` defaults patch (same approach as the existing rfb.js QEMU key patch in `11-custom-tools.sh`), so the browser opens at full fidelity without manual tuning. Target: 1:1 pixel-sharp rendering at 1920×1080 on FHD displays, and crisp output at 2560×1440 on QHD displays. Add `10-tests.sh` assertions: wayvnc config file present, resolution helper on PATH, sway output reports expected resolution. Three-places rule applies to any sway config changes. |
+
+---
+
+## Milestone 26: ccstatusline Integration
+
+| ID | Feature | Spec | Priority | Status | Owner | Branch | Dependencies | Feedback |
+|----|---------|------|----------|--------|-------|--------|--------------|----------|
+| F-0099 | Install and configure ccstatusline in cloud workstation setup | [F-0099](specs/F-0099-ccstatusline.md) | P1 | backlog | SWE-1 | feature/ccstatusline | F-0018, F-0089 | Install ccstatusline globally via npm to `~/.npm-global`. Deploy PO's 3-line layout (line 1: cwd/git-branch/git-changes; line 2: model/weekly-usage/session-usage; line 3: context-bar/context-percentage/skills) with nord-aurora powerline theme as the default `~/.config/ccstatusline/settings.json`. Switch Claude Code settings.json from `npx -y ccstatusline@latest` to the installed binary. Wire hooks (PreToolUse+UserPromptSubmit). Persist across reboot and fresh-project setup. See https://github.com/sirmalloc/ccstatusline |
+
+---
+
+## Milestone 24: Docs Region Cleanup
+
+| ID | Feature | Spec | Priority | Status | Owner | Branch | Dependencies | Feedback |
+|----|---------|------|----------|--------|-------|--------|--------------|----------|
+| F-0102 | Update all doc references from us-west1 to us-central1 | — | P1 | backlog | SWE-1 | feature/docs-region-cleanup | F-0091 | Docs (README.md, SETUP.md, STARTUP_SCRIPTS.md, BACKLOG.md, PROGRESS.md, RELEASENOTES.md, specs/) still contain stale `us-west1` region references. F-0091 aligned the setup script to `us-central1` but did not sweep the docs. Grep all Markdown files for `us-west1` and replace with `us-central1` where the text describes the deployed region. Do not change references that appear in git history context, example output snippets, or historical backlog feedback cells (those are frozen records). Add a `10-tests.sh` grep assertion that no Markdown file outside of `docs/BACKLOG.md` (historical rows) and `docs/PROGRESS.md` (historical rows) contains a bare `us-west1` region string. |
+
+---
+
+## Milestone 25: noVNC Copy/Paste
+
+| ID | Feature | Spec | Priority | Status | Owner | Branch | Dependencies | Feedback |
+|----|---------|------|----------|--------|-------|--------|--------------|----------|
+| F-0101 | Improve copy/paste experience in noVNC | — | P1 | backlog | SWE-1 | feature/novnc-clipboard | F-0016, F-0090 | noVNC clipboard integration is fragile — text copied inside the browser session doesn't reliably reach the Wayland clipboard (and vice versa). Goal: seamless bidirectional clipboard sync between the host browser and the guest Sway/Wayland session. Likely requires: (1) enabling the noVNC clipboard extension and wiring it to `wl-copy`/`wl-paste` on the guest; (2) ensuring `wl-clipboard` is on PATH inside the wayvnc session; (3) verifying the rfb.js clipboard message path isn't blocked by the existing QEMU-key patch. Add `10-tests.sh` assertion that `wl-copy` and `wl-paste` are available in the wayvnc session. |
+
+---
+
+## Milestone 27: Claude Code Native Install
+
+| ID | Feature | Spec | Priority | Status | Owner | Branch | Dependencies | Feedback |
+|----|---------|------|----------|--------|-------|--------|--------------|----------|
+| F-0103 | Switch Claude Code install from npm to native installer | — | P1 | backlog | SWE-1 | feature/claude-native-install | F-0089, F-0093 | **Live workstation already uses native install:** `~/.local/bin/claude → ~/.local/share/claude/versions/2.1.110` (ELF binary, not a Node script). Work is boot-script alignment only — the boot scripts still reference npm. **Changes required:** (1) `11-custom-tools.sh`: replace `install_claude_code` (npm) with native installer (`curl -fsSL https://claude.ai/install.sh \| sh`); idempotency check against `~/.local/share/claude/versions/`; (2) `07-apps.sh`: replace `npm update -g @anthropic-ai/claude-code` with `claude update` or re-running the installer; (3) `scripts/cloud-build-setup.sh`: update Claude Code install step to match; (4) `10-tests.sh`: update binary/version checks to reflect `~/.local/bin/claude` path; (5) keep `~/.npmrc` prefix and `~/.npm-global` — Gemini CLI, Codex, Cody, and pi still install via npm. **Three-places rule** applies to any file referencing the npm Claude Code install path. |
 
 ---
 

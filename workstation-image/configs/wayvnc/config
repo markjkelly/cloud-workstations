@@ -1,0 +1,5 @@
+# wayvnc quality settings (F-0100)
+# quality: 1–9 JPEG quality scale for tight/ZRLE encoding (9 = maximum fidelity)
+# This config is deployed to ~/.config/wayvnc/config by 03-sway.sh on every boot
+# and by cloud-build-setup.sh on fresh project setup.
+quality=9

@@ -525,6 +525,43 @@ else
 fi
 
 # =============================================================================
+# F-0100: noVNC Resolution & Clarity
+# =============================================================================
+log ""
+log "--- noVNC Resolution & Clarity (F-0100) ---"
+
+# ws-resolution helper must be on PATH via ~/.local/bin
+check_binary "ws-resolution helper" "ws-resolution"
+
+# wayvnc config must be deployed
+check_file "wayvnc config" "$HOME_DIR/.config/wayvnc/config"
+check_grep "wayvnc config quality=9" "quality=9" "$HOME_DIR/.config/wayvnc/config"
+
+# noVNC ui.js must be patched: quality=9 and remote-resize
+NOVNC_UI="/opt/noVNC/app/ui.js"
+if [ -f "$NOVNC_UI" ]; then
+    check_grep "noVNC ui.js quality=9 patch" "F-0100: quality=9" "$NOVNC_UI"
+    check_grep "noVNC ui.js remote-resize patch" "F-0100: remote-resize" "$NOVNC_UI"
+else
+    test_warn "noVNC ui.js not found at $NOVNC_UI (skipping patch checks)"
+fi
+
+# If Sway is running, verify HEADLESS-1 output exists
+SWAY_SOCK_F0100=$(ls /run/user/1000/sway-ipc.*.sock 2>/dev/null | head -1)
+if [ -n "$SWAY_SOCK_F0100" ]; then
+    if runuser -u $USER -- env WAYLAND_DISPLAY=wayland-1 \
+        XDG_RUNTIME_DIR=/run/user/1000 SWAYSOCK="$SWAY_SOCK_F0100" \
+        bash -c ". $NIX_SH && swaymsg -t get_outputs" 2>/dev/null \
+        | grep -q "HEADLESS"; then
+        test_pass "sway HEADLESS-1 output present"
+    else
+        test_warn "sway HEADLESS-1 output not found in get_outputs (sway may be starting)"
+    fi
+else
+    test_skip "sway HEADLESS-1 output check (sway socket not available)"
+fi
+
+# =============================================================================
 # Services (may not be running during boot script phase)
 # =============================================================================
 log ""

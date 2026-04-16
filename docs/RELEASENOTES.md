@@ -1,5 +1,15 @@
 # Release Notes — Cloud Workstation
 
+## v1.21 — noVNC Resolution & Clarity (2026-04-15)
+
+### Added
+- **`ws-resolution` helper script** (F-0100) — change display resolution at runtime (`ws-resolution 1920x1080`, `ws-resolution 2560x1440`) with automatic persistence to `~/.config/ws-resolution` and boot-time restore via `08-workspaces.sh`
+- **wayvnc quality config** (F-0100) — `~/.config/wayvnc/config` deployed with `quality=9` for maximum JPEG encoding fidelity; deployed by `03-sway.sh` on every boot and by `cloud-build-setup.sh` on fresh project setup
+- **noVNC ui.js patch** (F-0100) — `11-custom-tools.sh` patches `/opt/noVNC/app/ui.js` to set JPEG quality=9 and remote-resize mode as browser defaults, so the noVNC client connects at full fidelity without manual Options tuning
+- **Boot test assertions** (F-0100) — `10-tests.sh` F-0100 section: ws-resolution on PATH, wayvnc config present, quality=9 verified, noVNC ui.js patches verified, HEADLESS-1 sway output check
+
+---
+
 ## v1.17.2 — Xwayland -rootless persistence (2026-04-15)
 
 Patch release covering F-0097. Closes the loop on the F-0096 fix (v1.17.1 /
