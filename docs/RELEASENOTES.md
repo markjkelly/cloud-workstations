@@ -1,5 +1,24 @@
 # Release Notes — Cloud Workstation
 
+## v1.24.2 — Hub WS5 Auth-Friendly Launch (2026-05-29)
+
+### Fixed
+- **Hub workspace 5 disappears after boot** (F-0110) — Antigravity Hub's window never registered within the previous 30-second timeout because the Google OAuth flow delays first-paint by 30–60 seconds. Hub timed out silently and focus switched back to ws1, hiding the auth window from the user.
+
+### Changed
+- **`workstation-image/boot/08-workspaces.sh`** — Three targeted changes at the Hub call site only:
+  1. Hub `launch_and_wait` timeout raised from 30s → **90s** to accommodate OAuth first-paint delays.
+  2. Hub stdout and stderr now redirected to **`~/logs/hub-launch.log`** (append mode, per-boot timestamp header `=== Hub launch: YYYY-MM-DD HH:MM:SS ===`), enabling diagnosis of auth failures without re-running the service.
+  3. Final `sway_cmd "workspace number 1"` is now **conditional**: only executes when Hub launched successfully (`HUB_OK=0`). On timeout, focus remains on ws5 so the OAuth window is visible when it eventually paints.
+- **`workstation-image/boot/10-tests.sh`** — Replaced false-positive Hub test (was grepping for a literal inline arg string that no longer exists after the redirect wrap) with three accurate tests: Hub timeout=90, hub-launch.log redirect presence, HUB_OK conditional logic.
+- **`docs/STARTUP_SCRIPTS.md`** — Added `~/logs/hub-launch.log` to the Logs table.
+
+### Notes
+- `launch_and_wait` function signature is unchanged; the redirect and timeout change are isolated to the Hub call site. All other workspace timeouts (ws1=15, ws2=30, ws3=5, ws4=5) are unchanged.
+- On a successful Hub launch (OAuth already completed from a prior boot), behaviour is identical to before: focus returns to ws1 after the workspace sequence completes.
+
+---
+
 ## v1.24.1 — Fix SSH Authentication in Boot Sync (2026-05-29)
 
 ### Fixed

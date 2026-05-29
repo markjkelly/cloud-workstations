@@ -1,5 +1,50 @@
 # Development Progress Log — Cloud Workstation
 
+## Session 28 — 2026-05-29 (F-0110: Hub WS5 Auth-Friendly Launch)
+
+### Goals
+- Fix Antigravity Hub (ws5) disappearing after boot due to 30s timeout expiring during OAuth first-paint
+- Prevent focus switching to ws1 when Hub hasn't launched yet, so the OAuth window is visible
+- Capture Hub stdout/stderr to a log file for diagnosability
+
+### Completed
+- **PM** authored `docs/specs/F-0110-hub-ws5-auth-friendly-launch.md` with requirements and acceptance criteria covering all three fixes
+- **TPM** added F-0110 to `docs/BACKLOG.md` under new Milestone 25, marked done
+- **SWE** implemented three changes in `workstation-image/boot/08-workspaces.sh`:
+  1. Hub `launch_and_wait` timeout bumped 30s → 90s to accommodate Google OAuth first-paint delay
+  2. Hub call site wrapped in `{ ... } >> hub-launch.log 2>&1` to capture stdout+stderr with per-boot timestamp header
+  3. Final `sway_cmd "workspace number 1"` gated on `HUB_OK` — only switches to ws1 if Hub launched successfully; on timeout, focus stays on ws5 so the OAuth window is visible
+  - `launch_and_wait` function signature unchanged; all other workspace timeouts unchanged (ws1=15, ws2=30, ws3=5, ws4=5)
+- **SWE-Test** updated `workstation-image/boot/10-tests.sh`:
+  - Removed false-positive test `"launch_and_wait 5 30.*antigravity-hub.*--use-gl=swiftshader"` (no longer matches new structure)
+  - Added 3 new tests: Hub timeout=90 grep, hub-launch.log redirect grep, HUB_OK conditional grep
+- **SWE-QA** verified:
+  - `bash -n` passes on both modified files
+  - All three test grep patterns confirmed to match the implementation
+  - Other workspace timeouts (ws1=15, ws2=30, ws3=5, ws4=5) confirmed unchanged
+
+### Files Changed
+- `docs/specs/F-0110-hub-ws5-auth-friendly-launch.md` (new)
+- `docs/BACKLOG.md` (Milestone 25 new section with F-0110 entry, marked done)
+- `workstation-image/boot/08-workspaces.sh` (3 changes: timeout, redirect, conditional switch)
+- `workstation-image/boot/10-tests.sh` (false-positive test replaced with 3 accurate tests)
+- `docs/STARTUP_SCRIPTS.md` (hub-launch.log added to Logs table)
+- `docs/PROGRESS.md` (this entry)
+- `docs/RELEASENOTES.md` (v1.24.2 entry)
+
+### Key Decisions
+- **Wrap call site, not function**: `launch_and_wait` is a generic helper used for all workspaces. Adding redirect only at the Hub call site (via `{ ... } >> log 2>&1`) keeps the function reusable without adding per-app log path parameters.
+- **`HUB_OK=$?` inside the block**: Capturing return code inside the `{ ... }` block before the redirect closes ensures we get the exit status of `launch_and_wait` (0=success, non-zero=timeout), not the redirect itself.
+- **90s timeout**: OAuth flows on first run typically take 30–60s. 90s gives a 30s buffer while remaining bounded to avoid hanging the boot sequence indefinitely.
+- **Append mode with timestamp header**: `>>` preserves history across boots; the `=== Hub launch: DATE ===` header per boot makes it easy to find entries for a specific boot in the log.
+
+### Next Steps
+- Commit on feature branch, push, open PR
+- PO review and approval
+- Merge to main, tag v1.24.2
+
+---
+
 ## Session 27 — 2026-05-29 (F-0109: Boot Sync SSH Auth Fix)
 
 ### Goals

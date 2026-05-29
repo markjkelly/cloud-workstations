@@ -128,9 +128,19 @@ if runuser -u $USER -- /usr/bin/antigravity --version >/dev/null 2>&1; then
 else
     test_warn "Antigravity 2.0 version check failed"
 fi
-# F-0107: verify Hub auto-launch configuration in 08-workspaces.sh
-check_grep "Hub ws5 auto-launch in 08-workspaces.sh" \
-    "launch_and_wait 5 30.*antigravity-hub.*--use-gl=swiftshader" \
+# F-0107 / F-0110: verify Hub auto-launch configuration in 08-workspaces.sh.
+# F-0110 bumped the timeout from 30s → 90s and wrapped the Hub call site in a
+# { ... } redirect block, so the old single-line pattern no longer applies.
+# Three new tests verify the F-0110 changes; together they replace the previous
+# false-positive that greedily matched a literal inline arg string.
+check_grep "Hub ws5 timeout is 90s (F-0110)" \
+    "launch_and_wait 5 90" \
+    "$HOME_DIR/boot/08-workspaces.sh"
+check_grep "Hub stderr redirected to hub-launch.log (F-0110)" \
+    "hub-launch.log" \
+    "$HOME_DIR/boot/08-workspaces.sh"
+check_grep "Hub conditional ws1 switch (F-0110)" \
+    'HUB_OK.*-eq 0' \
     "$HOME_DIR/boot/08-workspaces.sh"
 
 # =============================================================================
