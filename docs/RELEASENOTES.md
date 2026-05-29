@@ -1,6 +1,6 @@
 # Release Notes — Cloud Workstation
 
-## v1.23 — Automatic Boot Script Sync (2026-05-29)
+## v1.24 — Automatic Boot Script Sync (2026-05-29)
 
 ### Added
 - **Automatic boot script sync** (F-0108) — New `06-sync.sh` script runs on every boot to automatically synchronize boot scripts and Sway config from the git repo. Pulls latest code from repo and copies `workstation-image/boot/*.sh` to `~/boot/` and `workstation-image/configs/sway/config` to `~/.config/home-manager/sway-config`. Graceful error handling: missing repo or git pull failures are logged as warnings and do not fail the boot sequence.
