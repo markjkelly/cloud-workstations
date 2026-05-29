@@ -1,6 +1,6 @@
 # Release Notes — Cloud Workstation
 
-## v1.17 — Antigravity 2.0 + CLI (2026-05-29)
+## v1.21 — Antigravity 2.0 + CLI (2026-05-29)
 
 ### Added
 - **Antigravity CLI** — `curl -fsSL https://antigravity.google/cli/install.sh | bash` installs the new Antigravity CLI. Installed on first boot if missing, updated on every subsequent boot. Available on PATH via `~/.local/bin/antigravity-cli`
@@ -19,6 +19,161 @@
 - Antigravity 2.0 delivery via existing apt package + auto-updater repo (no package name change)
 - Gemini CLI preserved alongside new CLI tools during transition period
 - `~/.local/bin` already in PATH; CLI will be found automatically after install
+
+---
+
+## v1.17.2 — Xwayland -rootless persistence (2026-04-15)
+
+Patch release covering F-0097. Closes the loop on the F-0096 fix (v1.17.1 /
+v1.20) by making the `-rootless` flag survive reboots, and hardens the
+boot test so any future regression fails at boot instead of silently
+reintroducing the workspace-1 split.
+
+### Fixed
+- **Xwayland `-rootless` now persists across reboots** (F-0097) — Xwayland is now started from sway autostart via `xwayland disable` + `exec /usr/bin/Xwayland -rootless :0 &` in `workstation-image/configs/sway/config`, so the flag is present on every boot. Previously the F-0096 fix only applied during the session it was deployed in; after a reboot, sway's default Xwayland launch took over without `-rootless`, silently reintroducing the 50/50 workspace-1 split. See `docs/specs/F-0097-xwayland-rootless-persistence.md`.
+
+### Changed
+- **`workstation-image/boot/10-tests.sh` — runtime Xwayland assertion** (F-0097) — the boot test now asserts that the *running* Xwayland process command line contains `-rootless` (reads `/proc/<pid>/cmdline` for the live process), rather than only grepping the static config for the flag. Catches the F-0097 class of regression — correct config on disk but wrong process actually running — that a static grep would miss.
+
+---
+
+## v1.20 — Xwayland ws1 split fix (2026-04-15)
+
+### Fixed
+- **Xwayland no longer splits workspace 1** (F-0096) — `workstation-image/boot/08-workspaces.sh` now launches Xwayland with `-rootless`, the standard mode under a Wayland compositor. Previously, rootful Xwayland painted a workspace-sized root window that Sway tiled 50/50 alongside the autostart foot terminal on ws1. With `-rootless`, no phantom root surface is created and ws1 opens to a single fullscreen foot terminal matching ws2/ws3/ws4. See `docs/specs/F-0096-xwayland-ws1-split.md`.
+
+---
+
+## v1.18 — Claude Code Auto-Update Fix (2026-04-15)
+
+Fixes the Claude Code in-process auto-updater so it can write to the
+persistent disk instead of failing with `EACCES` on the ephemeral
+`/usr/lib/node_modules` path.
+
+See [docs/specs/F-0093-claude-autoupdate-fix.md](specs/F-0093-claude-autoupdate-fix.md).
+
+### Fixed
+- **Claude Code auto-updater `EACCES` on `/usr/lib/node_modules`** (F-0093) — the in-process auto-updater no longer fails when Claude tries to self-upgrade. Root cause: `install_claude_code` in `workstation-image/boot/11-custom-tools.sh` passed `--prefix=/home/user/.npm-global` inline only, so `npm config get prefix` still returned `/usr` (the base-image default) and any later `npm -g` invocation — including Claude Code's auto-updater — tried to write to the root-owned ephemeral `/usr/lib/node_modules`. Fix: `install_claude_code` now idempotently writes `prefix=/home/user/.npm-global` to `~/.npmrc`, so every `npm -g` invocation targets the persistent disk
+
+### Added
+- **Boot test for npm prefix** — `workstation-image/boot/10-tests.sh` now asserts `npm config get prefix` equals `/home/user/.npm-global`, catching any regression that would silently break the Claude Code auto-updater on future boots
+
+---
+
+## v1.19 — Foot Terminal CWD Regression Drift Guards (2026-04-15)
+
+Third occurrence of the "foot does not start in `/home/user`" class of bug.
+The configs were actually correct — the previous F-0087 boot test had
+gone stale and was still looking for its own `cd ~ &&` pattern, so a
+later drift back to the `--working-directory=/home/user` style (from
+`0dd33b3`) passed the test silently instead of failing it. The fix
+hardens the boot test into three drift guards so a fourth regression
+fails `~/logs/boot-test-summary.txt` on the next boot.
+
+### Fixed
+- **Foot terminal CWD regression** (F-0095) — foot now reliably opens
+  with `pwd=/home/user` from sway `$mod+Return`, `$mod+t`, and the
+  autostart workspace script. Standardized on
+  `--working-directory=/home/user` as the single CWD-guard style;
+  F-0087's `cd ~ &&` wrapper is superseded. Root cause was a stale
+  boot-test assertion, not a config regression — the configs already
+  carried the correct flag
+
+### Changed
+- **`workstation-image/boot/10-tests.sh` — three R4 drift guards**
+  (F-0095) replacing the single F-0087 `cd ~ &&` grep:
+  - **R4a** — every sway keybinding that launches foot must carry
+    `--working-directory=/home/user` (checks `$mod+Return`, `$mod+t`,
+    and any other foot-launching binding in the active
+    `~/.config/sway/config`)
+  - **R4b** — every `foot` invocation in
+    `workstation-image/boot/08-workspaces.sh` must carry the same
+    flag; matcher broadened after SWE-Test caught a regex gap where a
+    bare `"$FOOT"` at end of line slipped through
+  - **R4c** — the repo `workstation-image/configs/sway/config` and
+    the deployed `~/.config/home-manager/sway-config` must be
+    byte-identical on the lines that launch foot, catching
+    three-places-rule drift at boot instead of at the user
+
+### Docs
+- **F-0095 spec** — `docs/specs/F-0095-foot-cwd-regression.md`
+  captures the regression history (`0dd33b3` → F-0087/`e7236a8` →
+  F-0095), the four-hypothesis root-cause framework used during
+  diagnosis, and the drift-guard requirement so any future repeat of
+  this class is caught automatically
+
+### Verification Status
+- **Statically verified:** configs carry the correct flag in all three
+  sources (repo / home-manager source / setup script); R4a/R4b/R4c
+  assertions compile and run
+- **Live-verified on the currently-drifted workstation:** R4 drift
+  guards correctly produce a FAIL in
+  `~/logs/boot-test-summary.txt` when any of the three sources is
+  corrupted — AC3 headline validated
+- **Pending live verification:** AC1 (`$mod+Return` → `pwd`), AC2
+  (autostart foot windows), AC4(b) (teardown + re-setup on this
+  project), AC4(c) (fresh project setup). PO to choose between
+  verify-before-PR, verify-post-merge, or an SWE-QA light-verification
+  pass before Milestone 20 closes
+
+---
+
+## v1.17 — GCP Organization Alignment, Font Cleanup, Fork Retrospective (2026-04-15)
+
+This release captures the final alignment of the fork with the deployed
+GCP Organization environment and cleans up the terminal font stack. It
+also adds a retrospective **Fork Divergence Summary** covering fork-only
+work that pre-dated the v1.14–v1.16 release notes and had never been
+formally documented.
+
+### Added
+- **GCP Organization deployment alignment** (F-0091) — `scripts/cloud-build-setup.sh` rewritten to target the live deployed configuration: region `us-central1`, cluster `main-cluster`, config `sway-config`, workstation `sway-workstation`, image `dev-workstation:latest`, dedicated `sway-workstation-sa` service account, custom `workstations-vpc` (10.0.0.0/24), 2h idle timeout, daily 8PM Central stop scheduler
+- **Nix-managed open-source fonts** — `cascadia-code`, `fira-code`, and `jetbrains-mono` added to `home.packages` so they are present on fresh setups without a tarball upload
+
+### Changed
+- **Machine spec** (F-0090) — documented target is now `n2-standard-8` with 200GB `pd-balanced` and **no GPU**. T4 GPU quota removed as a prerequisite. `02-nvidia.sh` is a documented no-op on this profile. README, SETUP.md, and STARTUP_SCRIPTS.md updated accordingly
+- **Font deployment via Cloud Build** — only Operator Mono (~264K) is piped through `gcloud workstations ssh` (previously the full 61MB dev-fonts tarball hit the 300s timeout and silently failed). `--ssh-flag="-T"` added to prevent TTY corruption of binary stdin. Setup verify now does a real OTF count check instead of unconditional `test_pass`, and splits `fonts_operator` / `fonts_cascadia` so each deployment path is checked independently
+- **Foot terminal font** — switched to `DejaVu Sans Mono` (confirmed present on the system) as the single source of truth managed only by `06-prompt.sh`. Home Manager no longer manages `foot.ini`, eliminating the double-write that resolved `font=monospace` to the proportional Noto Sans Regular and produced the "non-monospaced font" warning on every terminal open
+- **Boot test** — `10-tests.sh` updated to assert the correct configured font
+
+### Fixed
+- **Silent font deployment failure** — root cause (tarball too large for SSH timeout) is fixed rather than hidden; the `font-monospace-warn=no` suppression is removed since the real warning is gone
+
+---
+
+## Fork Divergence Summary (retrospective, pre-v1.14)
+
+The following fork-only work shipped in the markjkelly fork before the v1.14
+release notes began tracking it. Documented here so the release history is
+complete.
+
+### Cloud Build Pipeline (F-0088)
+- `cloudbuild/ws-image.yaml` — builds and pushes the workstation Docker image to Artifact Registry via Cloud Build, replacing manual `docker build/push` cycles
+- `_AR_PROJECT` substitution so the Artifact Registry project can differ from the build project
+- Integrated into the `ws.sh setup` flow so a `git push` + `ws.sh setup` cycle produces a fresh image
+
+### Custom Tools Module (F-0089)
+- New boot script `workstation-image/boot/11-custom-tools.sh` installs tools that are either unavailable in Nix or must live on the persistent disk to survive image rebuilds:
+  - **Terraform** — pinned version, installed to `~/.local/bin`
+  - **GitHub CLI (`gh`)** — pinned version, installed to `~/.local/bin`
+  - **Java** — installed via SDKMAN into `$HOME`
+  - **Eclipse IDE** — installed to the persistent disk
+  - **Claude Code** — installed to `~/.npm-global` on boot
+- Auto-launch of workspace apps disabled by default in this module so the user chooses what to start
+
+### VNC Keyboard Compatibility (F-0090)
+- `wayvnc --keyboard=us` so key codes are encoded correctly for the browser client
+- `term=xterm-256color` added to `foot.ini` for VNC keyboard compatibility
+- Boot-time patch of `noVNC`'s `rfb.js` to disable QEMU extended key events (fixes broken special keys in the browser)
+
+### Fonts & Terminal
+- JetBrains Mono installed via apt as a persistent boot-time step (later superseded by Nix packages in v1.17)
+- Foot terminal non-monospace font warning suppressed (later root-caused and removed in v1.17)
+
+### Docs & Templating
+- `GEMINI.md` added with project context and branching/PR conventions for Gemini-driven workflows
+- `REPO_URL` placeholder updated to point at the markjkelly fork
+>>>>>>> origin/main
 
 ---
 

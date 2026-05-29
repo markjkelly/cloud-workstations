@@ -228,6 +228,34 @@ check_file "sway-status" "$HOME_DIR/.local/bin/sway-status"
 check_file "Sway config" "$HOME_DIR/.config/sway/config"
 check_file "foot.ini" "$HOME_DIR/.config/foot/foot.ini"
 check_grep "foot font (monospace)" "DejaVu Sans Mono" "$HOME_DIR/.config/foot/foot.ini"
+
+# F-0094: resolve foot's configured primary font through fontconfig to
+# verify it actually lands on the intended monospace family. A bare
+# content-grep is not enough — if the family name is misspelled or the
+# font package is missing, fc-match silently falls back to Noto Sans and
+# foot emits "font does not appear to be monospace" on every launch.
+FOOT_FAMILY=$(grep -E '^font=' "$HOME_DIR/.config/foot/foot.ini" 2>/dev/null \
+    | head -1 | sed -E 's/^font=([^:]+).*/\1/')
+if [ -n "$FOOT_FAMILY" ]; then
+    FC_MATCH=$(runuser -u $USER -- fc-match "$FOOT_FAMILY" 2>/dev/null)
+    if echo "$FC_MATCH" | grep -qiE 'noto.*sans|^[^:]*[Ss]ans[^:]*:.*"[^"]*Sans[^M"]*"'; then
+        test_fail "foot font fc-match falls back to Noto/Sans ($FOOT_FAMILY -> $FC_MATCH)"
+    elif echo "$FC_MATCH" | grep -qi "$FOOT_FAMILY"; then
+        test_pass "foot font fc-match resolves to $FOOT_FAMILY ($FC_MATCH)"
+    else
+        test_fail "foot font fc-match does not match family ($FOOT_FAMILY -> $FC_MATCH)"
+    fi
+    # spacing=mono must also resolve to the same family; otherwise foot
+    # will warn about a non-monospace font even if the family name resolves.
+    FC_MONO=$(runuser -u $USER -- fc-match "${FOOT_FAMILY}:spacing=mono" 2>/dev/null)
+    if echo "$FC_MONO" | grep -qi "$FOOT_FAMILY"; then
+        test_pass "foot font spacing=mono resolves ($FC_MONO)"
+    else
+        test_fail "foot font spacing=mono fallback ($FOOT_FAMILY -> $FC_MONO)"
+    fi
+else
+    test_fail "foot.ini has no [main] font= line"
+fi
 # Tmux module configs
 if ws_module_enabled "tmux"; then
     check_file "tmux.conf" "$HOME_DIR/.tmux.conf"
@@ -258,7 +286,53 @@ check_grep "Windsurf keybinding" "mod+w.*windsurf" "$SWAY_CFG"
 check_grep "Apps button click" "button1.*wofi" "$SWAY_CFG"
 check_grep "Antigravity CLI keybinding" "mod+g.*/usr/bin/antigravity" "$SWAY_CFG"
 check_grep "Snippet picker keybinding" "snippet-picker" "$SWAY_CFG"
-check_grep "foot starts in HOME" "exec cd ~ && .*foot" "$SWAY_CFG"
+# F-0095: foot CWD drift guard. Standardized on
+# --working-directory=/home/user (commits 0dd33b3, 20d3352). The earlier
+# "cd ~ && $nix/foot" style from F-0087 does not work in sway exec without
+# an explicit shell invocation, so this is the only permitted form.
+check_grep "foot \$mod+Return starts in /home/user" \
+    'bindsym \$mod+Return exec .*foot.*--working-directory=/home/user' "$SWAY_CFG"
+check_grep "foot \$mod+t starts in /home/user" \
+    'bindsym \$mod+t exec .*foot.*--working-directory=/home/user' "$SWAY_CFG"
+
+# R4b: autostart workspace script must carry the same guard on every foot
+# invocation. Check the live ~/boot copy (what actually runs on boot). A
+# missing flag here was the root cause of F-0095 (the old cd ~ && style
+# from F-0087 had silently been undone).
+WS_SCRIPT="$HOME_DIR/boot/08-workspaces.sh"
+if [ -f "$WS_SCRIPT" ]; then
+    # Match any line that invokes foot — bare "$FOOT" at end of line,
+    # "$FOOT" with trailing args, or a literal /foot path (with or
+    # without surrounding quotes / trailing args). Excludes the shell
+    # variable assignment line (FOOT="…") so we only check call sites.
+    FOOT_LINES=$(grep -nE '(\"\$FOOT\"|\$FOOT|/foot)([[:space:]"]|$)' "$WS_SCRIPT" 2>/dev/null \
+        | grep -vE '^[0-9]+:FOOT=' || true)
+    if [ -z "$FOOT_LINES" ]; then
+        test_warn "08-workspaces.sh has no foot invocations to check"
+    elif echo "$FOOT_LINES" | grep -vq -- "--working-directory=/home/user"; then
+        test_fail "08-workspaces.sh has foot invocation(s) missing --working-directory=/home/user"
+    else
+        test_pass "08-workspaces.sh foot invocations all carry --working-directory=/home/user"
+    fi
+else
+    test_fail "08-workspaces.sh not found at $WS_SCRIPT"
+fi
+
+# R4c: drift guard — if home-manager is managing sway config, the
+# home-manager source and the live config must be byte-identical on the
+# foot-launch lines. Catches H1 (home-manager sway-config drift) at boot.
+HM_SWAY="$HOME_DIR/.config/home-manager/sway-config"
+if [ -f "$HM_SWAY" ]; then
+    LIVE_FOOT=$(grep -E '^bindsym \$mod\+(Return|t) exec .*foot' "$SWAY_CFG" | sort)
+    HM_FOOT=$(grep -E '^bindsym \$mod\+(Return|t) exec .*foot' "$HM_SWAY" | sort)
+    if [ "$LIVE_FOOT" = "$HM_FOOT" ] && [ -n "$LIVE_FOOT" ]; then
+        test_pass "sway foot-launch lines match between live config and home-manager source"
+    else
+        test_fail "sway foot-launch lines drift between $SWAY_CFG and $HM_SWAY"
+    fi
+else
+    test_skip "home-manager sway-config not present (config deployed directly by setup)"
+fi
 
 # =============================================================================
 # Shell Config
@@ -310,7 +384,160 @@ else
     test_skip "Language dirs (languages module disabled)"
 fi
 check_dir "npm-global" "$HOME_DIR/.npm-global"
+# npm global prefix must point at persistent disk so Claude Code's
+# auto-updater (and any `npm -g`) doesn't EACCES on /usr/lib/node_modules.
+npm_prefix=$(runuser -u $USER -- npm config get prefix 2>/dev/null)
+if [ "$npm_prefix" = "$HOME_DIR/.npm-global" ]; then
+    test_pass "npm prefix = $npm_prefix"
+else
+    test_fail "npm prefix is '$npm_prefix' (expected $HOME_DIR/.npm-global)"
+fi
 check_dir "Nix profile" "$HOME_DIR/.nix-profile"
+
+# =============================================================================
+# F-0096 / F-0097: Xwayland rootless invocation (no root window tiled on ws1)
+# =============================================================================
+# Three guards:
+#   (a) Static (08-workspaces.sh): historical — the live ~/boot/08-workspaces.sh
+#       invokes Xwayland with -rootless. Kept from F-0096 but insufficient on
+#       its own: v1.17.1 passed this check while the running process was
+#       still non-rootless (F-0097).
+#   (a2) Static (sway config): the sway autostart owner of Xwayland :0 must
+#       also pass -rootless. This is the exec that actually wins the boot
+#       race, so the flag has to live here.
+#   (b) Runtime (pgrep): the single Xwayland :0 process currently on the
+#       system must have -rootless in its argv. This is the authoritative
+#       check — it catches the F-0097 failure mode where the file on disk
+#       is correct but the running process was started from elsewhere.
+#   (c) Live (swaymsg): swaymsg -t get_tree must not contain a window with
+#       app_id == "org.freedesktop.Xwayland" on any workspace. Without
+#       -rootless, Xwayland spawns a visible root that Sway tiles next to
+#       the foot terminal on ws1.
+log ""
+log "--- Xwayland rootless (F-0096 / F-0097) ---"
+WS_SCRIPT="$HOME_DIR/boot/08-workspaces.sh"
+if [ -f "$WS_SCRIPT" ]; then
+    if grep -qE 'Xwayland[[:space:]]+-rootless' "$WS_SCRIPT"; then
+        test_pass "08-workspaces.sh invokes Xwayland with -rootless"
+    else
+        test_fail "08-workspaces.sh missing -rootless on Xwayland invocation (F-0096 regression)"
+    fi
+else
+    test_fail "08-workspaces.sh not found at $WS_SCRIPT (F-0096 check)"
+fi
+
+# F-0097 (a2): sway config autostart — the real launcher of Xwayland :0
+if [ -f "$SWAY_CFG" ]; then
+    if grep -qE '^exec[[:space:]]+/usr/bin/Xwayland[[:space:]]+-rootless[[:space:]]+:0' "$SWAY_CFG"; then
+        test_pass "sway config autostart invokes Xwayland with -rootless"
+    else
+        test_fail "sway config autostart missing -rootless on Xwayland :0 exec (F-0097 regression)"
+    fi
+fi
+
+# F-0097 (b): runtime check — the Xwayland :0 process actually running on
+# this boot must have -rootless in its argv. A static grep is insufficient
+# because sway's autostart can race with 08-workspaces.sh; only ps -o args=
+# on the live PID tells us which launcher won.
+XWAY_PIDS=$(pgrep -x Xwayland 2>/dev/null | xargs)
+XWAY_PID_COUNT=$(echo "$XWAY_PIDS" | wc -w)
+if [ -z "$XWAY_PIDS" ]; then
+    test_warn "no Xwayland :0 process running (may start later)"
+elif [ "$XWAY_PID_COUNT" -gt 1 ]; then
+    test_fail "multiple Xwayland :0 processes running (pids: $XWAY_PIDS)"
+else
+    XWAY_ARGS=$(ps -p "$XWAY_PIDS" -o args= 2>/dev/null | xargs)
+    if echo "$XWAY_ARGS" | grep -qw -- '-rootless'; then
+        test_pass "running Xwayland :0 has -rootless (args: $XWAY_ARGS)"
+    else
+        test_fail "running Xwayland :0 missing -rootless (args: $XWAY_ARGS) (F-0097 regression)"
+    fi
+fi
+
+SWAY_SOCK=$(ls /run/user/1000/sway-ipc.*.sock 2>/dev/null | head -1)
+if [ -n "$SWAY_SOCK" ] && command -v python3 >/dev/null 2>&1; then
+    XWAY_ROOT_COUNT=$(runuser -u $USER -- env WAYLAND_DISPLAY=wayland-1 \
+        XDG_RUNTIME_DIR=/run/user/1000 SWAYSOCK="$SWAY_SOCK" \
+        bash -c ". $NIX_SH && swaymsg -t get_tree" 2>/dev/null | python3 -c "
+import json, sys
+try:
+    tree = json.load(sys.stdin)
+except Exception:
+    print(-1); sys.exit(0)
+count = 0
+def walk(n):
+    global count
+    if n.get('app_id') == 'org.freedesktop.Xwayland':
+        count += 1
+    for c in n.get('nodes', []) + n.get('floating_nodes', []):
+        walk(c)
+walk(tree)
+print(count)
+" 2>/dev/null)
+    if [ "${XWAY_ROOT_COUNT:-0}" = "0" ]; then
+        test_pass "no Xwayland root window present in sway tree"
+    elif [ "$XWAY_ROOT_COUNT" = "-1" ]; then
+        test_warn "sway tree unreadable — cannot verify Xwayland root window absence"
+    else
+        test_fail "Xwayland root window(s) present in sway tree: $XWAY_ROOT_COUNT (F-0096 regression)"
+    fi
+else
+    test_skip "Xwayland root window check (sway socket unavailable or python3 missing)"
+fi
+
+# =============================================================================
+# F-0098: Workspace autostart launch order
+# =============================================================================
+# PO layout: ws1 = Chrome, ws2 = Antigravity, ws3 = foot, ws4 = foot.
+# Verify 08-workspaces.sh issues launch_and_wait calls in that order.
+log ""
+log "--- Workspace autostart order (F-0098) ---"
+WS_SCRIPT="$HOME_DIR/boot/08-workspaces.sh"
+if [ -f "$WS_SCRIPT" ]; then
+    ORDER=$(grep -E '^[[:space:]]*launch_and_wait[[:space:]]+[1-4][[:space:]]' "$WS_SCRIPT" \
+        | awk '{print $2}' | xargs)
+    if [ "$ORDER" = "1 2 3 4" ]; then
+        test_pass "08-workspaces.sh launches workspaces in order 1 2 3 4"
+    else
+        test_fail "08-workspaces.sh launch order is '$ORDER' (expected '1 2 3 4')"
+    fi
+
+    WS1_LINE=$(grep -nE '^[[:space:]]*launch_and_wait[[:space:]]+1[[:space:]]' "$WS_SCRIPT" | head -1)
+    if echo "$WS1_LINE" | grep -q "google-chrome-stable"; then
+        test_pass "08-workspaces.sh ws1 launches google-chrome-stable"
+    else
+        test_fail "08-workspaces.sh ws1 does not launch Chrome (line: $WS1_LINE)"
+    fi
+
+    WS2_LINE=$(grep -nE '^[[:space:]]*launch_and_wait[[:space:]]+2[[:space:]]' "$WS_SCRIPT" | head -1)
+    if echo "$WS2_LINE" | grep -q '"\$ANTIGRAVITY"'; then
+        test_pass "08-workspaces.sh ws2 launches Antigravity"
+    else
+        test_fail "08-workspaces.sh ws2 does not launch Antigravity (line: $WS2_LINE)"
+    fi
+
+    WS3_LINE=$(grep -nE '^[[:space:]]*launch_and_wait[[:space:]]+3[[:space:]]' "$WS_SCRIPT" | head -1)
+    if echo "$WS3_LINE" | grep -q '"\$FOOT"'; then
+        test_pass "08-workspaces.sh ws3 launches foot terminal"
+    else
+        test_fail "08-workspaces.sh ws3 does not launch foot (line: $WS3_LINE)"
+    fi
+
+    WS4_LINE=$(grep -nE '^[[:space:]]*launch_and_wait[[:space:]]+4[[:space:]]' "$WS_SCRIPT" | head -1)
+    if echo "$WS4_LINE" | grep -q '"\$FOOT"'; then
+        test_pass "08-workspaces.sh ws4 launches foot terminal"
+    else
+        test_fail "08-workspaces.sh ws4 does not launch foot (line: $WS4_LINE)"
+    fi
+
+    if grep -qE '^#.*ws1 = Chrome, ws2 = Antigravity, ws3 = foot terminal, ws4 = foot terminal' "$WS_SCRIPT"; then
+        test_pass "08-workspaces.sh header comment reflects new order"
+    else
+        test_fail "08-workspaces.sh header comment does not reflect new order (F-0098)"
+    fi
+else
+    test_fail "08-workspaces.sh not found at $WS_SCRIPT (F-0098 check)"
+fi
 
 # =============================================================================
 # Services (may not be running during boot script phase)

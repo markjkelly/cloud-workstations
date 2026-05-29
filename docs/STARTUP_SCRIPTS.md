@@ -11,7 +11,7 @@ Summary of all boot scripts that run on every workstation start. Scripts execute
 | 3 | `03-sway.sh` | Create sway-desktop, wayvnc, ws-autolaunch systemd services | Yes — overwrites services | ~3s |
 | 4 | `04-fonts.sh` | Install Operator Mono OTFs from `~/boot/fonts/` (open-source fonts come via Nix) | Yes — copies + fc-cache | ~5s |
 | 5 | `05-shell.sh` | ZSH default shell, plugins (syntax-highlighting, autosuggestions), generate `.zshrc` | Yes — guarded append, overwrite | ~3s |
-| 6 | `06-prompt.sh` | Install Starship prompt, deploy foot terminal config | Yes — overwrites configs | ~5s |
+| 6 | `06-prompt.sh` | Install Starship prompt; deploy foot terminal config by copying `~/boot/foot.ini` (source of truth: `workstation-image/configs/foot/foot.ini`, deployed by `cloud-build-setup.sh` step 13) into `~/.config/foot/foot.ini`, with an embedded heredoc fallback if `~/boot/foot.ini` is missing (F-0094) | Yes — overwrites configs | ~5s |
 | 6a | `06a-tailscale.sh` | Tailscale VPN (opt-in via `TAILSCALE_AUTHKEY` in `~/.env`). Starts tailscaled, authenticates, enables SSH, configures SSH password auth, adds iptables rule for SSH on tailscale0 | Yes — checks running/connected | ~5s |
 | 6b | `06b-tmux.sh` | Deploy `tmux.conf` (Tokyo Night theme), `claude-tmux`, and `tmux-debug` scripts | Yes — copy overwrite | ~1s |
 | 7 | `07-apps.sh` | Upgrade AI tools (npm: Claude Code, Codex, Cody, Pi; go: OpenCode; pip: Aider; gh: Copilot), run `home-manager switch` | Yes — update/switch idempotent | ~60s |
@@ -19,6 +19,8 @@ Summary of all boot scripts that run on every workstation start. Scripts execute
 | 9 | `07b-languages.sh` | Install/update Go (tarball), Rust (rustup), Python (pyenv), Ruby (rbenv) | Yes — existence checks | First: ~15min, subsequent: ~30s |
 | 10 | `09-wofi.sh` | Deploy wofi config + Tokyo Night style.css to `~/.config/wofi/` | Yes — copy overwrite | ~1s |
 | 11 | `09-snippets.sh` | Deploy snippet-picker script + default snippets.conf (no-clobber) | Yes — cp -n for user config | ~1s |
+| 12 | `11-custom-tools.sh` | Fork-only (F-0089): installs Terraform + gh CLI to `~/.local/bin` (pinned), Java LTS via SDKMAN, Eclipse, Claude Code to `~/.npm-global` (with `~/.npmrc` pinning `prefix` so auto-update doesn't EACCES on `/usr`), JetBrains Mono font. Also patches noVNC `rfb.js` (QEMU key events) and masks `ws-autolaunch.service` | Yes — version/existence guarded | First: ~5min, subsequent: ~10s |
+
 **Note:** `08-workspaces.sh` and `10-tests.sh` are NOT run by setup.sh — they run via systemd services after Sway starts. See below.
 
 ## Execution Flow
@@ -39,11 +41,15 @@ Docker entrypoint
               ├── 07a-lang-deps.sh
               ├── 07b-languages.sh
               ├── 09-wofi.sh
-              └── 09-snippets.sh
+              ├── 09-snippets.sh
+              └── 11-custom-tools.sh
 
 systemd (after Sway starts)
   ├── ws-autolaunch.service
-  │     └── 08-workspaces.sh (launches apps + Xwayland)
+  │     └── 08-workspaces.sh (launches apps; Xwayland is started
+  │         by the sway config's `exec /usr/bin/Xwayland -rootless :0`
+  │         autostart — 08-workspaces.sh only re-launches if that
+  │         is somehow absent — see F-0097)
   └── ws-boot-tests.service (After=ws-autolaunch, 30s delay)
         └── 10-tests.sh (run ~82 verification tests)
 ```
@@ -58,6 +64,7 @@ systemd (after Sway starts)
 | `~/logs/boot-test-summary.txt` | One-line summary: `PASS: X | FAIL: Y | WARN: Z` |
 | `~/.tmux.conf` | tmux config (Tokyo Night theme, deployed by 06b-tmux.sh) |
 | `~/.tailscale/tailscaled.state` | Tailscale VPN state (persisted on persistent disk, created by 06a-tailscale.sh) |
+| `~/logs/custom-tools.log` | 11-custom-tools.sh output (Terraform/gh/Java/Eclipse/Claude Code install + noVNC patch) |
 
 ## Module Gating (Composable Install)
 

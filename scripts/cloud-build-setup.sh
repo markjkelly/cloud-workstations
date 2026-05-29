@@ -732,6 +732,14 @@ cat "${REPO_DIR}/workstation-image/configs/sway/config" | \
     ws_pipe "mkdir -p ~/.config/sway && cat > ~/.config/sway/config"
 test_pass "Sway config deployed"
 
+# Deploy foot.ini to ~/boot/foot.ini — picked up by 06-prompt.sh on every
+# boot. Keeping it next to boot scripts (rather than ~/.config/foot/) lets
+# the boot script own the write so a stale live ~/.config/foot/foot.ini
+# cannot linger between upgrades. See F-0094.
+cat "${REPO_DIR}/workstation-image/configs/foot/foot.ini" | \
+    ws_pipe "mkdir -p ~/boot && cat > ~/boot/foot.ini"
+test_pass "foot.ini deployed to ~/boot/foot.ini"
+
 cat "${REPO_DIR}/workstation-image/configs/swaybar/sway-status" | \
     ws_pipe "mkdir -p ~/.local/bin && cat > ~/.local/bin/sway-status && chmod +x ~/.local/bin/sway-status"
 test_pass "sway-status deployed"

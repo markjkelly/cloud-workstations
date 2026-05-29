@@ -25,12 +25,23 @@ fi
 log "Starship available at: $(which starship 2>/dev/null || echo "$STARSHIP_PATH")"
 
 # --- Create foot terminal config ---
+# Source of truth: workstation-image/configs/foot/foot.ini in the repo,
+# deployed to ~/boot/foot.ini by scripts/cloud-build-setup.sh. We copy it
+# into place on every boot. An embedded heredoc is kept as a fallback so
+# a workstation whose ~/boot/foot.ini is missing (e.g. partial upgrade)
+# still gets a valid, monospace-resolving config rather than silently
+# keeping a stale one. See F-0094.
 FOOT_DIR="$HOME_DIR/.config/foot"
 FOOT_INI="$FOOT_DIR/foot.ini"
+FOOT_INI_SRC="$HOME_DIR/boot/foot.ini"
 runuser -u $USER -- mkdir -p "$FOOT_DIR"
 
-cat > "$FOOT_INI" << 'EOF'
-# foot terminal — Cloud Workstation
+if [ -f "$FOOT_INI_SRC" ] && grep -q '^font=' "$FOOT_INI_SRC"; then
+    install -m 0644 -o $USER -g $USER "$FOOT_INI_SRC" "$FOOT_INI"
+    log "Deployed foot.ini from $FOOT_INI_SRC (repo source of truth)"
+else
+    cat > "$FOOT_INI" << 'EOF'
+# foot terminal — Cloud Workstation (fallback; repo copy was missing)
 # Tokyo Night theme with DejaVu Sans Mono font
 
 [main]
@@ -42,11 +53,8 @@ pad=8x8
 lines=10000
 
 [colors-dark]
-# Tokyo Night
 background=1a1b26
 foreground=c0caf5
-
-## Normal colors
 regular0=15161e
 regular1=f7768e
 regular2=9ece6a
@@ -55,8 +63,6 @@ regular4=7aa2f7
 regular5=bb9af7
 regular6=7dcfff
 regular7=a9b1d6
-
-## Bright colors
 bright0=414868
 bright1=f7768e
 bright2=9ece6a
@@ -72,8 +78,9 @@ clipboard-paste=Control+Shift+v
 
 [tweak]
 EOF
+    log "WARNING: $FOOT_INI_SRC missing; wrote embedded fallback foot.ini"
+fi
 chown -R $USER:$USER "$FOOT_DIR"
-log "Created foot.ini with DejaVu Sans Mono:size=14 and Tokyo Night theme"
 
 # --- Deploy Starship config ---
 STARSHIP_CONF="$HOME_DIR/.config/starship.toml"

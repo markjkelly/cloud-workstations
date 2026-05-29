@@ -104,10 +104,10 @@ The `~/.ws-modules` config file records which modules are enabled. Boot scripts 
 The setup script stops the workstation at the end to save costs. Start it when you're ready:
 
 ```bash
-gcloud workstations start dev-workstation \
-  --config=ws-config \
-  --cluster=workstation-cluster \
-  --region=us-west1 \
+gcloud workstations start sway-workstation \
+  --config=sway-config \
+  --cluster=main-cluster \
+  --region=us-central1 \
   --project=YOUR_PROJECT_ID
 ```
 
@@ -116,10 +116,10 @@ gcloud workstations start dev-workstation \
 Get the workstation URL:
 
 ```bash
-gcloud workstations describe dev-workstation \
-  --config=ws-config \
-  --cluster=workstation-cluster \
-  --region=us-west1 \
+gcloud workstations describe sway-workstation \
+  --config=sway-config \
+  --cluster=main-cluster \
+  --region=us-central1 \
   --project=YOUR_PROJECT_ID \
   --format="value(host)"
 ```

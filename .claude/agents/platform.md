@@ -32,6 +32,5 @@ You are the Platform Engineer (PE) for the Cloud Workstation project. You own al
 
 - Never commit service account keys
 - All commits: `git -c user.name="Your Name" -c user.email="your-email@example.com"`
-- All commits include `Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>`
 - Monitor billing regularly — alert if anything approaches free tier limits
 - Clean up old Artifact Registry images after deployments

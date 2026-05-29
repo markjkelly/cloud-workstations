@@ -3,7 +3,7 @@
 # 08-workspaces.sh — Auto-launch apps across 4 Sway workspaces
 # =============================================================================
 # Waits for Sway to be ready, then launches:
-#   ws1 = foot terminal, ws2 = Chrome, ws3 = Antigravity, ws4 = foot terminal
+#   ws1 = Chrome, ws2 = Antigravity, ws3 = foot terminal, ws4 = foot terminal
 # Idempotent: skips if windows already exist.
 # Runs as systemd service (ws-autolaunch) after wayvnc.service.
 # =============================================================================
@@ -65,12 +65,18 @@ if [ "${WINDOW_COUNT:-0}" -gt 1 ]; then
 fi
 
 # --- Start Xwayland for X11 apps (IntelliJ) ---
+# F-0096: pass -rootless so Xwayland does NOT create a visible root window
+# that Sway would tile onto the active workspace (ws1). In rootless mode
+# Xwayland only creates surfaces for individual X11 clients, which is the
+# correct behavior under a Wayland compositor. Without this flag, ws1
+# booted with a 50/50 split between the Xwayland root window and the
+# autostart foot terminal.
 if ! pgrep -f "Xwayland :0" >/dev/null 2>&1; then
-    log "Starting Xwayland on :0..."
-    sway_cmd exec "/usr/bin/Xwayland :0" 2>/dev/null
+    log "Starting Xwayland on :0 (rootless)..."
+    sway_cmd exec "/usr/bin/Xwayland -rootless :0" 2>/dev/null
     sleep 2
     if pgrep -f "Xwayland :0" >/dev/null 2>&1; then
-        log "Xwayland started on :0"
+        log "Xwayland started on :0 (rootless)"
     else
         log "WARNING: Xwayland failed to start"
     fi
@@ -113,18 +119,18 @@ launch_and_wait() {
     log "WARNING: Timeout (${timeout}s) waiting for window on ws$ws: $*"
 }
 
-# Workspace 1: foot terminal (fast — 5s timeout)
-launch_and_wait 1 5 "$FOOT" --working-directory=/home/user
+# Workspace 1: Google Chrome (Electron — 15s timeout)
+launch_and_wait 1 15 google-chrome-stable --ozone-platform=wayland --disable-dev-shm-usage
 
-# Workspace 2: Google Chrome (Electron — 15s timeout)
-launch_and_wait 2 15 google-chrome-stable --ozone-platform=wayland --disable-dev-shm-usage
-
-# Workspace 3: Antigravity 2.0 desktop app (Electron — 30s timeout, needs longer to initialize)
+# Workspace 2: Antigravity 2.0 desktop app (Electron — 30s timeout, needs longer to initialize)
 if [ -x "$ANTIGRAVITY" ]; then
-    launch_and_wait 3 30 "$ANTIGRAVITY" --no-sandbox --ozone-platform=wayland --disable-gpu --disable-dev-shm-usage
+    launch_and_wait 2 30 "$ANTIGRAVITY" --no-sandbox --ozone-platform=wayland --disable-gpu --disable-dev-shm-usage
 else
-    log "WARNING: Antigravity not found at $ANTIGRAVITY — skipping ws3"
+    log "WARNING: Antigravity not found at $ANTIGRAVITY — skipping ws2"
 fi
+
+# Workspace 3: foot terminal (fast — 5s timeout)
+launch_and_wait 3 5 "$FOOT" --working-directory=/home/user
 
 # Workspace 4: foot terminal (fast — 5s timeout)
 launch_and_wait 4 5 "$FOOT" --working-directory=/home/user

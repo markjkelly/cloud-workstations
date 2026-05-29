@@ -190,6 +190,22 @@ DESKTOP
 # npm itself is in the base image (/usr/bin/npm) so it's always available.
 install_claude_code() {
     local bin="$HOME_DIR/.npm-global/bin/claude"
+    local npmrc="/home/user/.npmrc"
+    local prefix_line="prefix=/home/user/.npm-global"
+
+    # Persist the npm global prefix so future `npm -g` invocations (including
+    # Claude Code's in-process auto-updater) write to the persistent disk
+    # instead of /usr/lib/node_modules (which would EACCES as non-root).
+    # Idempotent: replaces an existing `prefix=` line; otherwise appends.
+    runuser -u $USER -- bash -c "
+        touch '$npmrc'
+        if grep -q '^prefix=' '$npmrc'; then
+            sed -i 's|^prefix=.*|$prefix_line|' '$npmrc'
+        else
+            echo '$prefix_line' >> '$npmrc'
+        fi
+    "
+    log "[claude] npm prefix persisted in $npmrc → /home/user/.npm-global"
 
     if [ -x "$bin" ]; then
         log "[claude] $(\"$bin\" --version 2>/dev/null | head -1) already installed — skipping"

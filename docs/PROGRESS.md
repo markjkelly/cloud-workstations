@@ -1,6 +1,49 @@
 # Development Progress Log — Cloud Workstation
 
-## Session 20 — 2026-05-29
+## Session 24 — 2026-04-15
+
+### Goals
+- Close out Milestone 22 / F-0097: make Xwayland's `-rootless` flag survive a full reboot so the ws1 split fix from F-0096 stays fixed on live sessions, not just on in-session re-execs of `08-workspaces.sh`.
+
+### Completed
+- **PM** authored `docs/specs/F-0097-xwayland-rootless-persistence.md` identifying F-0097 as a persistence regression on top of the F-0096 code fix.
+- **TPM** added F-0097 to `docs/BACKLOG.md` under Milestone 22 (commit `117f210`).
+- **SWE** implemented the fix on branch `fix/xwayland-rootless-persistence` (commit `77a6b93`): added `xwayland disable` plus `exec /usr/bin/Xwayland -rootless :0 &` to the sway config autostart block so Xwayland is started with `-rootless` directly by sway on session startup. The existing `08-workspaces.sh` boot-script guard is kept as belt-and-braces but is no longer the primary mechanism — the earlier guard was racing sway IPC availability on cold boot, which is why the flag was being dropped after reboot even though the F-0096 fix was in place.
+- **SWE-Test** strengthened `workstation-image/boot/10-tests.sh` with a runtime assertion: `pgrep -af Xwayland | grep -- -rootless`, which fails the boot-test summary if the live Xwayland process is ever running without `-rootless`. This turns a silent regression into a loud one, matching the F-0095 drift-guard philosophy.
+- **SWE-QA** verified live on the workstation post-reboot: Xwayland PID 2816 is running with `-rootless` in its argv; ws1 renders a single fullscreen foot terminal with no phantom Xwayland root client in `swaymsg -t get_tree`.
+- **PR #11** merged to `main` as `399408b`.
+- **SWE-1** marked F-0097 done in `docs/BACKLOG.md` (commit `e505fd0`), keeping the combined Milestone 21/22 row per the existing F-0096/F-0097 convention.
+
+### Key Decisions
+- **Start Xwayland from sway autostart, not from a boot-script `sway_cmd exec`**: the boot-script approach depended on sway IPC being ready when the script ran, which was racy on cold boot. Having sway itself start Xwayland via `exec` in its own config removes the race entirely — sway is necessarily running by the time it processes its own `exec` lines.
+- **Keep the `08-workspaces.sh` guard as belt-and-braces**: even though the sway-autostart path is now primary, the script guard stays in place so any future drift (e.g. someone removes the sway-config `exec` line) is caught by the same mechanism that originally shipped with F-0096. Cost is zero, defensive value is non-zero.
+- **Runtime assertion in `10-tests.sh`, not static grep**: the earlier F-0096 test only checked that the repo config *contained* `-rootless`. That passed even when the live Xwayland was running without the flag (which is exactly what F-0097 was). Asserting on the live `pgrep` output is the only check that would have caught F-0097 at boot time.
+
+### Files Changed
+- `docs/specs/F-0097-xwayland-rootless-persistence.md` (new)
+- `docs/BACKLOG.md` (Milestone 22 entry, then marked done)
+- `workstation-image/configs/sway/config` and `~/.config/home-manager/sway-config` (autostart `xwayland disable` + `exec /usr/bin/Xwayland -rootless :0 &`)
+- `workstation-image/boot/10-tests.sh` (runtime `pgrep` assertion)
+
+### Pipeline
+- Full PO → PM → TPM → SWE → SWE-Test/QA → TPM → PM pipeline via interactive tmux team `fix-xwayland-rootless-persistence`. Merged as PR #11 (`399408b`).
+
+### Next Steps
+- Monitor the next few reboot cycles for any regression of the `-rootless` flag — the `10-tests.sh` runtime assertion should catch it in the boot-test summary if it recurs.
+- Milestone 22 closeout: PM to produce release-notes entry and report back to PO; tag on PO approval.
+
+### Open Items / Risks
+- None specific to F-0097. Standing F-0094 AC4(b)/AC4(c) items remain open from earlier milestones.
+
+---
+
+## Session 23 — 2026-04-15
+
+### Goals
+- Fix Xwayland splitting workspace 1 on boot (F-0096) — ws1 should open to a single fullscreen foot terminal like ws2/ws3/ws4, not tile foot next to a phantom Xwayland root window.
+
+### Completed
+- **PM** authored `docs/specs/F-0096-xwayland-ws1-split.md` with reproduction, root-cause analysis, two fix options, and acceptance criteria (commit `b8d7915`).
 
 ### Goals
 - Complete Antigravity 2.0 + CLI implementation (Milestone 16, F-0088 through F-0094)
@@ -52,6 +95,153 @@
 ### Next Steps
 - E2E verification: confirm Antigravity auto-upgrade works after teardown+setup
 - Tag v1.17 release after PO approval
+
+---
+
+## Session 23 — 2026-04-15
+
+### Goals
+- Fix Xwayland splitting workspace 1 on boot (F-0096) — ws1 should open to a single fullscreen foot terminal like ws2/ws3/ws4, not tile foot next to a phantom Xwayland root window.
+
+### Completed
+- **PM** authored `docs/specs/F-0096-xwayland-ws1-split.md` with reproduction, root-cause analysis, two fix options, and acceptance criteria (commit `b8d7915`).
+- **TPM** added F-0096 to `docs/BACKLOG.md` under Milestone 21 (commit `98ac784`).
+- **SWE** implemented Option 2 — added `-rootless` to the Xwayland invocation in `workstation-image/boot/08-workspaces.sh`, updated log lines, and left a comment pointing at F-0096 (commit `2cf39b1`).
+- **SWE-Test + SWE-QA** verified end-to-end on the live workstation: after `swaymsg reload` + re-exec of `08-workspaces.sh`, ws1 shows a single fullscreen foot terminal; no `org.freedesktop.Xwayland` client is visible in `swaymsg -t get_tree`. Boot test suite: **53 PASS / 30 FAIL**, with all 30 FAILs pre-existing hygiene issues unrelated to this fix (mostly AI CLI version probes).
+- **SWE** marked F-0096 Done, tested + verified in `docs/BACKLOG.md` (commit `ae692e6`).
+
+### Key Decisions
+- **Chose `-rootless` over a sway `for_window` scratchpad rule**: root-cause fix vs. symptom-masking. With `-rootless`, Xwayland never spawns the phantom root window in the first place, matching the standard mode for Xwayland under a Wayland compositor. A `for_window` rule would leave a useless process rendering into the void and could silently mask a future regression.
+- **Deferred AC4 (reboot persistence) to the deployment step**: the fix lives in the repo at `workstation-image/boot/08-workspaces.sh`, which the setup pipeline deploys to both `~/boot/` and the image. Verification at reboot requires `ws.sh setup` after merge + push; the live verification confirmed the code path works when re-executed.
+- **Did not add defense-in-depth `for_window` rule**: per the spec's open question, a future regression should surface loudly rather than be silently hidden by a second layer.
+
+### Files Changed
+- `docs/specs/F-0096-xwayland-ws1-split.md` (new)
+- `docs/BACKLOG.md` (Milestone 21 entry, then marked Done)
+- `workstation-image/boot/08-workspaces.sh` (`-rootless` flag + comment)
+
+### Pipeline
+- Full PO → PM → TPM → SWE → SWE-Test/QA → TPM/PM pipeline used via interactive tmux team `fix-xwayland-ws1`.
+
+### Next Steps
+- PM to produce release-notes entry (v1.17.1 bugfix) on `fix/xwayland-ws1-split`.
+- Open PR `fix/xwayland-ws1-split` → `main`.
+- After PO approval: tag `v1.17.1` and push; run `ws.sh setup` to confirm AC4 (reboot persistence) end-to-end.
+- Separate follow-up: triage the 30 pre-existing FAILs in `10-tests.sh` (out of scope for F-0096).
+
+---
+
+## Session 22 — 2026-04-15
+
+### Goals
+- Diagnose and fix F-0095: foot terminal CWD regression (third occurrence) — newly spawned foot terminals no longer start in `/home/user`, forcing manual `cd ~` on every new terminal
+- Close the drift loop so a fourth regression of this class fails the boot-test summary instead of shipping silently
+
+### Completed
+- **PM** wrote `docs/specs/F-0095-foot-cwd-regression.md` (commit `429def7`) with four root-cause hypotheses (H1–H4), requirements R1–R5 (including mandatory boot-level drift guard in R4), and acceptance criteria AC1–AC6. Spec prohibits silencing via shell aliases or profile hacks.
+- **TPM** added Milestone 20 / F-0095 entry to `docs/BACKLOG.md` on branch `fix/foot-font-regression` (commit `a41e570`) — P0, owner SWE-1, deps F-0087 + F-0094.
+- **SWE** diagnosed and fixed on branch `fix/foot-cwd-regression-f0095`:
+  - Commit `dbcdfc1` — Root cause: **H1 + stale 10-tests.sh assertion**. The existing F-0087 test grepped for the old `exec cd ~ && .*foot` pattern, so when someone standardized back to `0dd33b3`'s `--working-directory=/home/user` style the drift check silently passed instead of catching the resurfaced regression. The repo sway config and `08-workspaces.sh` already carried the correct `--working-directory=/home/user` guard from commits `0dd33b3` / `20d3352`; only `workstation-image/boot/10-tests.sh` needed a change. Three R4 drift guards added: R4a (sway `$mod+Return` / `$mod+t` bindings), R4b (every foot invocation in `08-workspaces.sh`), R4c (repo sway config and `~/.config/home-manager/sway-config` byte-identical on foot-launch lines).
+  - Commit `f47e4ed` — Follow-up from SWE-Test verification: the R4b matcher `(\$FOOT|/foot)[[:space:]]` required trailing whitespace and therefore missed the real live-drift pattern `launch_and_wait 1 5 "$FOOT"` (bare `"$FOOT"` at end-of-line, no args). Broadened to `("\$FOOT"|\$FOOT|/foot)([[:space:]"]|$)` with the `FOOT=` assignment line filtered out — now catches the ws1/ws4 autostart drift the guard was specifically designed to catch.
+- **SWE-Test** live-verified on the drifted workstation (pre-resetup) — R4a FAILs × 2 (sway keybindings drifted back), R4b FAILs (08-workspaces.sh drift, post-f47e4ed fix), R4c SKIPs cleanly (no Home Manager sway-config on this workstation). All three will flip to PASS post-`ws.sh setup` once the repo-correct configs are re-synced. `bash -n` clean on the test script.
+
+### Key Decisions
+- **Standardize on `--working-directory=/home/user`**: per spec recommendation, chosen over `cd ~ && …` because it is explicit, does not depend on shell expansion, and is the identical flag on both sway keybindings and `08-workspaces.sh` `launch_and_wait` invocations. F-0087's shell-guard style is superseded.
+- **Fix lives in the boot test, not the configs**: the repo sway config and `08-workspaces.sh` already had the correct flag; the real failure was that the test couldn't detect when the live deploy drifted away from the repo. Fixing just the test makes future drift noisy instead of silent.
+- **No shell-alias silencing**: deliberately rejected adding a `cd ~` shim in `~/.zshrc` / `~/.profile` or wrapping foot with a CWD-forcing script, per R3. Those would have hidden the drift that F-0095 is specifically about exposing.
+- **`docs/STARTUP_SCRIPTS.md` not updated**: no boot-script purpose or ordering changed — the edit is a regex tightening inside `10-tests.sh` whose documented role already covers it.
+
+### Verification Status
+- **Statically verified (this session)**: diff scope correct (+6/−1 to `10-tests.sh` net across both commits), `bash -n` clean, repo-copy grep shows both `08-workspaces.sh` call sites (lines 117, 130) carry `--working-directory=/home/user`, repo sway config carries the flag on both `$mod+Return` / `$mod+t` bindings.
+- **Live-verified on the drifted workstation (pre-resetup)**: R4a/R4b fail as designed when the live deploy has drifted — this is the AC3 headline validation (drift guard catches regression).
+- **Not yet verified (needs live display + boot sequence)**: AC1 (`$mod+Return` → `pwd == /home/user`), AC2 (autostart ws1/ws4 foot pwd), AC4(b) `ws.sh teardown && ws.sh setup`, AC4(c) fresh-project setup, AC3 tail (all three guards flip to PASS post-setup). AC5 three-places diff deferred until after setup runs. Corruption check (AC3 negative) skipped to respect no-edits constraint on live configs.
+
+### Next Steps
+- PO decides verification path for AC1/AC2/AC4(b)/AC4(c) (verify-before-PR vs verify-post-merge vs SWE-QA light verification) — same choice as F-0094.
+- PM to pick up task #5: RELEASENOTES.md entry + PO report.
+
+### Open Items / Risks
+- **BLOCKING for release merge**: `main` currently has a residual unresolved `UU docs/BACKLOG.md` three-stage conflict (`:2` pre-F-0094 state, `:3` combined F-0095+F-0096 state) with no `.git/MERGE_HEAD` — not a live merge, but an orphan state. F-0096 (Xwayland ws1 split, Milestone 21) is a separate workstream whose ownership is unclear. Escalated to team-lead and then to PO. PM must NOT merge F-0095 to `main` until this is resolved, or the release-notes edit will collide.
+- Standing F-0094 items still open: AC4(b) teardown+setup and AC4(c) fresh-project setup verification.
+
+---
+
+## Session 21 — 2026-04-15
+
+### Goals
+- Diagnose and fix F-0094: foot terminal falling back to Noto Sans after reboot with "font does not appear to be monospace" warning
+
+### Completed
+- **PM** wrote `docs/specs/F-0094-foot-font-regression.md` with P0 bug spec, hypotheses, requirements (R1–R5), and acceptance criteria (AC1–AC6). Prohibited silencing via `[tweak].font-monospace-warn=no`.
+- **TPM** added Milestone 19 / F-0094 entry to `docs/BACKLOG.md` (P0, owner SWE-1, branch `fix/foot-font-regression`, deps F-0030/F-0092). Initial backlog commit `bf5ce46`.
+- **SWE-1** diagnosed root cause and implemented fix on branch `fix/foot-font-regression`, commit `62d90fc` (pushed):
+  - Root cause: `~/boot/06-prompt.sh` was a stale copy writing `font=JetBrains Mono` inline. JetBrains Mono was not installed on this workstation, so foot fell back to Noto Sans (non-monospace) and emitted the warning every launch.
+  - Created `workstation-image/configs/foot/foot.ini` as the single source of truth for foot config.
+  - Updated `workstation-image/boot/06-prompt.sh` to deploy `~/boot/foot.ini` to `~/.config/foot/foot.ini` instead of writing an inline heredoc.
+  - Updated `scripts/cloud-build-setup.sh` step 13 to deploy the same `foot.ini` to `~/boot/foot.ini` for fresh project setups (three-places rule satisfied).
+  - Verified `fc-cache -fv` ordering: `04-fonts.sh` rebuilds the cache before `06-prompt.sh` runs, so the foot config lands after fonts are indexed.
+  - Added boot test to `workstation-image/boot/10-tests.sh` that greps the primary family from `~/.config/foot/foot.ini`, runs `fc-match "<family>"` and `fc-match "<family>:spacing=mono"`, and asserts the returned font is the configured monospace family (not Noto/DejaVu sans).
+  - Live boot-test-summary on the workstation: 51→53 PASS, 31→30 FAIL.
+- **TPM** updated `docs/BACKLOG.md` to mark F-0094 done with commit SHA and verification status, and updated this `docs/PROGRESS.md`.
+
+### Key Decisions
+- **Repo foot.ini is the source of truth, not an inline heredoc**: the previous approach had `06-prompt.sh` generate `foot.ini` inline, which is exactly what caused the drift (repo changes to the font family didn't propagate to the live deploy). Going forward boot scripts deploy a checked-in config file.
+- **`docs/STARTUP_SCRIPTS.md` not updated**: no boot script's purpose or ordering changed — only the internal mechanism of how `06-prompt.sh` produces `foot.ini`. Documentation entry for 06-prompt.sh remains accurate.
+- **Reboot persistence verified in place (AC4a)**; full teardown+setup (AC4b) and fresh-project setup (AC4c) verification deferred pending PO direction (verify-before-PR vs verify-post-merge vs SWE-QA light verification).
+
+### Next Steps
+- PO decides verification path for AC4(b) and AC4(c).
+- Once PO direction is confirmed, TPM pings PM to write RELEASENOTES.md entry and close out the milestone.
+
+### Open Items
+- End-to-end verification of `ws.sh teardown && ws.sh setup` (AC4b) and fresh-project setup on a new GCP project disk (AC4c).
+
+---
+
+## Session 20 — 2026-04-15
+
+### Goals
+- Audit fork divergence against `upstream/main` and bring docs in line with the fork state
+- Cut v1.17 release notes covering GCP Organization alignment, font cleanup, and a retrospective for pre-v1.14 fork-only work
+- Add specs and backlog entries for all fork-only features that had never been formally tracked
+
+### Completed
+- **PM** produced `docs/RELEASENOTES.md` v1.17 entry (including a "Fork Divergence Summary" retrospective) and four new specs:
+  - `docs/specs/F-0088-cloud-build-pipeline.md`
+  - `docs/specs/F-0089-custom-tools-module.md`
+  - `docs/specs/F-0090-vnc-keyboard-compat.md`
+  - `docs/specs/F-0091-gcp-org-alignment.md`
+- **TPM** updated `docs/BACKLOG.md` — added Milestone 17 with F-0088/F-0089/F-0090/F-0091 marked Done and linked to their specs, plus F-0092 for the foot-font cleanup
+- **TPM** updated `README.md` "After Setup" commands to reflect the deployed configuration (`us-central1`, `main-cluster`, `sway-config`, `sway-workstation`)
+- **TPM** added `11-custom-tools.sh` to `docs/STARTUP_SCRIPTS.md` boot sequence table and execution flow
+- Verified `docs/SETUP.md` top-of-file machine-spec note and `docs/PIPELINE.md` MermaidJS diagram are still accurate — no changes needed
+- Verified README machine-spec table (`n2-standard-8`, 200GB `pd-balanced`, no GPU) matches commit `fe29dfe`
+
+### Audit Scope — `git log upstream/main..HEAD`
+Fork-only commits mapped to specs/backlog items:
+- `82373e1`, `aa1fc95` → F-0088 (Cloud Build pipeline)
+- `11fe006`, `85f6c56`, `bea5b61`, `33a038b`, `0ebd8f3`, `f0c4e54` → F-0089 (custom tools + noVNC patch)
+- `493d541`, `eb2d56c` → F-0090 (VNC keyboard compat)
+- `df99d3d`, `fe29dfe` → F-0091 (GCP Organization alignment + machine spec docs)
+- `6fef7ff`, `f871cd1`, `5c714dd`, `0aca479`, `1639c59` → F-0092 (foot font cleanup)
+- `a1672ff` → REPO_URL placeholder (captured in RELEASENOTES retrospective)
+- `9d419f2`, `660e0ca` → GEMINI.md (captured in RELEASENOTES retrospective)
+- `e7236a8` → F-0087 (already tracked in Session 19)
+
+### Key Decisions
+- **Retrospective in RELEASENOTES over back-dated versions**: rather than invent v1.14.1/v1.14.2/... for every pre-v1.14 fork commit, the release notes carry a single "Fork Divergence Summary" section so history is complete without fiction
+- **F-0092 added by TPM, no separate spec**: the font cleanup is a small subset of v1.17 that is adequately described by the release-notes "Changed/Fixed" bullets; a standalone spec would be make-work
+- **PIPELINE.md not touched**: agent workflow is unchanged, so the MermaidJS diagram remains accurate
+
+### Pipeline
+- Full PM → TPM pipeline used (PM drafted specs + RELEASENOTES; TPM updated BACKLOG/PROGRESS/README/STARTUP_SCRIPTS)
+- No SWE work this session — docs-only catch-up
+
+### Next Steps
+- PO review of v1.17 release notes and four new specs
+- After PO approval: `git tag -a v1.17 -m "..."` and push tags
+- Future: decide whether F-0089 custom-tools module should be folded into a dedicated `--profile extras` or remain opt-in via module flag
+>>>>>>> origin/main
 
 ---
 
@@ -919,3 +1109,48 @@
 - For daily work, use `your-private-repo` (private repo with personal values)
 - To share improvements, cherry-pick from private to public repo
 - Colleagues: clone public repo → run configure.sh → run ws.sh setup
+
+---
+
+## Session 21 — 2026-04-15
+
+### Date
+2026-04-15
+
+### Milestone
+Milestone 18 — Claude Code Auto-Update Fix (F-0093)
+
+### Goals
+- Fix Claude Code's in-process auto-updater failing with EACCES on `/usr/lib/node_modules`
+- Make the npm user prefix (`/home/user/.npm-global`) persistent across shells and auto-update subprocesses
+- Ensure the fix survives teardown + re-setup (no live-only changes)
+
+### Completed
+- **PM** produced `docs/specs/F-0093-claude-autoupdate-fix.md` capturing root cause (Claude auto-updater invokes `npm install -g` and reads `npm config get prefix`, which returned `/usr` because only `--prefix` was passed inline during install) and acceptance criteria
+- **SWE-1** fixed `workstation-image/boot/11-custom-tools.sh::install_claude_code` to idempotently write `prefix=/home/user/.npm-global` into `~/.npmrc` (user-owned, preserves any existing non-prefix entries) in addition to the existing `--prefix` install flag, so `npm config get prefix` resolves correctly for all future invocations including Claude's auto-update subprocess
+- **SWE-1** added a boot test in `workstation-image/boot/10-tests.sh` asserting `npm config get prefix` returns `/home/user/.npm-global`, so regressions are caught on every boot
+- **SWE-1** updated `docs/STARTUP_SCRIPTS.md` to describe the new `~/.npmrc` persistence behavior in the `11-custom-tools.sh` entry
+- **PO** confirmed the live fix works on the running workstation — `claude update` no longer fails and the in-process auto-updater completes cleanly
+
+### Agent Team
+- PM: spec authoring (F-0093)
+- SWE-1: boot script fix, test, docs
+- TPM: backlog + progress updates (this entry)
+
+### Files Changed
+- `workstation-image/boot/11-custom-tools.sh` — idempotent `~/.npmrc` prefix write in `install_claude_code`
+- `workstation-image/boot/10-tests.sh` — new assertion on `npm config get prefix`
+- `docs/STARTUP_SCRIPTS.md` — documented the new behavior
+- `docs/specs/F-0093-claude-autoupdate-fix.md` — new spec
+- `docs/BACKLOG.md` — F-0093 marked done in Milestone 18
+- `docs/PROGRESS.md` — this entry
+
+### Decisions
+- **Write `~/.npmrc` instead of exporting `NPM_CONFIG_PREFIX`**: Claude's auto-updater shells out to `npm install -g` from its own process; `~/.npmrc` is read unconditionally by npm regardless of environment, making it the most robust place for the fix
+- **Idempotent edit over clobber**: the fix only adds/replaces the `prefix=` line so any future user-added `.npmrc` entries (registry tokens, proxy, etc.) are preserved
+- **No changes to the PATH-level install**: `npm install -g --prefix=/home/user/.npm-global` continues to work; the `.npmrc` fix is purely to cover invocations that don't pass `--prefix` (auto-update, ad-hoc user `npm -g`)
+
+### Next Steps
+- SWE-1 commits the branch `fix/claude-autoupdate` and opens a PR (task #3, blocked by this TPM update and the PM RELEASENOTES update)
+- PM adds a v1.18 entry to `docs/RELEASENOTES.md` (task #2)
+- After merge + PO approval: `git tag -a v1.18` and push tags
