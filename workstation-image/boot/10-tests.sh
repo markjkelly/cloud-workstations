@@ -128,6 +128,10 @@ if runuser -u $USER -- /usr/bin/antigravity --version >/dev/null 2>&1; then
 else
     test_warn "Antigravity 2.0 version check failed"
 fi
+# F-0107: verify Hub auto-launch configuration in 08-workspaces.sh
+check_grep "Hub ws5 auto-launch in 08-workspaces.sh" \
+    "launch_and_wait 5 30.*antigravity-hub.*--use-gl=swiftshader" \
+    "$HOME_DIR/boot/08-workspaces.sh"
 
 # =============================================================================
 # AI CLI Tools
@@ -287,8 +291,20 @@ check_grep "Clipman keybinding" "mod+a.*clipman" "$SWAY_CFG"
 check_grep "Windsurf keybinding" "mod+w.*windsurf" "$SWAY_CFG"
 check_grep "Apps button click" "button1.*wofi" "$SWAY_CFG"
 check_grep "Antigravity CLI keybinding" "mod+g.*/usr/bin/antigravity" "$SWAY_CFG"
-check_grep "Antigravity Hub keybinding" "mod+h.*antigravity-hub" "$SWAY_CFG"
 check_grep "Snippet picker keybinding" "snippet-picker" "$SWAY_CFG"
+# F-0107: $mod+h keybinding conflict fix — must be ONLY workspace number 5, not exec Hub.
+# Hub is auto-launched in ws5 by 08-workspaces.sh; $mod+h just switches to ws5.
+SWAY_MOD_H_COUNT=$(grep -c "bindsym.*\$mod+h" "$SWAY_CFG")
+if [ "$SWAY_MOD_H_COUNT" -eq 1 ]; then
+    # Should be the workspace binding, not exec
+    if grep -q "bindsym \$mod+h workspace number 5" "$SWAY_CFG"; then
+        test_pass "Keybinding \$mod+h is workspace 5 (unique, no exec duplicate)"
+    else
+        test_fail "Keybinding \$mod+h exists but is not workspace 5 (found exec?)"
+    fi
+else
+    test_fail "Keybinding \$mod+h appears $SWAY_MOD_H_COUNT times (should be 1)"
+fi
 # F-0095: foot CWD drift guard. Standardized on
 # --working-directory=/home/user (commits 0dd33b3, 20d3352). The earlier
 # "cd ~ && $nix/foot" style from F-0087 does not work in sway exec without

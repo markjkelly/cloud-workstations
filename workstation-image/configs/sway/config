@@ -104,10 +104,7 @@ bindsym $mod+e exec $nix/thunar
 bindsym $mod+b exec google-chrome-stable --disable-dev-shm-usage
 
 # Antigravity 2.0 desktop app (Electron app — Wayland, no-sandbox, /dev/shm too small at 64MB)
-bindsym $mod+n exec /usr/bin/antigravity --no-sandbox --ozone-platform=wayland --disable-gpu --disable-dev-shm-usage
-
-# Antigravity 2.0 Desktop App / Hub (Electron app — same flags as desktop app)
-bindsym $mod+h exec env -u LD_LIBRARY_PATH /home/user/.local/bin/antigravity-hub --no-sandbox --ozone-platform=wayland --disable-gpu --disable-dev-shm-usage
+bindsym $mod+n exec /usr/bin/antigravity --no-sandbox --ozone-platform=wayland --use-gl=swiftshader --disable-dev-shm-usage
 
 # IntelliJ IDEA Community (X11/Swing app — needs DISPLAY for Xwayland)
 bindsym $mod+m exec env DISPLAY=:0 $nix/idea-oss
