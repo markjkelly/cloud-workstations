@@ -672,6 +672,46 @@ else
 fi
 
 # =============================================================================
+# Boot Sync Script (F-0108)
+# =============================================================================
+log ""
+log "--- Boot Sync (06-sync.sh) ---"
+
+# Check that 06-sync.sh exists in home boot directory
+SYNC_SCRIPT="$HOME_DIR/boot/06-sync.sh"
+if [ -f "$SYNC_SCRIPT" ]; then
+    if [ -x "$SYNC_SCRIPT" ]; then
+        test_pass "06-sync.sh exists and is executable"
+    else
+        test_fail "06-sync.sh exists but is not executable"
+    fi
+else
+    test_fail "06-sync.sh not found at $SYNC_SCRIPT"
+fi
+
+# Check that the repo path constant is correct in the script
+REPO_PATH="/home/user/dev/git/cloud-workstations"
+if grep -q "REPO_DIR=\"$REPO_PATH\"" "$SYNC_SCRIPT" 2>/dev/null; then
+    test_pass "06-sync.sh has correct REPO_DIR constant"
+else
+    test_fail "06-sync.sh REPO_DIR constant mismatch (expected $REPO_PATH)"
+fi
+
+# Check that sync log file exists (script should have run and created it)
+SYNC_LOG="$HOME_DIR/logs/sync.log"
+if [ -f "$SYNC_LOG" ]; then
+    test_pass "06-sync.sh created log at $SYNC_LOG"
+    # Check for successful sync marker
+    if grep -q "Boot sync completed successfully" "$SYNC_LOG" 2>/dev/null || grep -q "Git pull succeeded" "$SYNC_LOG" 2>/dev/null || grep -q "Boot sync completed (repo missing)" "$SYNC_LOG" 2>/dev/null; then
+        test_pass "06-sync.sh log shows successful completion or graceful skip"
+    else
+        test_warn "06-sync.sh log exists but completion status unclear (check $SYNC_LOG)"
+    fi
+else
+    test_warn "06-sync.sh log not found at $SYNC_LOG (may run after tests)"
+fi
+
+# =============================================================================
 # Summary
 # =============================================================================
 TOTAL=$((PASS+FAIL+WARN+SKIP))

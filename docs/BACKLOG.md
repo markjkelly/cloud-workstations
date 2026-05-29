@@ -272,7 +272,15 @@ Tracks fork-only work that pre-dated or accompanied v1.17. All items are documen
 
 ---
 
-## Milestone 22: Xwayland `-rootless` Persistence Fix (F-0096 Regression)
+## Milestone 22: Automatic Boot Script Sync
+
+| ID | Feature | Spec | Priority | Status | Owner | Branch | Dependencies | Feedback |
+|----|---------|------|----------|--------|-------|--------|--------------|----------|
+| F-0108 | Automatic boot script sync from git repo | [F-0108](specs/F-0108-boot-sync-from-repo.md) | P1 | done | SWE-1 | feature/boot-sync-from-repo | F-0033, F-0025 | New `06-sync.sh` runs at boot (order 6, before 06-prompt.sh) to pull latest repo and sync boot scripts + sway config. Graceful error handling: git pull failures don't fail boot, repo missing is logged as warning. Logs all operations to ~/logs/sync.log. Tests added to 10-tests.sh verify script exists, repo path is correct, log file created. STARTUP_SCRIPTS.md updated with 06-sync.sh entry. Bootstrap procedure: user manually copies script to ~/boot/ on first deployment; thereafter auto-syncs. |
+
+---
+
+## Milestone 23: Xwayland `-rootless` Persistence Fix (F-0096 Regression)
 
 | ID | Feature | Spec | Priority | Status | Owner | Branch | Dependencies | Feedback |
 |----|---------|------|----------|--------|-------|--------|--------------|----------|

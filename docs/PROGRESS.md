@@ -1,5 +1,67 @@
 # Development Progress Log — Cloud Workstation
 
+## Session 26 — 2026-05-29
+
+### Goals
+- Implement automatic boot script sync from git repo on every workstation boot (F-0108)
+- Create `06-sync.sh` to run `git pull` and copy boot scripts + sway config from repo
+- Graceful failure handling; non-fatal if git or repo missing
+
+### Completed
+- **PM** authored `docs/specs/F-0108-boot-sync-from-repo.md` with requirements (P1), acceptance criteria, dependencies (F-0033, F-0025)
+- **TPM** added F-0108 to `docs/BACKLOG.md` Milestone 22, marked In Progress; later marked Done with feedback
+- **SWE** implemented feature on branch `feature/boot-sync-from-repo`:
+  - `workstation-image/boot/06-sync.sh` (new, executable): 
+    - Runs as root but uses `runuser -u user --` for git/cp operations to preserve ownership
+    - Checks if repo exists at `/home/user/dev/git/cloud-workstations`; logs warning and exits if missing (non-fatal)
+    - Runs `git pull --ff-only` with error tolerance; git failure logs warning and skips sync (non-fatal)
+    - Copies all `workstation-image/boot/*.sh` to `~/boot/` with per-file logging
+    - Copies `workstation-image/configs/sway/config` to `~/.config/home-manager/sway-config`
+    - Logs all operations to `~/logs/sync.log`
+    - Will not update itself mid-run (updated script takes effect on next boot)
+  - Placed in boot sequence order 6 (before 06-prompt.sh, after 05-shell.sh)
+  - `docs/STARTUP_SCRIPTS.md` updated:
+    - Boot sequence table updated with 06-sync.sh entry (order 6, ~2s, idempotent)
+    - Execution flow diagram updated with 06-sync.sh in correct position
+    - Logs section added `~/logs/sync.log` entry
+- **SWE-Test** added tests to `workstation-image/boot/10-tests.sh`:
+  - Verify `~/boot/06-sync.sh` exists and is executable
+  - Verify repo path constant is correct (`REPO_DIR="/home/user/dev/git/cloud-workstations"`)
+  - Verify sync log file created and contains success markers (graceful skip if repo missing)
+- **SWE-QA** verified:
+  - Script gracefully handles missing repo (logs warning, exits 0)
+  - Git pull failure doesn't abort boot (logs warning, exits 0 with message)
+  - Correct `runuser -u user --` pattern used for all git/cp operations
+  - Log file path matches convention (`~/logs/sync.log`)
+  - All acceptance criteria met
+- **TPM** updated `docs/BACKLOG.md` feedback: script runs at boot order 6, graceful error handling verified, tests added, STARTUP_SCRIPTS.md updated. Bootstrap procedure documented.
+
+### Key Decisions
+- **Early in boot sequence**: 06-sync.sh runs as script order 6 (after shell/locale, before prompt), so subsequent scripts have latest repo files
+- **Graceful failure**: `git pull` and missing repo are logged as warnings but don't fail the boot sequence (non-fatal). Boot continues with existing scripts on disk.
+- **Error tolerance pattern**: Used `|| true` equivalent (`exit 0` on error) for all non-critical operations
+- **User ownership**: `runuser -u user -- git` and `runuser -u user -- cp` preserve user ownership of copied files
+- **Bootstrap procedure**: On first deployment, user manually copies `workstation-image/boot/06-sync.sh` to `~/boot/06-sync.sh` and runs it once; thereafter, it auto-syncs on every boot
+
+### Files Changed
+- `docs/specs/F-0108-boot-sync-from-repo.md` (new)
+- `docs/BACKLOG.md` (Milestone 22 entry, marked done)
+- `workstation-image/boot/06-sync.sh` (new, executable)
+- `docs/STARTUP_SCRIPTS.md` (boot sequence table, execution flow, logs section)
+- `workstation-image/boot/10-tests.sh` (Boot Sync tests section)
+
+### Pipeline
+- Full pipeline: Spec → Backlog → Implement → Test → QA → Backlog update → Progress → Release notes → Commit & PR
+- Ready for release notes and PR creation
+
+### Next Steps
+- Update `docs/RELEASENOTES.md` with new patch version
+- Create PR on feature branch
+- PO review and approval
+- Merge to main
+
+---
+
 ## Session 25 — 2026-05-29
 
 ### Goals

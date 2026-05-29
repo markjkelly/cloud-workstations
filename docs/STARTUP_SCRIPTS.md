@@ -11,6 +11,7 @@ Summary of all boot scripts that run on every workstation start. Scripts execute
 | 3 | `03-sway.sh` | Create sway-desktop, wayvnc, ws-autolaunch systemd services | Yes — overwrites services | ~3s |
 | 4 | `04-fonts.sh` | Install Operator Mono OTFs from `~/boot/fonts/` (open-source fonts come via Nix) | Yes — copies + fc-cache | ~5s |
 | 5 | `05-shell.sh` | ZSH default shell, plugins (syntax-highlighting, autosuggestions), generate `.zshrc` | Yes — guarded append, overwrite | ~3s |
+| 6 | `06-sync.sh` | **Sync boot scripts + sway config from git repo** (F-0108). Runs `git pull --ff-only` in repo, copies `workstation-image/boot/*.sh` to `~/boot/`, copies `workstation-image/configs/sway/config` to `~/.config/home-manager/sway-config`. Logs to `~/logs/sync.log`. Graceful failure if repo missing or pull fails (boot continues). | Yes — idempotent copies | ~2s (pull + copies) |
 | 6 | `06-prompt.sh` | Install Starship prompt; deploy foot terminal config by copying `~/boot/foot.ini` (source of truth: `workstation-image/configs/foot/foot.ini`, deployed by `cloud-build-setup.sh` step 13) into `~/.config/foot/foot.ini`, with an embedded heredoc fallback if `~/boot/foot.ini` is missing (F-0094) | Yes — overwrites configs | ~5s |
 | 6a | `06a-tailscale.sh` | Tailscale VPN (opt-in via `TAILSCALE_AUTHKEY` in `~/.env`). Starts tailscaled, authenticates, enables SSH, configures SSH password auth, adds iptables rule for SSH on tailscale0 | Yes — checks running/connected | ~5s |
 | 6b | `06b-tmux.sh` | Deploy `tmux.conf` (Tokyo Night theme), `claude-tmux`, and `tmux-debug` scripts | Yes — copy overwrite | ~1s |
@@ -34,6 +35,7 @@ Docker entrypoint
               ├── 03-sway.sh
               ├── 04-fonts.sh
               ├── 05-shell.sh
+              ├── 06-sync.sh (NEW: F-0108)
               ├── 06-prompt.sh
               ├── 06a-tailscale.sh
               ├── 06b-tmux.sh
@@ -58,6 +60,7 @@ systemd (after Sway starts)
 
 | File | Content |
 |------|---------|
+| `~/logs/sync.log` | 06-sync.sh output (git pull, boot script sync, sway config sync) |
 | `~/logs/app-update.log` | 07-apps.sh output (npm updates, home-manager switch) |
 | `~/logs/language-install.log` | 07b-languages.sh output (Go, Rust, Python, Ruby) |
 | `~/logs/boot-test-results.txt` | Full test results (~80 PASS/FAIL/WARN checks) |
