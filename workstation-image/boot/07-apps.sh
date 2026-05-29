@@ -30,8 +30,8 @@ log "npm update complete"
 
 # --- Install/update Antigravity CLI ---
 log "Installing/updating Antigravity CLI..."
-if ! command -v antigravity-cli &>/dev/null && ! command -v ag &>/dev/null; then
-    log "Antigravity CLI not found — installing..."
+if [ ! -d "$HOME_DIR/.gemini/antigravity-cli" ]; then
+    log "Antigravity CLI not initialized — installing..."
     runuser -u $USER -- bash -c "curl -fsSL https://antigravity.google/cli/install.sh | bash" >> "$LOG_FILE" 2>&1
     log "Antigravity CLI installed"
 else

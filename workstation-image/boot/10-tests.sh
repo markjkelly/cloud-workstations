@@ -118,15 +118,7 @@ fi
 log ""
 log "--- Antigravity Tools ---"
 check_file "Antigravity 2.0 binary" "/usr/bin/antigravity"
-if runuser -u $USER -- bash -c "command -v antigravity-cli" >/dev/null 2>&1; then
-    test_pass "Antigravity CLI (found in PATH)"
-else
-    if [ -f "$HOME_DIR/.local/bin/antigravity-cli" ]; then
-        test_pass "Antigravity CLI ($HOME_DIR/.local/bin/antigravity-cli)"
-    else
-        test_fail "Antigravity CLI (not found in PATH or ~/.local/bin)"
-    fi
-fi
+check_dir "Antigravity CLI config" "$HOME_DIR/.gemini/antigravity-cli"
 
 # =============================================================================
 # AI CLI Tools
@@ -257,7 +249,7 @@ check_grep "Wofi XDG_DATA_DIRS" "XDG_DATA_DIRS" "$SWAY_CFG"
 check_grep "Clipman keybinding" "mod+a.*clipman" "$SWAY_CFG"
 check_grep "Windsurf keybinding" "mod+w.*windsurf" "$SWAY_CFG"
 check_grep "Apps button click" "button1.*wofi" "$SWAY_CFG"
-check_grep "Antigravity CLI keybinding" "mod+g.*antigravity-cli" "$SWAY_CFG"
+check_grep "Antigravity CLI keybinding" "mod+g.*/usr/bin/antigravity" "$SWAY_CFG"
 check_grep "Snippet picker keybinding" "snippet-picker" "$SWAY_CFG"
 check_grep "foot starts in HOME" "exec cd ~ && .*foot" "$SWAY_CFG"
 
