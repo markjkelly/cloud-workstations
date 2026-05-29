@@ -1,7 +1,7 @@
 # Project Backlog — Cloud Workstation
 
 **Maintained by:** TPM
-**Last updated:** 2026-05-29 (Milestone 30 — Hub keyring Secret Service for OAuth token persistence)
+**Last updated:** 2026-05-29 (Milestone 31 — Remove Antigravity IDE and fix Hub ws1 placement)
 
 ---
 
@@ -336,6 +336,14 @@ Tracks fork-only work that pre-dated or accompanied v1.17. All items are documen
 | ID | Feature | Spec | Priority | Status | Owner | Branch | Dependencies | Feedback |
 |----|---------|------|----------|--------|-------|--------|--------------|----------|
 | F-0115 | Keyring Secret Service for Hub OAuth token persistence | [F-0115](specs/F-0115-keyring-auth-persistence.md) | P0 | done | SWE-1 | feature/keyring-auth-persistence | F-0110, F-0114 | Root cause confirmed: no Secret Service provider in headless Sway session; Hub language_server fails to persist/reload OAuth token (`failed to unlock correct collection '/org/freedesktop/secrets/aliases/default'`). Fix: (1) added `DBUS_ADDR="unix:path=/run/user/1000/bus"` constant; (2) idempotent block starts `gnome-keyring-daemon --unlock --components=secrets` with empty password before first `launch_and_wait` call; (3) `DBUS_SESSION_BUS_ADDRESS` added to app-launch env in `launch_and_wait`. Guard on binary existence (log WARNING + continue if missing). 4 new grep-based tests in `10-tests.sh` (--unlock, --components=secrets, DBUS_SESSION_BUS_ADDRESS, pgrep guard). `~/boot/08-workspaces.sh` and `~/boot/10-tests.sh` synced live. `scripts/cloud-build-setup.sh` deploys boot dir via tar — no change needed. `docs/STARTUP_SCRIPTS.md` updated. |
+
+---
+
+## Milestone 31: Remove Antigravity IDE and Fix Hub ws1 Placement
+
+| ID | Feature | Spec | Priority | Status | Owner | Branch | Dependencies | Feedback |
+|----|---------|------|----------|--------|-------|--------|--------------|----------|
+| F-0116 | Remove Antigravity IDE and fix Hub window placement on workspace 1 | [F-0116](specs/F-0116-remove-antigravity-ide-hub-ws1-fix.md) | P0 | done | SWE-1 | feature/remove-antigravity-ide | F-0112, F-0115 | Root cause: Hub and IDE both report `app_id="antigravity"` to sway; Hub BrowserWindow maps asynchronously after `language_server` starts, landing on whichever workspace has focus at that point (not ws1). `--class=antigravity-hub` does not change the Electron app_id on the installed build. Fix: (1) removed Antigravity IDE from Dockerfile, `07-apps.sh`, `08-workspaces.sh`, sway keybindings (`$mod+n`, `$mod+g`), and `scripts/cloud-build-setup.sh`; (2) added `for_window [app_id="antigravity"] move container to workspace number 1` to sway config — now unambiguous since IDE is gone. Three-places persistence rule satisfied: repo sway config, `~/.config/home-manager/sway-config`, and live `~/.config/sway/config` all updated; `swaymsg reload` confirmed. `~/boot/08-workspaces.sh`, `~/boot/07-apps.sh`, `~/boot/10-tests.sh` synced live. `10-tests.sh`: removed IDE-presence assertions, added IDE-absent assertion, Hub placement rule assertion, removed-keybindings assertion, ws2-empty assertion. Live validation confirmed: Hub relaunched while focus on ws3, `for_window` rule moved window to ws1 (verified via `swaymsg -t get_tree`). |
 
 ---
 

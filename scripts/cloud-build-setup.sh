@@ -886,10 +886,9 @@ if echo "$AI_MODULE_CHECK" | grep -q "full"; then
         test_warn "Antigravity CLI install had errors (curl script may have failed)"
     fi
 
-    # Antigravity 2.0 is pre-installed via apt in the Docker image (/usr/bin/antigravity).
-    # The boot script (07-apps.sh) automatically upgrades it on every boot via:
-    # sudo apt-get install -y --only-upgrade antigravity
-    # This ensures the workstation always runs the latest apt release without requiring a rebuild.
+    # F-0116: Antigravity IDE (apt package "antigravity") has been removed.
+    # The IDE is no longer installed via Docker image or boot script.
+    # The Hub (antigravity-hub tarball) continues to be installed by 07-apps.sh.
 
     # Install OpenCode via go install
     if ws_ssh "${NIX_SOURCE}"' && export GOROOT=$HOME/go GOPATH=$HOME/gopath && export PATH=$GOROOT/bin:$GOPATH/bin:$PATH && go install github.com/opencode-ai/opencode@latest'; then
@@ -920,12 +919,11 @@ if echo "$AI_MODULE_CHECK" | grep -q "full"; then
     echo "claude=$(~/.npm-global/bin/claude --version 2>/dev/null | head -1)"
     echo "gemini=$(~/.npm-global/bin/gemini --version 2>/dev/null | head -1)"
     echo "antigravity-cli=$(test -d $HOME/.gemini/antigravity-cli && echo exists || echo missing)"
-    echo "antigravity=$(which antigravity 2>/dev/null && antigravity --version 2>/dev/null | head -1 || echo missing)"
     ')
     echo "$AI_VERIFY" | grep -q "claude=.*Claude" && test_pass "Claude Code" || test_warn "Claude Code not verified"
     echo "$AI_VERIFY" | grep -q "gemini=[0-9]" && test_pass "Gemini CLI" || test_warn "Gemini CLI not verified"
     echo "$AI_VERIFY" | grep -q "antigravity-cli=exists" && test_pass "Antigravity CLI" || test_warn "Antigravity CLI not verified"
-    echo "$AI_VERIFY" | grep -q "/usr/bin/antigravity" && test_pass "Antigravity 2.0" || test_warn "Antigravity 2.0 not verified"
+    # F-0116: Antigravity 2.0 IDE verification removed — IDE has been removed.
 
 elif echo "$AI_MODULE_CHECK" | grep -q "minimal"; then
     # Minimal AI tools (dev profile): Claude Code only

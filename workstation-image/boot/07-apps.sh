@@ -24,11 +24,10 @@ runuser -u $USER -- mkdir -p "$LOG_DIR"
 
 log "=== App update started ==="
 
-# --- Upgrade Antigravity apt package ---
-log "Upgrading Antigravity apt package..."
-sudo apt-get update -qq >> "$LOG_FILE" 2>&1
-sudo apt-get install -y --only-upgrade antigravity >> "$LOG_FILE" 2>&1
-log "Antigravity apt upgrade done"
+# F-0116: Antigravity IDE apt upgrade removed.
+# The "antigravity" apt package (IDE, /usr/bin/antigravity) is no longer
+# installed — it shared app_id="antigravity" with the Hub and caused sway
+# placement collisions. No apt operations needed here for Antigravity.
 
 # --- Install/update Antigravity 2.0 Desktop App (Hub) ---
 # NOTE: URL version 2.0.10-5119448496078848 is hardcoded. Update this URL when a

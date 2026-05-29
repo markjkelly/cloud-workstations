@@ -117,17 +117,17 @@ fi
 # =============================================================================
 log ""
 log "--- Antigravity Tools ---"
-check_file "Antigravity 2.0 binary" "/usr/bin/antigravity"
+# F-0116: Antigravity IDE (/usr/bin/antigravity) removed — assert it is ABSENT.
+# The IDE shared app_id="antigravity" with the Hub and caused sway ws1 placement
+# collisions.  The Hub (below) must remain present and functional.
+if [ ! -f "/usr/bin/antigravity" ]; then
+    test_pass "Antigravity IDE absent (/usr/bin/antigravity not present — F-0116)"
+else
+    test_fail "Antigravity IDE still present at /usr/bin/antigravity (should be removed — F-0116)"
+fi
 check_dir "Antigravity CLI config" "$HOME_DIR/.gemini/antigravity-cli"
 check_dir "Antigravity Hub directory" "$HOME_DIR/.local/share/antigravity-hub"
 check_file "Antigravity Hub symlink" "$HOME_DIR/.local/bin/antigravity-hub"
-# Version check: boot script 07-apps.sh auto-upgrades antigravity via apt on every boot
-if runuser -u $USER -- /usr/bin/antigravity --version >/dev/null 2>&1; then
-    ANTIGRAV_VER=$(/usr/bin/antigravity --version 2>&1 | head -1)
-    test_pass "Antigravity 2.0 version: $ANTIGRAV_VER"
-else
-    test_warn "Antigravity 2.0 version check failed"
-fi
 # F-0107 / F-0110: verify Hub auto-launch configuration in 08-workspaces.sh.
 # F-0110 bumped the timeout from 30s → 90s and wrapped the Hub call site in a
 # { ... } redirect block, so the old single-line pattern no longer applies.
@@ -148,9 +148,12 @@ check_grep "Hub conditional ws1 switch (F-0110)" \
 check_grep "Hub launch has separate user-data-dir (F-0111)" \
     "user-data-dir=/home/user/.config/Antigravity-Hub" \
     "$HOME_DIR/boot/08-workspaces.sh"
-check_grep "IDE ws2 launch uses --disable-gpu (F-0111)" \
-    'ANTIGRAVITY.*--disable-gpu\|--disable-gpu.*ANTIGRAVITY' \
-    "$HOME_DIR/boot/08-workspaces.sh"
+# F-0116: IDE ws2 launch removed — assert the IDE launch block is absent
+if grep -qE 'launch_and_wait[[:space:]]+2[[:space:]].*ANTIGRAVITY' "$HOME_DIR/boot/08-workspaces.sh"; then
+    test_fail "08-workspaces.sh still launches IDE on ws2 via ANTIGRAVITY variable (F-0116 regression)"
+else
+    test_pass "08-workspaces.sh does NOT launch IDE on ws2 (F-0116)"
+fi
 # Negative check: --use-gl=swiftshader must not appear in any launch_and_wait call
 if grep -qE 'launch_and_wait.*--use-gl=swiftshader' "$HOME_DIR/boot/08-workspaces.sh"; then
     test_fail "08-workspaces.sh still has --use-gl=swiftshader in a launch_and_wait call (F-0111)"
@@ -370,7 +373,16 @@ check_grep "Wofi XDG_DATA_DIRS" "XDG_DATA_DIRS" "$SWAY_CFG"
 check_grep "Clipman keybinding" "mod+a.*clipman" "$SWAY_CFG"
 check_grep "Windsurf keybinding" "mod+w.*windsurf" "$SWAY_CFG"
 check_grep "Apps button click" "button1.*wofi" "$SWAY_CFG"
-check_grep "Antigravity CLI keybinding" "mod+g.*/usr/bin/antigravity" "$SWAY_CFG"
+# F-0116: Antigravity IDE keybindings removed — assert they are ABSENT
+if grep -qE 'bindsym.*mod\+g.*antigravity|bindsym.*mod\+n.*antigravity' "$SWAY_CFG"; then
+    test_fail "Sway config still has antigravity IDE keybinding(s) (\$mod+g or \$mod+n) — F-0116 regression"
+else
+    test_pass "Sway config has no antigravity IDE keybindings (\$mod+g/\$mod+n removed — F-0116)"
+fi
+# F-0116: Hub placement rule must be present
+check_grep "Hub placement rule: for_window app_id=antigravity to ws1 (F-0116)" \
+    'for_window \[app_id="antigravity"\] move container to workspace number 1' \
+    "$SWAY_CFG"
 check_grep "Snippet picker keybinding" "snippet-picker" "$SWAY_CFG"
 # F-0107: $mod+h keybinding conflict fix — must be exactly ONE workspace binding, not exec Hub.
 # F-0113: after Chrome/Hub workspace swap (F-0112), $mod+h must now be workspace 1 (Hub),
@@ -620,12 +632,12 @@ if [ -f "$WS_SCRIPT" ]; then
         test_fail "08-workspaces.sh ws1 does not launch Hub (line: $WS1_LINE) (F-0112)"
     fi
 
-    # ws2 must be Antigravity IDE
+    # ws2 must be empty (Antigravity IDE removed in F-0116)
     WS2_LINE=$(grep -nE '^[[:space:]]*launch_and_wait[[:space:]]+2[[:space:]]' "$WS_SCRIPT" | head -1)
-    if echo "$WS2_LINE" | grep -q '"\$ANTIGRAVITY"'; then
-        test_pass "08-workspaces.sh ws2 launches Antigravity IDE"
+    if [ -z "$WS2_LINE" ]; then
+        test_pass "08-workspaces.sh ws2 is empty (Antigravity IDE removed — F-0116)"
     else
-        test_fail "08-workspaces.sh ws2 does not launch Antigravity (line: $WS2_LINE)"
+        test_fail "08-workspaces.sh ws2 still has a launch_and_wait call (F-0116 regression): $WS2_LINE"
     fi
 
     # ws3 must be foot terminal
@@ -652,11 +664,11 @@ if [ -f "$WS_SCRIPT" ]; then
         test_fail "08-workspaces.sh ws5 does not launch Chrome (line: $WS5_LINE) (F-0112)"
     fi
 
-    # Header comment must reflect the F-0112 layout
-    if grep -qE '^#.*ws1 = Hub.*ws2 = Antigravity IDE.*ws5 = Chrome' "$WS_SCRIPT"; then
-        test_pass "08-workspaces.sh header comment reflects F-0112 layout"
+    # Header comment must reflect the F-0116 layout (ws2 empty, IDE removed)
+    if grep -qE '^#.*ws1 = Hub.*ws2 = \(empty\).*ws5 = Chrome' "$WS_SCRIPT"; then
+        test_pass "08-workspaces.sh header comment reflects F-0116 layout (ws2 empty)"
     else
-        test_fail "08-workspaces.sh header comment does not reflect F-0112 layout (ws1=Hub, ws5=Chrome)"
+        test_fail "08-workspaces.sh header comment does not reflect F-0116 layout (ws1=Hub, ws2=empty, ws5=Chrome)"
     fi
 
     # F-0110: launch_and_wait must return 1 on timeout so HUB_OK captures failure

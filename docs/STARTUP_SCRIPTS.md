@@ -52,18 +52,18 @@ systemd (after Sway starts)
   │         by the sway config's `exec /usr/bin/Xwayland -rootless :0`
   │         autostart — 08-workspaces.sh only re-launches if that
   │         is somehow absent — see F-0097)
-  │         F-0112 workspace layout: ws1 = Hub, ws2 = Antigravity IDE,
-  │         ws3 = foot, ws4 = foot, ws5 = Chrome. Hub is the default
-  │         landing workspace; Chrome is a background OAuth helper on ws5.
-  │         Launch order: Chrome (ws5) first so the IDE and Hub have a
-  │         browser available for their OAuth flows; Hub (ws1) second;
-  │         IDE (ws2) third; foot (ws3, ws4) last. Final focus: ws1 (Hub).
-  │         Electron flags (F-0111): all Electron apps (Hub ws1,
-  │         Antigravity IDE ws2, Chrome ws5) use --disable-gpu since this
-  │         host has no GPU (--use-gl=swiftshader still launched a GPU
-  │         child process that crashed in a loop). Hub (ws1) additionally
-  │         uses --user-data-dir=/home/user/.config/Antigravity-Hub to
-  │         avoid the Electron SingletonLock conflict with the IDE (ws2).
+  │         F-0116 workspace layout: ws1 = Hub, ws2 = empty (Antigravity
+  │         IDE removed in F-0116), ws3 = foot, ws4 = foot, ws5 = Chrome.
+  │         Hub is the default landing workspace; Chrome is a background
+  │         OAuth helper on ws5.
+  │         Launch order: Chrome (ws5) first, Hub (ws1) second,
+  │         foot (ws3, ws4) last. Final focus: ws1 (Hub).
+  │         Electron flags (F-0111): Hub and Chrome use --disable-gpu since
+  │         this host has no GPU. Hub uses --user-data-dir=
+  │         /home/user/.config/Antigravity-Hub for isolated Electron state.
+  │         F-0116 Hub placement: sway config has
+  │         for_window [app_id="antigravity"] → ws1, which pins the Hub's
+  │         BrowserWindow to ws1 regardless of async map timing.
   │         F-0115: gnome-keyring-daemon is started with empty-password
   │         unlock (--unlock --components=secrets) BEFORE any app launch
   │         so the Hub's language_server can persist and reload its OAuth
