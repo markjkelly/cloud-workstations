@@ -1,7 +1,7 @@
 # Project Backlog — Cloud Workstation
 
 **Maintained by:** TPM
-**Last updated:** 2026-05-29 (Milestone 31 — Remove Antigravity IDE and fix Hub ws1 placement)
+**Last updated:** 2026-05-29 (Milestone 32 — Hub boot resilience: readiness-based retry + instrumentation)
 
 ---
 
@@ -344,6 +344,14 @@ Tracks fork-only work that pre-dated or accompanied v1.17. All items are documen
 | ID | Feature | Spec | Priority | Status | Owner | Branch | Dependencies | Feedback |
 |----|---------|------|----------|--------|-------|--------|--------------|----------|
 | F-0116 | Remove Antigravity IDE and fix Hub window placement on workspace 1 | [F-0116](specs/F-0116-remove-antigravity-ide-hub-ws1-fix.md) | P0 | done | SWE-1 | feature/remove-antigravity-ide | F-0112, F-0115 | Root cause: Hub and IDE both report `app_id="antigravity"` to sway; Hub BrowserWindow maps asynchronously after `language_server` starts, landing on whichever workspace has focus at that point (not ws1). `--class=antigravity-hub` does not change the Electron app_id on the installed build. Fix: (1) removed Antigravity IDE from Dockerfile, `07-apps.sh`, `08-workspaces.sh`, sway keybindings (`$mod+n`, `$mod+g`), and `scripts/cloud-build-setup.sh`; (2) added `for_window [app_id="antigravity"] move container to workspace number 1` to sway config — now unambiguous since IDE is gone. Three-places persistence rule satisfied: repo sway config, `~/.config/home-manager/sway-config`, and live `~/.config/sway/config` all updated; `swaymsg reload` confirmed. `~/boot/08-workspaces.sh`, `~/boot/07-apps.sh`, `~/boot/10-tests.sh` synced live. `10-tests.sh`: removed IDE-presence assertions, added IDE-absent assertion, Hub placement rule assertion, removed-keybindings assertion, ws2-empty assertion. Live validation confirmed: Hub relaunched while focus on ws3, `for_window` rule moved window to ws1 (verified via `swaymsg -t get_tree`). |
+
+---
+
+## Milestone 32: Hub Boot Resilience
+
+| ID | Feature | Spec | Priority | Status | Owner | Branch | Dependencies | Feedback |
+|----|---------|------|----------|--------|-------|--------|--------------|----------|
+| F-0117 | Hub boot resilience: readiness-based wait, retry, and instrumentation | [F-0117](specs/F-0117-hub-boot-resilience.md) | P0 | done | SWE-1 | feature/hub-boot-resilience | F-0114, F-0115, F-0116 | Root cause: language_server intermittently fails to reach "listening" at cold boot; `launch_and_wait` waits only for a sway window, so a renderer-less Hub sits alive but invisible and is never retried. Fix: (1) readiness-based wait — poll language_server HTTPS port in LISTEN state (via `/proc/<pid>/net/tcp6`) in addition to sway window; (2) retry loop up to `HUB_MAX_RETRIES=3` — on failure kill stale processes + clear Singleton*, relaunch, log each attempt; (3) named constants `HUB_LAUNCH_TIMEOUT` and `HUB_MAX_RETRIES`; (4) instrumentation log `~/logs/language_server_boot_diag.log` capturing boot environment and retry timeline. Sway `for_window` rule (F-0116) preserved. Boot-script-only fix; PO can test by rebooting. `~/boot/08-workspaces.sh` and `~/boot/10-tests.sh` synced live. `docs/STARTUP_SCRIPTS.md` updated. |
 
 ---
 

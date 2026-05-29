@@ -128,13 +128,14 @@ fi
 check_dir "Antigravity CLI config" "$HOME_DIR/.gemini/antigravity-cli"
 check_dir "Antigravity Hub directory" "$HOME_DIR/.local/share/antigravity-hub"
 check_file "Antigravity Hub symlink" "$HOME_DIR/.local/bin/antigravity-hub"
-# F-0107 / F-0110: verify Hub auto-launch configuration in 08-workspaces.sh.
+# F-0107 / F-0110 / F-0117: verify Hub auto-launch configuration in 08-workspaces.sh.
 # F-0110 bumped the timeout from 30s → 90s and wrapped the Hub call site in a
-# { ... } redirect block, so the old single-line pattern no longer applies.
-# F-0112: Hub moved from ws5 → ws1; test updated to check ws1 (launch_and_wait 1 90).
-# Three tests verify the F-0110 / F-0112 changes.
-check_grep "Hub ws1 timeout is 90s (F-0110/F-0112)" \
-    "launch_and_wait 1 90" \
+# { ... } redirect block.  F-0112 moved Hub from ws5 → ws1.
+# F-0117 replaced the single-shot launch_and_wait 1 90 with a readiness-based
+# retry loop using HUB_LAUNCH_TIMEOUT=90.  The old "launch_and_wait 1 90" pattern
+# no longer applies; the timeout value now lives in the HUB_LAUNCH_TIMEOUT constant.
+check_grep "Hub timeout is 90s via HUB_LAUNCH_TIMEOUT constant (F-0110/F-0112/F-0117)" \
+    "HUB_LAUNCH_TIMEOUT=90" \
     "$HOME_DIR/boot/08-workspaces.sh"
 check_grep "Hub stderr redirected to hub-launch.log (F-0110)" \
     "hub-launch.log" \
@@ -214,6 +215,43 @@ if [ -f "$WS_SCRIPT_F0115" ]; then
         "$WS_SCRIPT_F0115"
 else
     test_fail "08-workspaces.sh not found at $WS_SCRIPT_F0115 (F-0115 check)"
+fi
+
+# F-0117: Hub boot resilience — readiness-based wait, retry, and instrumentation.
+# Verify the new resilience logic exists in 08-workspaces.sh:
+#   (a) named constants HUB_LAUNCH_TIMEOUT and HUB_MAX_RETRIES present
+#   (b) hub_language_server_ready() function present (language_server port-listening poll)
+#   (c) language_server /proc/net/tcp6 LISTEN socket check present
+#   (d) HUB_LS_LOG (new instrumentation log path) referenced
+#   (e) retry loop present (_kill_stale_hub called on failure + attempt counter)
+WS_SCRIPT_F0117="$HOME_DIR/boot/08-workspaces.sh"
+if [ -f "$WS_SCRIPT_F0117" ]; then
+    check_grep "F-0117: HUB_LAUNCH_TIMEOUT constant present" \
+        'HUB_LAUNCH_TIMEOUT=' \
+        "$WS_SCRIPT_F0117"
+    check_grep "F-0117: HUB_MAX_RETRIES constant present" \
+        'HUB_MAX_RETRIES=' \
+        "$WS_SCRIPT_F0117"
+    check_grep "F-0117: hub_language_server_ready() function present" \
+        'hub_language_server_ready' \
+        "$WS_SCRIPT_F0117"
+    check_grep "F-0117: language_server /proc/net/tcp6 LISTEN-state poll present" \
+        '/proc/net/tcp6' \
+        "$WS_SCRIPT_F0117"
+    check_grep "F-0117: HUB_LS_LOG instrumentation log path referenced" \
+        'HUB_LS_LOG=' \
+        "$WS_SCRIPT_F0117"
+    check_grep "F-0117: retry loop uses _kill_stale_hub helper" \
+        '_kill_stale_hub' \
+        "$WS_SCRIPT_F0117"
+    check_grep "F-0117: retry attempt counter (hub_attempt) present" \
+        'hub_attempt=' \
+        "$WS_SCRIPT_F0117"
+    check_grep "F-0117: language_server_boot_diag.log path in HUB_LS_LOG constant" \
+        'language_server_boot_diag.log' \
+        "$WS_SCRIPT_F0117"
+else
+    test_fail "08-workspaces.sh not found at $WS_SCRIPT_F0117 (F-0117 check)"
 fi
 
 # =============================================================================
@@ -614,22 +652,27 @@ else
 fi
 
 # =============================================================================
-# F-0098 / F-0112: Workspace autostart layout and launch order
+# F-0098 / F-0112 / F-0117: Workspace autostart layout and launch order
 # =============================================================================
-# F-0112 layout: ws1 = Hub, ws2 = Antigravity IDE, ws3 = foot, ws4 = foot, ws5 = Chrome.
-# Launch order in script: Chrome (ws5) first (needed for OAuth), then Hub (ws1),
-# IDE (ws2), foot (ws3), foot (ws4).
-# Verify each workspace number maps to the correct app.
+# F-0117 note: ws1 Hub is now launched via the resilient retry loop (not via a
+# bare launch_and_wait 1 90 call).  The ws1 check is updated to verify that
+# the HUB variable is referenced within the retry loop block, and that the loop
+# switches to workspace 1 before each attempt.
+# F-0112 layout: ws1 = Hub, ws2 = empty, ws3 = foot, ws4 = foot, ws5 = Chrome.
+# Launch order in script: Chrome (ws5) first (needed for OAuth), then Hub (ws1,
+# retry loop), foot (ws3), foot (ws4).
 log ""
-log "--- Workspace autostart layout (F-0098/F-0112) ---"
+log "--- Workspace autostart layout (F-0098/F-0112/F-0117) ---"
 WS_SCRIPT="$HOME_DIR/boot/08-workspaces.sh"
 if [ -f "$WS_SCRIPT" ]; then
-    # ws1 must be Hub (grep for literal $HUB variable reference)
-    WS1_LINE=$(grep -nE '^[[:space:]]*launch_and_wait[[:space:]]+1[[:space:]]' "$WS_SCRIPT" | head -1)
-    if echo "$WS1_LINE" | grep -q '\$HUB'; then
-        test_pass "08-workspaces.sh ws1 launches Hub (F-0112)"
+    # ws1 must be Hub.  F-0117: the Hub is launched via the resilient retry loop,
+    # which references $HUB and explicitly calls sway_cmd "workspace number 1"
+    # before each attempt.  Verify both signals: $HUB referenced in the launch
+    # block AND workspace-1 switch present in the retry section.
+    if grep -q '\$HUB' "$WS_SCRIPT" && grep -q 'sway_cmd "workspace number 1"' "$WS_SCRIPT"; then
+        test_pass "08-workspaces.sh ws1 launches Hub via retry loop (F-0112/F-0117)"
     else
-        test_fail "08-workspaces.sh ws1 does not launch Hub (line: $WS1_LINE) (F-0112)"
+        test_fail "08-workspaces.sh ws1 Hub retry loop: \$HUB or workspace-1 switch missing (F-0112/F-0117)"
     fi
 
     # ws2 must be empty (Antigravity IDE removed in F-0116)

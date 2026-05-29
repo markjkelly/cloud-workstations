@@ -1,5 +1,42 @@
 # Release Notes — Cloud Workstation
 
+## v1.24.10 — Hub boot resilience: readiness-based retry and instrumentation (2026-05-29)
+
+### Fixed
+- **Workspace 1 blank after cold boot — intermittent language_server non-readiness**
+  (F-0117) — Root cause: the Hub's bundled `language_server` intermittently fails to
+  reach "listening" state at cold boot. Without a listening server, Electron never fires
+  the "Port changed!" event; the BrowserWindow is never navigated, no renderer process
+  starts, and no `app_id=antigravity` window maps in sway. The prior single-shot
+  `launch_and_wait 1 90` detected only sway windows and did not retry — the Hub stayed
+  alive but renderer-less and ws1 remained blank.
+
+### Changed
+- **`workstation-image/boot/08-workspaces.sh`** — Three additions:
+  - **Named constants** `HUB_LAUNCH_TIMEOUT=90`, `HUB_MAX_RETRIES=3`,
+    `HUB_LS_LOG=/home/user/logs/language_server_boot_diag.log`
+  - **`hub_language_server_ready()` function** — polls the `language_server` PID for a
+    TCP socket in LISTEN state via `/proc/<pid>/net/tcp6` (hex state `0A`), falling back
+    to `/proc/net/tcp6` and `/proc/net/tcp`. Returns 0 (ready) when a LISTEN socket is
+    found; returns 1 if the PID is absent or no socket is open.
+  - **Readiness-based retry loop** — replaces the single-shot `launch_and_wait 1 90`
+    call. Each attempt (up to `HUB_MAX_RETRIES=3`) polls `hub_language_server_ready()`
+    as the primary signal and a sway window on ws1 as the secondary signal. On failure:
+    captures diagnostics to `HUB_LS_LOG`, kills stale processes via `_kill_stale_hub()`
+    (same safe pgrep/exe-path filtering as F-0114), removes `Singleton*` lock files,
+    and relaunches. All prior flags and behavior fully preserved.
+- **`workstation-image/boot/10-tests.sh`** — 8 new F-0117 tests; updated F-0110/F-0112
+  timeout test and ws1 layout test to match the new retry-loop structure.
+- **`docs/STARTUP_SCRIPTS.md`** — new `~/logs/language_server_boot_diag.log` log entry;
+  F-0117 readiness/retry description added to the `ws-autolaunch` section.
+
+### Notes
+- **Boot-script-only change** — no image rebuild required. Test by rebooting.
+- On a successful boot `language_server_boot_diag.log` receives only a header line.
+  On a boot where retries fire, the log contains diagnostic data for a targeted fix.
+- The residual `Antigravity IDE absent` test FAIL (pre-existing from F-0116) requires
+  a Docker image rebuild via `ws.sh setup` — unrelated to this fix.
+
 ## v1.24.9 — Remove Antigravity IDE; fix Hub window placement on ws1 (2026-05-29)
 
 ### Fixed

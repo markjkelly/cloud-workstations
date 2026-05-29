@@ -71,6 +71,14 @@ systemd (after Sway starts)
   │         exported to all launched app processes. Startup is idempotent
   │         (pgrep guard); missing binary logs WARNING and boot continues.
   │         Requires /usr/bin/gnome-keyring-daemon (present in base image).
+  │         F-0117: Hub launch uses a readiness-based retry loop instead of
+  │         a single-shot window-wait. Each attempt (up to HUB_MAX_RETRIES=3)
+  │         polls the language_server HTTPS port in LISTEN state via
+  │         /proc/<pid>/net/tcp6 as the primary readiness signal, falling
+  │         back to a sway window appearing on ws1. On failure: stale Hub
+  │         processes are killed (safe pgrep/exe-path filter), Singleton*
+  │         locks cleared, diagnostics written to
+  │         ~/logs/language_server_boot_diag.log, then Hub is relaunched.
   └── ws-boot-tests.service (After=ws-autolaunch, 30s delay)
         └── 10-tests.sh (run ~82 verification tests)
 ```
@@ -80,6 +88,7 @@ systemd (after Sway starts)
 | File | Content |
 |------|---------|
 | `~/logs/hub-launch.log` | 08-workspaces.sh Hub launch output — stdout+stderr from the Antigravity Hub process; append mode with `=== Hub launch: YYYY-MM-DD HH:MM:SS ===` header per boot (F-0110) |
+| `~/logs/language_server_boot_diag.log` | 08-workspaces.sh Hub resilience diagnostics (F-0117) — written only when a launch attempt fails. Contains: attempt number/timestamp, `uptime` output, language_server PID and process status headers, Hub Electron PIDs, key environment variables (WAYLAND_DISPLAY, DBUS_ADDR, SWAYSOCK), and `/proc/net/tcp6` + `/proc/net/tcp` LISTEN socket snapshots. Used to diagnose the intermittent cold-boot language_server non-readiness failure. |
 | `~/logs/sync.log` | 06-sync.sh output (git pull, boot script sync, sway config sync) |
 | `~/logs/app-update.log` | 07-apps.sh output (npm updates, home-manager switch) |
 | `~/logs/language-install.log` | 07b-languages.sh output (Go, Rust, Python, Ruby) |
