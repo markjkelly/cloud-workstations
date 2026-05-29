@@ -1,5 +1,54 @@
 # Development Progress Log — Cloud Workstation
 
+## Session 20 — 2026-05-29
+
+### Goals
+- Complete Antigravity 2.0 + CLI implementation (Milestone 16, F-0088 through F-0094)
+- Update docs and close the milestone
+
+### Completed
+
+- **F-0088** (Install Antigravity CLI via curl): SWE-1 added idempotent install block to `workstation-image/boot/07-apps.sh`. Installs on first boot if binary not found, re-runs installer on every subsequent boot for updates. Install command: `curl -fsSL https://antigravity.google/cli/install.sh | bash`. Logged to `$LOG_FILE`.
+
+- **F-0089** (Dockerfile comment update): SWE-1 updated comment in `workstation-image/Dockerfile` to note that auto-updater repo delivers Antigravity 2.0 automatically. Legacy apt package `antigravity` remains in base image; auto-updater handles the 2.0 upgrade on boot.
+
+- **F-0090** (Sway config keybinding): SWE-2 updated `workstation-image/configs/sway/config`:
+  - Comment updated: "Antigravity 2.0 desktop app"
+  - `$mod+a` correctly kept as Clipman (was accidentally changed, then fixed)
+  - `$mod+g` added for Antigravity CLI (launches in foot terminal with `$mod+g`)
+  - Tests added to verify keybindings survive future edits
+
+- **F-0091** (Workspace 3 autostart): SWE-2 updated `workstation-image/boot/08-workspaces.sh` comment for workspace 3 to reference Antigravity 2.0. Binary path `/usr/bin/antigravity` confirmed, timeout 30s retained.
+
+- **F-0092** (Boot tests for Antigravity): SWE-2 added two new tests to `workstation-image/boot/10-tests.sh`:
+  - Antigravity 2.0 binary at `/usr/bin/antigravity` (check_file test)
+  - Antigravity CLI at `~/.local/bin/antigravity-cli` or on PATH (check_path test)
+
+- **F-0093** (Setup script integration): SWE-3 updated `scripts/cloud-build-setup.sh`:
+  - Added Antigravity CLI install step (curl command) during fresh provisioning
+  - Updated final verification step to check for both `antigravity` (2.0 binary) and `antigravity-cli`
+
+- **F-0094** (Shell PATH confirmation): SWE-3 confirmed `~/.local/bin` already in PATH in `workstation-image/boot/05-shell.sh` (no change needed). Added clarifying comment to document that CLI will be found automatically.
+
+### Key Decisions
+- **Antigravity 2.0 delivery**: Uses same apt package name; auto-updater repo delivers 2.0 automatically, no apt change needed
+- **Antigravity CLI keybinding**: `$mod+g` (not `$mod+a` which is Clipman), launches CLI in foot terminal
+- **Gemini CLI preserved**: Kept during transition period alongside new CLI tools
+- **PATH handling**: `~/.local/bin` already in PATH via 05-shell.sh, no manual configuration needed
+
+### Pipeline
+- SWE-1: F-0088, F-0089 (app install + dockerfile)
+- SWE-2: F-0090, F-0091, F-0092 (sway config + workspace + tests)
+- SWE-3: F-0093, F-0094 (setup script + shell path)
+- All items marked `done`, all changes on `main` branch
+
+### Next Steps
+- E2E verification: confirm CLI installs correctly after teardown+setup
+- Verify Antigravity 2.0 is actually delivered by auto-updater repo (check version after next boot)
+- Tag v1.17 release after PO approval
+
+---
+
 ## Session 19 — 2026-04-15
 
 ### Goals
