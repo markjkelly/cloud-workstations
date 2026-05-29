@@ -1,5 +1,61 @@
 # Development Progress Log — Cloud Workstation
 
+## Session 31 — 2026-05-29 (F-0113: Remap workspace keybindings after Chrome/Hub swap)
+
+### Goals
+- Fix keybinding/workspace mismatch left by F-0112: `$mod+h` was pointing to ws5 (Chrome) but `h` is the Hub mnemonic
+- Remap `$mod+h` → ws1 (Hub) and `$mod+u` → ws5 (Chrome)
+- Apply to all three config locations (three-places rule), reload sway live, update tests and docs
+
+### Completed
+- **Prerequisite**: Merged PR #22 (F-0112) into main; created and pushed tag v1.24.5.
+- **PM** authored `docs/specs/F-0113-remap-workspace-keys.md`
+- **TPM** added F-0113 to `docs/BACKLOG.md` under new Milestone 28, marked done
+- **SWE** updated workspace keybindings in `workstation-image/configs/sway/config`:
+  - `bindsym $mod+h workspace number 1` (was 5)
+  - `bindsym $mod+u workspace number 5` (was 1)
+  - `bindsym $mod+Alt+h move container to workspace number 1` (was 5)
+  - `bindsym $mod+Alt+u move container to workspace number 5` (was 1)
+  - Added layout comment to workspace section: `ws1=Hub($mod+h), ws2=IDE($mod+i), ...`
+- **Three-places rule applied**:
+  1. Repo: `workstation-image/configs/sway/config` — updated
+  2. Home-manager source: `~/.config/home-manager/sway-config` — identical change applied; `diff` confirms files are byte-identical
+  3. `scripts/cloud-build-setup.sh` — deploys via `cat workstation-image/configs/sway/config > ~/.config/home-manager/sway-config` (lines 657-658) and `~/.config/sway/config` (lines 731-732); no inline edit needed — verified
+  4. Live `~/.config/sway/config` — updated directly (plain file, not a symlink on this workstation)
+- **Live reload**: `SWAYSOCK=/run/user/1000/sway-ipc.1000.3430.sock swaymsg reload` → `{"success":true}` — no parse errors
+- **Live verification**: `swaymsg -t get_config` confirms `bindsym $mod+h workspace number 1`, `bindsym $mod+u workspace number 5`, and both Alt+move bindings are live in the running compositor
+- **SWE** updated `workstation-image/boot/10-tests.sh`:
+  - Old F-0107 test "mod+h is workspace 5" replaced with F-0113 test "mod+h is workspace 1"
+  - New test: "mod+u is workspace 5"
+  - New tests: move-container bindings mod+Alt+h → ws1, mod+Alt+u → ws5
+- **~/boot/10-tests.sh** synced (diff confirms identical)
+- **Docs**: `docs/specs/sway-keybindings.md` cheat sheet updated — H→ws1(Hub), U→ws5(Chrome), with layout note and app labels
+- **Static validation**: all four new test assertions manually confirmed PASS against live config
+
+### Key Decisions
+- **Why `$mod+u` gets Chrome (ws5)**: After the F-0112 swap, `$mod+u` was orphaned (pointing to ws1 but with no mnemonic meaning). Giving it Chrome (ws5) keeps the 8-key sequence U/I/O/P/H/J/K/L contiguous and fills the gap. The `u` key has no competing semantic claim.
+- **Why not introduce a `$mod+c` for Chrome**: The existing binding scheme uses a positional 8-key row (U-L) rather than semantic single-letter shortcuts for workspaces. Inserting `c` would break the pattern. `$mod+u` (position 5 in the row, but physically at the start) is the natural displaced key to assign.
+- **`cloud-build-setup.sh` needs no inline edit**: It already cats the repo sway config directly — any repo change is automatically deployed on next setup. Verified at lines 657-658 and 731-732.
+
+### Files Changed
+- `workstation-image/configs/sway/config` — keybinding remap (h↔u for ws1/ws5)
+- `~/.config/home-manager/sway-config` — identical remap (home-manager source of truth, live)
+- `~/.config/sway/config` — live config updated directly and reloaded via swaymsg
+- `workstation-image/boot/10-tests.sh` — F-0107 test updated, 3 new F-0113 tests added
+- `~/boot/10-tests.sh` — live copy synced
+- `docs/specs/F-0113-remap-workspace-keys.md` — new spec
+- `docs/specs/sway-keybindings.md` — cheat sheet updated
+- `docs/BACKLOG.md` — F-0113 row added, milestone 28 header added
+- `docs/PROGRESS.md` — this entry
+- `docs/RELEASENOTES.md` — v1.24.6 entry added
+
+### Next Steps
+- After PO approval: merge PR, tag v1.24.6, push tag
+- On next workstation reboot: boot tests should PASS for F-0113 keybinding assertions
+- Consider adding a workspace label or status bar indicator showing current app for ws1/ws5
+
+---
+
 ## Session 30 — 2026-05-29 (F-0112: Swap Chrome/Hub workspaces)
 
 ### Goals

@@ -1,5 +1,38 @@
 # Release Notes — Cloud Workstation
 
+## v1.24.6 — Remap workspace keybindings after Chrome/Hub swap (2026-05-29)
+
+### Fixed
+- **Keybinding mnemonic mismatch** (F-0113) — After F-0112 swapped the workspace assignments
+  (ws1=Hub, ws5=Chrome), the sway keybindings were still pointing at the old numbers:
+  - `$mod+h` (Hub mnemonic) was going to ws5, which is now Chrome — wrong
+  - `$mod+u` was going to ws1, which is now Hub — no mnemonic meaning, confusing
+
+### Changed
+- **`workstation-image/configs/sway/config`** — Four bindings remapped:
+  - `bindsym $mod+h workspace number 1` (was 5 — now correctly reaches the Hub)
+  - `bindsym $mod+u workspace number 5` (was 1 — now reaches Chrome)
+  - `bindsym $mod+Alt+h move container to workspace number 1` (was 5)
+  - `bindsym $mod+Alt+u move container to workspace number 5` (was 1)
+  - Layout comment added to workspace section for future reference
+- **`~/.config/home-manager/sway-config`** — Identical change applied (Home Manager source)
+- **`~/.config/sway/config`** — Live config updated and reloaded (`swaymsg reload` → success)
+- **`workstation-image/boot/10-tests.sh`** — Tests updated:
+  - F-0107 test corrected: asserts `$mod+h` → workspace 1 (was checking for workspace 5)
+  - New test: `$mod+u` → workspace 5
+  - New tests: `$mod+Alt+h` move → ws1, `$mod+Alt+u` move → ws5
+- **`docs/specs/sway-keybindings.md`** — Cheat sheet updated: H→ws1(Hub), U→ws5(Chrome),
+  with boot layout reference note and app labels for ws1–ws5
+
+### Notes
+- `~/boot/10-tests.sh` synced live. `scripts/cloud-build-setup.sh` deploys sway config via
+  `cat` pipe from repo — no inline edit needed (verified lines 657-658, 731-732).
+- Live reload validated: `swaymsg reload` returned `{"success":true}` via SWAYSOCK.
+  `swaymsg -t get_config` confirms all four new bindings are active in the running compositor.
+- PO does not need to reboot to use the new keybindings — they are live immediately.
+
+---
+
 ## v1.24.5 — Swap Chrome and Hub workspace assignments (2026-05-29)
 
 ### Changed
