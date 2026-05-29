@@ -317,19 +317,36 @@ check_grep "Windsurf keybinding" "mod+w.*windsurf" "$SWAY_CFG"
 check_grep "Apps button click" "button1.*wofi" "$SWAY_CFG"
 check_grep "Antigravity CLI keybinding" "mod+g.*/usr/bin/antigravity" "$SWAY_CFG"
 check_grep "Snippet picker keybinding" "snippet-picker" "$SWAY_CFG"
-# F-0107: $mod+h keybinding conflict fix — must be ONLY workspace number 5, not exec Hub.
-# Hub is auto-launched in ws5 by 08-workspaces.sh; $mod+h just switches to ws5.
+# F-0107: $mod+h keybinding conflict fix — must be exactly ONE workspace binding, not exec Hub.
+# F-0113: after Chrome/Hub workspace swap (F-0112), $mod+h must now be workspace 1 (Hub),
+#         and $mod+u must be workspace 5 (Chrome). Mnemonics now match the boot layout.
 SWAY_MOD_H_COUNT=$(grep -c "bindsym.*\$mod+h" "$SWAY_CFG")
 if [ "$SWAY_MOD_H_COUNT" -eq 1 ]; then
-    # Should be the workspace binding, not exec
-    if grep -q "bindsym \$mod+h workspace number 5" "$SWAY_CFG"; then
-        test_pass "Keybinding \$mod+h is workspace 5 (unique, no exec duplicate)"
+    # Should be the workspace binding pointing to ws1 (Hub), not exec and not ws5
+    if grep -q "bindsym \$mod+h workspace number 1" "$SWAY_CFG"; then
+        test_pass "Keybinding \$mod+h is workspace 1 / Hub (unique, no exec duplicate) (F-0113)"
     else
-        test_fail "Keybinding \$mod+h exists but is not workspace 5 (found exec?)"
+        test_fail "Keybinding \$mod+h exists but is not workspace 1 — F-0113 remap may be missing"
     fi
 else
     test_fail "Keybinding \$mod+h appears $SWAY_MOD_H_COUNT times (should be 1)"
 fi
+# F-0113: $mod+u must now be workspace 5 (Chrome) — not workspace 1 (orphaned pre-F-0113 slot)
+SWAY_MOD_U_COUNT=$(grep -c "bindsym.*\$mod+u" "$SWAY_CFG")
+if [ "$SWAY_MOD_U_COUNT" -eq 1 ]; then
+    if grep -q "bindsym \$mod+u workspace number 5" "$SWAY_CFG"; then
+        test_pass "Keybinding \$mod+u is workspace 5 / Chrome (F-0113)"
+    else
+        test_fail "Keybinding \$mod+u exists but is not workspace 5 — F-0113 remap may be missing"
+    fi
+else
+    test_fail "Keybinding \$mod+u appears $SWAY_MOD_U_COUNT times (should be 1)"
+fi
+# F-0113: move-container bindings must also be remapped
+check_grep "Move container \$mod+Alt+h to ws1 / Hub" \
+    "bindsym.*\$mod+Alt+h move container to workspace number 1" "$SWAY_CFG"
+check_grep "Move container \$mod+Alt+u to ws5 / Chrome" \
+    "bindsym.*\$mod+Alt+u move container to workspace number 5" "$SWAY_CFG"
 # F-0095: foot CWD drift guard. Standardized on
 # --working-directory=/home/user (commits 0dd33b3, 20d3352). The earlier
 # "cd ~ && $nix/foot" style from F-0087 does not work in sway exec without

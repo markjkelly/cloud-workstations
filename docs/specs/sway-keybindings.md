@@ -43,25 +43,28 @@ The main modifier is: **CTRL + SHIFT**
 ## Workspace Management
 
 ### Switch to Workspace
+Boot layout (F-0112/F-0113): ws1=Hub, ws2=Antigravity IDE, ws3=foot, ws4=foot, ws5=Chrome
+
 | Key Combination | Action |
 | :--- | :--- |
-| `CTRL+SHIFT+U` | Switch to workspace 1 |
-| `CTRL+SHIFT+I` | Switch to workspace 2 |
-| `CTRL+SHIFT+O` | Switch to workspace 3 |
-| `CTRL+SHIFT+P` | Switch to workspace 4 |
-| `CTRL+SHIFT+H` | Switch to workspace 5 |
+| `CTRL+SHIFT+H` | Switch to workspace 1 (Hub) |
+| `CTRL+SHIFT+I` | Switch to workspace 2 (Antigravity IDE) |
+| `CTRL+SHIFT+O` | Switch to workspace 3 (foot terminal) |
+| `CTRL+SHIFT+P` | Switch to workspace 4 (foot terminal) |
+| `CTRL+SHIFT+U` | Switch to workspace 5 (Chrome) |
 | `CTRL+SHIFT+J` | Switch to workspace 6 |
 | `CTRL+SHIFT+K` | Switch to workspace 7 |
 | `CTRL+SHIFT+L` | Switch to workspace 8 |
 
 ### Move Window to Workspace
+
 | Key Combination | Action |
 | :--- | :--- |
-| `CTRL+SHIFT+ALT+U` | Move window to workspace 1 |
-| `CTRL+SHIFT+ALT+I` | Move window to workspace 2 |
-| `CTRL+SHIFT+ALT+O` | Move window to workspace 3 |
-| `CTRL+SHIFT+ALT+P` | Move window to workspace 4 |
-| `CTRL+SHIFT+ALT+H` | Move window to workspace 5 |
+| `CTRL+SHIFT+ALT+H` | Move window to workspace 1 (Hub) |
+| `CTRL+SHIFT+ALT+I` | Move window to workspace 2 (Antigravity IDE) |
+| `CTRL+SHIFT+ALT+O` | Move window to workspace 3 (foot terminal) |
+| `CTRL+SHIFT+ALT+P` | Move window to workspace 4 (foot terminal) |
+| `CTRL+SHIFT+ALT+U` | Move window to workspace 5 (Chrome) |
 | `CTRL+SHIFT+ALT+J` | Move window to workspace 6 |
 | `CTRL+SHIFT+ALT+K` | Move window to workspace 7 |
 | `CTRL+SHIFT+ALT+L` | Move window to workspace 8 |

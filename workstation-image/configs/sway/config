@@ -168,12 +168,14 @@ floating_modifier Mod4 normal
 
 # -----------------------------------------------------------------------------
 # Workspaces — Switch (CTRL+SHIFT + key)
+# Layout (F-0113): ws1=Hub($mod+h), ws2=IDE($mod+i), ws3=foot($mod+o),
+#                  ws4=foot($mod+p), ws5=Chrome($mod+u), ws6-8($mod+j/k/l)
 # -----------------------------------------------------------------------------
-bindsym $mod+u workspace number 1
+bindsym $mod+h workspace number 1
 bindsym $mod+i workspace number 2
 bindsym $mod+o workspace number 3
 bindsym $mod+p workspace number 4
-bindsym $mod+h workspace number 5
+bindsym $mod+u workspace number 5
 bindsym $mod+j workspace number 6
 bindsym $mod+k workspace number 7
 bindsym $mod+l workspace number 8
@@ -181,11 +183,11 @@ bindsym $mod+l workspace number 8
 # -----------------------------------------------------------------------------
 # Workspaces — Move Window (CTRL+SHIFT+ALT + key)
 # -----------------------------------------------------------------------------
-bindsym $mod+Alt+u move container to workspace number 1
+bindsym $mod+Alt+h move container to workspace number 1
 bindsym $mod+Alt+i move container to workspace number 2
 bindsym $mod+Alt+o move container to workspace number 3
 bindsym $mod+Alt+p move container to workspace number 4
-bindsym $mod+Alt+h move container to workspace number 5
+bindsym $mod+Alt+u move container to workspace number 5
 bindsym $mod+Alt+j move container to workspace number 6
 bindsym $mod+Alt+k move container to workspace number 7
 bindsym $mod+Alt+l move container to workspace number 8
