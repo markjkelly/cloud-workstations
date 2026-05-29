@@ -56,12 +56,11 @@ RUN apt-get update && apt-get install -y \
   rm -rf /var/lib/apt/lists/* && \
   chmod -x /usr/lib/ubuntu-release-upgrader/check-new-release-gtk
 
-# Install Antigravity via auto-updater repo (installs latest version, including 2.0 when available)
-RUN mkdir -p /etc/apt/keyrings && \
-    curl -fsSL https://us-central1-apt.pkg.dev/doc/repo-signing-key.gpg | gpg --dearmor -o /etc/apt/keyrings/antigravity-repo-key.gpg && \
-    echo "deb [signed-by=/etc/apt/keyrings/antigravity-repo-key.gpg] https://us-central1-apt.pkg.dev/projects/antigravity-auto-updater-dev/ antigravity-debian main" | tee /etc/apt/sources.list.d/antigravity.list > /dev/null && \
-    apt-get update && \
-    apt-get install -y antigravity
+# F-0116: Antigravity IDE (apt package "antigravity") removed.
+# The IDE shared app_id="antigravity" with the Hub, causing sway placement
+# collisions that made the Hub window vanish from ws1.  The Hub is installed
+# at runtime by 07-apps.sh (tarball to ~/.local/share/antigravity-hub/) and
+# does NOT require the apt repo.
 
 # Install Google Chrome
 RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmor -o /usr/share/keyrings/google-chrome-keyring.gpg && \

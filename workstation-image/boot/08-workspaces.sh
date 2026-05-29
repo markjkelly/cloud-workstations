@@ -3,7 +3,7 @@
 # 08-workspaces.sh — Auto-launch apps across 5 Sway workspaces
 # =============================================================================
 # Waits for Sway to be ready, then launches:
-#   ws1 = Hub, ws2 = Antigravity IDE, ws3 = foot terminal, ws4 = foot terminal, ws5 = Chrome
+#   ws1 = Hub, ws2 = (empty), ws3 = foot terminal, ws4 = foot terminal, ws5 = Chrome
 # Idempotent: skips if windows already exist.
 # Runs as systemd service (ws-autolaunch) after wayvnc.service.
 # =============================================================================
@@ -12,7 +12,6 @@ USER="user"
 NIX="/home/user/.nix-profile/bin"
 SWAYMSG="$NIX/swaymsg"
 FOOT="$NIX/foot"
-ANTIGRAVITY="/usr/bin/antigravity"
 HUB="/home/user/.local/bin/antigravity-hub"
 DBUS_ADDR="unix:path=/run/user/1000/bus"
 
@@ -151,9 +150,10 @@ else
 fi
 
 # =============================================================================
-# Launch order: Chrome first (fast, needed for IDE OAuth), then Hub (ws1,
-# slow — OAuth may delay first paint), then IDE (ws2, needs Chrome for auth),
-# then foot terminals (ws3, ws4).  Final focused workspace is ws1 (Hub).
+# Launch order: Chrome first (fast, needed for OAuth), then Hub (ws1,
+# slow — OAuth may delay first paint), then foot terminals (ws3, ws4).
+# ws2 is intentionally empty (Antigravity IDE removed in F-0116).
+# Final focused workspace is ws1 (Hub).
 # =============================================================================
 
 # Workspace 5: Google Chrome (Electron — 15s timeout)
@@ -250,28 +250,19 @@ else
     log "WARNING: Hub not found at $HUB — skipping ws1"
 fi
 
-# Workspace 2: Antigravity 2.0 desktop app (Electron — 30s timeout)
-# F-0111: --disable-gpu (swiftshader still launched a crashing GPU child process
-# on a GPU-less host; --disable-gpu prevents the GPU process from starting at all).
-if [ -x "$ANTIGRAVITY" ]; then
-    launch_and_wait 2 30 "$ANTIGRAVITY" --no-sandbox --ozone-platform=wayland --disable-gpu --disable-dev-shm-usage
-else
-    log "WARNING: Antigravity not found at $ANTIGRAVITY — skipping ws2"
-fi
-
 # Workspace 3: foot terminal (fast — 5s timeout)
 launch_and_wait 3 5 "$FOOT" --working-directory=/home/user
 
 # Workspace 4: foot terminal (fast — 5s timeout)
 launch_and_wait 4 5 "$FOOT" --working-directory=/home/user
 
-# F-0112 focus logic: Hub is on ws1 — always end on ws1.
+# F-0112/F-0116 focus logic: Hub is on ws1 — always end on ws1.
 # On success (HUB_OK=0): sway_cmd to ws1 is a no-op (already there after ws3/ws4 launch),
 #   but calling it explicitly guarantees the user lands on Hub even if focus drifted.
 # On timeout (HUB_OK≠0): Hub timed out but its window may still appear later (OAuth delay).
-#   Switching to ws1 ensures the OAuth paint is visible when it happens.
-# Both cases: user ends up on ws1 (Hub).  This preserves the F-0110 intent ("leave focus
-# on the Hub's workspace on timeout") now that the Hub's workspace IS ws1.
+#   F-0116: for_window [app_id="antigravity"] in sway config pins the Hub to ws1 regardless
+#   of when its window maps, so switching to ws1 guarantees the OAuth paint is visible.
+# Both cases: user ends up on ws1 (Hub).
 sleep 1
 sway_cmd "workspace number 1"
 if [ "$HUB_OK" -eq 0 ]; then

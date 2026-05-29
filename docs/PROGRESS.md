@@ -1,5 +1,71 @@
 # Development Progress Log — Cloud Workstation
 
+## Session 34 — 2026-05-29 (F-0116: Remove Antigravity IDE and fix Hub ws1 placement)
+
+### Goals
+- Remove the Antigravity IDE entirely (PO approved "remove only, no reinstall").
+- Fix the Hub window placement race condition so it reliably lands on ws1 after every boot.
+
+### Root Cause (confirmed by orchestrator investigation)
+The Hub and IDE both report `app_id="antigravity"` to sway. No `for_window` placement rule
+existed. The Hub's BrowserWindow maps asynchronously — only after the bundled `language_server`
+starts and picks a dynamic HTTPS port — which at cold boot happens after `launch_and_wait 1 90`
+times out, causing focus to drift to later-launched apps (ws3/ws4 foot terminals). Hub window
+therefore maps on the focused workspace (not ws1) and appears to "vanish." `--class=antigravity-hub`
+does not change the Electron app_id on the installed build.
+
+### Completed
+- **PM** authored `docs/specs/F-0116-remove-antigravity-ide-hub-ws1-fix.md`
+- **TPM** added F-0116 to `docs/BACKLOG.md` under Milestone 31, marked done
+- **SWE** made all code changes:
+  - `workstation-image/Dockerfile`: removed `RUN` layer that added antigravity apt repo and installed the `antigravity` package
+  - `workstation-image/boot/07-apps.sh`: removed `apt-get install -y --only-upgrade antigravity` IDE upgrade block
+  - `workstation-image/boot/08-workspaces.sh`: removed `ANTIGRAVITY` variable, removed `launch_and_wait 2 30 "$ANTIGRAVITY" ...` ws2 block, updated header comment (ws2 = empty), updated launch order comment
+  - `workstation-image/configs/sway/config`: added `for_window [app_id="antigravity"] move container to workspace number 1` (F-0116 block with explanatory comments); removed `$mod+n` (IDE desktop app) and `$mod+g` (IDE CLI) keybindings; updated workspace layout comment
+  - `scripts/cloud-build-setup.sh`: removed IDE apt comment and `which antigravity` verification line from AI_VERIFY block
+- **SWE** satisfied three-places persistence rule:
+  - Repo: `workstation-image/configs/sway/config` (updated)
+  - Home-manager source: `~/.config/home-manager/sway-config` (updated to match repo exactly)
+  - Live sway config: `~/.config/sway/config` (overwritten from repo); `swaymsg reload` succeeded
+  - Boot scripts on disk: `~/boot/08-workspaces.sh`, `~/boot/07-apps.sh`, `~/boot/10-tests.sh` synced from repo
+- **SWE-Test** updated `workstation-image/boot/10-tests.sh`:
+  - Removed: `check_file "Antigravity 2.0 binary"`, IDE version check, IDE ws2 launch check, `mod+g→antigravity` keybinding check, ws2-launches-ANTIGRAVITY assertion, old header-comment F-0112 test
+  - Added: IDE-absent assertion (`! -f /usr/bin/antigravity`), `for_window` rule presence check, IDE-keybindings-absent check, ws2-empty assertion, updated header-comment test for F-0116 layout
+- **SWE-QA** live validation:
+  - Killed stale IDE processes (`/usr/share/antigravity`), confirmed only Hub PIDs remain
+  - Switched sway focus to ws3 (so Hub would land there without the rule)
+  - Killed Hub, cleared `~/.config/Antigravity-Hub/Singleton*`, relaunched Hub
+  - `swaymsg -t get_tree` confirmed Hub window `pid=85916, app_id=antigravity` landed on **workspace 1**
+  - `for_window` rule working correctly
+
+### Files Changed
+- `workstation-image/Dockerfile`
+- `workstation-image/boot/07-apps.sh`
+- `workstation-image/boot/08-workspaces.sh`
+- `workstation-image/boot/10-tests.sh`
+- `workstation-image/configs/sway/config`
+- `scripts/cloud-build-setup.sh`
+- `~/.config/home-manager/sway-config` (live disk — three-places rule)
+- `~/.config/sway/config` (live disk — synced from repo)
+- `~/boot/07-apps.sh`, `~/boot/08-workspaces.sh`, `~/boot/10-tests.sh` (live disk — boot scripts synced)
+- `docs/specs/F-0116-remove-antigravity-ide-hub-ws1-fix.md`
+- `docs/BACKLOG.md`
+- `docs/PROGRESS.md`
+- `docs/RELEASENOTES.md`
+- `docs/STARTUP_SCRIPTS.md`
+
+### Decisions
+- **Remove IDE, add placement rule**: The only robust fix given that `--class` does not change `app_id`. Removing the IDE eliminates the collision; the `for_window` rule then unambiguously pins any `app_id=antigravity` window to ws1.
+- **ws2 left empty**: PO approved "no replacement." ws2 is navigable via `$mod+i` but launches nothing at boot.
+- **Hub remains on ws1**: All existing ws1 focus logic in `08-workspaces.sh` preserved intact.
+
+### Next Steps
+- PO approves PR and merges
+- After merge: `git tag -a v1.24.9` and push tag
+- Next Docker image rebuild will not install the IDE
+
+---
+
 ## Session 33 — 2026-05-29 (F-0115: Keyring Secret Service for Hub OAuth token persistence)
 
 ### Goals

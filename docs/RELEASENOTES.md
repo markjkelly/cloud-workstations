@@ -1,5 +1,41 @@
 # Release Notes — Cloud Workstation
 
+## v1.24.9 — Remove Antigravity IDE; fix Hub window placement on ws1 (2026-05-29)
+
+### Fixed
+- **Hub window vanishing / not landing on workspace 1** (F-0116) — Root cause: both the
+  Antigravity Hub (`~/.local/share/antigravity-hub/antigravity`) and the Antigravity IDE
+  (`/usr/share/antigravity/antigravity`) report `app_id="antigravity"` to sway. No
+  `for_window` placement rule existed. The Hub's BrowserWindow maps asynchronously after
+  the bundled `language_server` picks its port, which at cold boot occurs after
+  `launch_and_wait 1 90` times out — focus has drifted to ws3/ws4 by then, so the Hub
+  window mapped on the wrong workspace and appeared to vanish.
+
+### Changed
+- **Antigravity IDE removed** — The IDE (`/usr/bin/antigravity`, `/usr/share/antigravity`)
+  is no longer installed. Removed from:
+  - `workstation-image/Dockerfile` — removed apt repo key, source list, and `apt-get install -y antigravity` layer
+  - `workstation-image/boot/07-apps.sh` — removed `apt-get install -y --only-upgrade antigravity` boot-time upgrade
+  - `workstation-image/boot/08-workspaces.sh` — removed `ANTIGRAVITY` variable and `launch_and_wait 2 30 "$ANTIGRAVITY" ...` ws2 block; ws2 is now empty
+  - `workstation-image/configs/sway/config` — removed `$mod+n` (IDE desktop app) and `$mod+g` (IDE CLI terminal) keybindings
+  - `scripts/cloud-build-setup.sh` — removed IDE apt comment and `which antigravity` verification from AI_VERIFY block
+- **Hub placement rule added** — `workstation-image/configs/sway/config` gains:
+  `for_window [app_id="antigravity"] move container to workspace number 1`
+  Now unambiguous (IDE removed), this rule pins the Hub to ws1 regardless of when its
+  BrowserWindow maps — defeating the async-mapping race condition.
+- **Three-places persistence satisfied** — repo sway config, `~/.config/home-manager/sway-config`,
+  and live `~/.config/sway/config` all updated; `swaymsg reload` confirmed success.
+- **Boot tests updated** — `workstation-image/boot/10-tests.sh`:
+  - Removed: IDE-present assertion, IDE version check, IDE ws2 launch check, `$mod+g→antigravity` keybinding check
+  - Added: IDE-absent assertion, `for_window` rule presence check, IDE-keybindings-absent check, ws2-empty assertion
+
+### Notes
+- The Antigravity Hub (`~/.local/bin/antigravity-hub`) remains installed and functional.
+  All Hub launch logic, auth flags, and ws1 focus handling in `08-workspaces.sh` are unchanged.
+- ws2 is now empty — navigable via `$mod+i` but nothing launches there at boot.
+- Live validation: Hub relaunched with focus on ws3; `swaymsg -t get_tree` confirmed Hub
+  window landed on workspace 1 immediately.
+
 ## v1.24.8 — Hub keyring Secret Service for OAuth token persistence (2026-05-29)
 
 ### Fixed
