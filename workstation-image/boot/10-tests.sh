@@ -131,8 +131,7 @@ fi
 # F-0107 / F-0110: verify Hub auto-launch configuration in 08-workspaces.sh.
 # F-0110 bumped the timeout from 30s → 90s and wrapped the Hub call site in a
 # { ... } redirect block, so the old single-line pattern no longer applies.
-# Three new tests verify the F-0110 changes; together they replace the previous
-# false-positive that greedily matched a literal inline arg string.
+# Three tests verify the F-0110 changes.
 check_grep "Hub ws5 timeout is 90s (F-0110)" \
     "launch_and_wait 5 90" \
     "$HOME_DIR/boot/08-workspaces.sh"
@@ -142,6 +141,21 @@ check_grep "Hub stderr redirected to hub-launch.log (F-0110)" \
 check_grep "Hub conditional ws1 switch (F-0110)" \
     'HUB_OK.*-eq 0' \
     "$HOME_DIR/boot/08-workspaces.sh"
+# F-0111: verify --disable-gpu replaces --use-gl=swiftshader for GPU-less host,
+# and that the Hub has its own --user-data-dir to avoid Electron SingletonLock
+# conflict with the IDE (ws2) which defaults to ~/.config/Antigravity.
+check_grep "Hub launch has separate user-data-dir (F-0111)" \
+    "user-data-dir=/home/user/.config/Antigravity-Hub" \
+    "$HOME_DIR/boot/08-workspaces.sh"
+check_grep "IDE ws2 launch uses --disable-gpu (F-0111)" \
+    'ANTIGRAVITY.*--disable-gpu\|--disable-gpu.*ANTIGRAVITY' \
+    "$HOME_DIR/boot/08-workspaces.sh"
+# Negative check: --use-gl=swiftshader must not appear in any launch_and_wait call
+if grep -qE 'launch_and_wait.*--use-gl=swiftshader' "$HOME_DIR/boot/08-workspaces.sh"; then
+    test_fail "08-workspaces.sh still has --use-gl=swiftshader in a launch_and_wait call (F-0111)"
+else
+    test_pass "08-workspaces.sh has no --use-gl=swiftshader in launch_and_wait calls (F-0111)"
+fi
 
 # =============================================================================
 # AI CLI Tools

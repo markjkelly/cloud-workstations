@@ -1,7 +1,7 @@
 # Project Backlog — Cloud Workstation
 
 **Maintained by:** TPM
-**Last updated:** 2026-05-29 (Milestone 25 — Hub WS5 auth-friendly launch)
+**Last updated:** 2026-05-29 (Milestone 26 — Hub GPU-less fix)
 
 ---
 
@@ -310,6 +310,14 @@ Tracks fork-only work that pre-dated or accompanied v1.17. All items are documen
 | ID | Feature | Spec | Priority | Status | Owner | Branch | Dependencies | Feedback |
 |----|---------|------|----------|--------|-------|--------|--------------|----------|
 | F-0110 | Hub WS5 auth-friendly launch (90s timeout, conditional ws1 focus, stderr capture) | [F-0110](specs/F-0110-hub-ws5-auth-friendly-launch.md) | P1 | done | SWE-1 | feature/hub-ws5-auth-friendly-launch | F-0107 | Bumps Hub timeout 30s→90s; leaves focus on ws5 if Hub timed out so OAuth window is visible; captures Hub stdout+stderr to ~/logs/hub-launch.log with per-boot timestamp header. 3 boot tests added; false-positive test fixed. All other workspace timeouts unchanged. bash -n PASS. |
+
+---
+
+## Milestone 26: Hub GPU-Less Fix
+
+| ID | Feature | Spec | Priority | Status | Owner | Branch | Dependencies | Feedback |
+|----|---------|------|----------|--------|-------|--------|--------------|----------|
+| F-0111 | Disable GPU and fix Hub user-data-dir for GPU-less workstation | [F-0111](specs/F-0111-disable-gpu-hub-user-data-dir.md) | P0 | done | SWE-1 | feature/disable-gpu-hub-fix | F-0110 | Two bugs fixed: (1) `--use-gl=swiftshader` replaced with `--disable-gpu` for IDE (ws2) and Hub (ws5) — swiftshader still launched a GPU child process that crashed in a loop on this GPU-less host; (2) `--user-data-dir=/home/user/.config/Antigravity-Hub` added to Hub — without it, Hub defaulted to `~/.config/Antigravity` (same as IDE), Electron SingletonLock let IDE win, Hub had no window. Also added `--disable-gpu` to Chrome (ws1) for consistency. Live validated: Hub window appeared on ws5 within 15s, no GPU process crash errors in log. `bash -n` PASS. 4 new tests + negative check added to `10-tests.sh`. Three-places rule applied. |
 
 ---
 

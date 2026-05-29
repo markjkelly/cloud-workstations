@@ -1,5 +1,56 @@
 # Development Progress Log — Cloud Workstation
 
+## Session 29 — 2026-05-29 (F-0111: Disable GPU and fix Hub user-data-dir)
+
+### Goals
+- Fix Antigravity Hub (ws5) rendering a blank window on this GPU-less workstation
+- Fix Antigravity Hub not opening any window (Electron SingletonLock conflict with IDE)
+- Disable GPU acceleration for all Electron app launches
+
+### Completed
+- **PM** authored `docs/specs/F-0111-disable-gpu-hub-user-data-dir.md` documenting both root causes (GPU crash loop + SingletonLock conflict) and acceptance criteria
+- **TPM** added F-0111 to `docs/BACKLOG.md` under new Milestone 26, marked done
+- **SWE** live-validated the fix BEFORE committing (no reboot):
+  - Killed existing Hub (was running with `--use-gl=swiftshader`, no `--user-data-dir`)
+  - Launched Hub with `--disable-gpu --user-data-dir=/home/user/.config/Antigravity-Hub`: window appeared on ws5 within 15s
+  - Confirmed log: no "Exiting GPU process due to errors during initialization" errors; `Starting app (v2.0.10)`, language server spawned, `Local: https://127.0.0.1:XXXXX/` URL shown
+  - Killed test instance cleanly; ws5 verified empty
+- **SWE** made three changes in `workstation-image/boot/08-workspaces.sh`:
+  1. ws1 Chrome: added `--disable-gpu`
+  2. ws2 IDE: replaced `--use-gl=swiftshader` with `--disable-gpu`
+  3. ws5 Hub: replaced `--use-gl=swiftshader` with `--disable-gpu`, added `--user-data-dir=/home/user/.config/Antigravity-Hub`
+- **SWE** applied three-places rule: copied updated `08-workspaces.sh` and `10-tests.sh` to `~/boot/`; verified `scripts/cloud-build-setup.sh` deploys whole boot dir via tar (no embedded change needed); confirmed `08-workspaces.sh` is NOT home-manager-managed
+- **SWE-Test** updated `workstation-image/boot/10-tests.sh`:
+  - Added 4 new F-0111 tests: user-data-dir grep, IDE --disable-gpu grep, negative check for --use-gl=swiftshader in launch_and_wait calls
+  - Existing F-0110 tests (timeout=90, hub-launch.log, HUB_OK conditional) unchanged
+- **SWE-QA** verified:
+  - `bash -n` passes on both modified scripts
+  - All 4 new grep patterns confirmed matching against the implementation
+  - Negative grep confirmed: no `--use-gl=swiftshader` in any `launch_and_wait` call
+  - `cloud-build-setup.sh` reviewed: deploys boot scripts via `tar czf` of entire `workstation-image/boot/` — no inline script content to update
+
+### Key Decisions
+- **`--disable-gpu` vs `--use-gl=swiftshader`**: swiftshader is a software GL renderer but still spawns a separate GPU *process* that probes for hardware devices. On a GPU-less host, this process crashes immediately and restarts in a tight loop. `--disable-gpu` prevents the GPU process from spawning at all — the renderer runs in-process via the CPU without attempting hardware probe.
+- **Chrome gets `--disable-gpu` too**: Chrome on ws1 was working before, but it too has a GPU process running silently and crashing. Adding `--disable-gpu` makes the launch flag set consistent across all Electron/Chromium apps and removes hidden noise from the process table.
+- **IDE userData dir unchanged**: The IDE's `~/.config/Antigravity` directory holds auth tokens and is the correct default. Only the Hub gets a separate dir to break the singleton conflict.
+- **No home-manager change needed**: `08-workspaces.sh` is deployed by `cloud-build-setup.sh` (via tar) and copied to `~/boot/` by `06-sync.sh` on each boot. It is not symlinked or managed by Nix home-manager.
+
+### Files Changed
+- `docs/specs/F-0111-disable-gpu-hub-user-data-dir.md` (new)
+- `docs/BACKLOG.md` (Milestone 26 new section with F-0111 entry, marked done)
+- `workstation-image/boot/08-workspaces.sh` (3 call site changes: Chrome +--disable-gpu, IDE swiftshader→--disable-gpu, Hub swiftshader→--disable-gpu + --user-data-dir)
+- `workstation-image/boot/10-tests.sh` (4 new F-0111 tests + negative check)
+- `docs/STARTUP_SCRIPTS.md` (execution flow note about Electron flags and --user-data-dir)
+- `~/boot/08-workspaces.sh` (three-places rule live copy)
+- `~/boot/10-tests.sh` (three-places rule live copy)
+
+### Next Steps
+- PO to approve and merge PR
+- On next boot: Hub should open a non-blank window on ws5 immediately (no OAuth needed on subsequent boots since `~/.config/Antigravity-Hub` profile already initialized)
+- Monitor `~/logs/hub-launch.log` after next boot to confirm no GPU crash errors
+
+---
+
 ## Session 28 — 2026-05-29 (F-0110: Hub WS5 Auth-Friendly Launch)
 
 ### Goals

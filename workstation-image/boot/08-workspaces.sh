@@ -122,11 +122,16 @@ launch_and_wait() {
 }
 
 # Workspace 1: Google Chrome (Electron — 15s timeout)
-launch_and_wait 1 15 google-chrome-stable --ozone-platform=wayland --disable-dev-shm-usage
+# F-0111: add --disable-gpu — this host has no GPU; Chrome still renders correctly
+# via software rasterisation with the GPU process disabled.
+launch_and_wait 1 15 google-chrome-stable --ozone-platform=wayland --disable-dev-shm-usage --disable-gpu
 
 # Workspace 2: Antigravity 2.0 desktop app (Electron — 30s timeout, needs longer to initialize)
+# F-0111: replace --use-gl=swiftshader with --disable-gpu.  swiftshader still spins up a GPU
+# child process that immediately crashes on a GPU-less host (drmGetDevices2/viz_main_impl loop);
+# --disable-gpu prevents the GPU process from starting at all and is the correct flag here.
 if [ -x "$ANTIGRAVITY" ]; then
-    launch_and_wait 2 30 "$ANTIGRAVITY" --no-sandbox --ozone-platform=wayland --use-gl=swiftshader --disable-dev-shm-usage
+    launch_and_wait 2 30 "$ANTIGRAVITY" --no-sandbox --ozone-platform=wayland --disable-gpu --disable-dev-shm-usage
 else
     log "WARNING: Antigravity not found at $ANTIGRAVITY — skipping ws2"
 fi
@@ -140,6 +145,14 @@ launch_and_wait 4 5 "$FOOT" --working-directory=/home/user
 # Workspace 5: Antigravity 2.0 Hub (Electron — 90s timeout; Hub may need to complete
 # a Google OAuth flow before its window first paints, which can take 30–60s on the
 # first run. F-0110: bumped from 30s → 90s to accommodate auth delays.)
+# F-0111 changes on this call site:
+#   1. --use-gl=swiftshader replaced with --disable-gpu (GPU-less host fix; stops
+#      the GPU child process crash loop that left ws5 with a blank window).
+#   2. --user-data-dir=/home/user/.config/Antigravity-Hub added. Without this the
+#      Hub defaulted to ~/.config/Antigravity — the SAME userData dir as the IDE
+#      (ws2). Electron's SingletonLock allows only one window per dir; the IDE
+#      always wins the lock first, so the Hub process ran silently with no window.
+#      A separate userData dir breaks the singleton conflict.
 HUB_OK=0
 if [ -x "$HUB" ]; then
     HUB_LOG="/home/user/logs/hub-launch.log"
@@ -149,7 +162,7 @@ if [ -x "$HUB" ]; then
     # launch_and_wait signature is unchanged; wrapping the call site keeps
     # the generic function clean (F-0110).
     {
-        launch_and_wait 5 90 "$HUB" --no-sandbox --ozone-platform=wayland --use-gl=swiftshader --disable-dev-shm-usage
+        launch_and_wait 5 90 "$HUB" --no-sandbox --ozone-platform=wayland --disable-gpu --disable-dev-shm-usage --user-data-dir=/home/user/.config/Antigravity-Hub
         HUB_OK=$?
     } >> "$HUB_LOG" 2>&1
 else

@@ -1,5 +1,27 @@
 # Release Notes — Cloud Workstation
 
+## v1.24.4 — Hub GPU-less fix and user-data-dir isolation (2026-05-29)
+
+### Fixed
+- **Hub ws5 blank window on GPU-less host** (F-0111) — Two distinct bugs prevented the Antigravity Hub from showing a usable window on ws5:
+  1. `--use-gl=swiftshader` still spawned a GPU child process that immediately crashed in a `drmGetDevices2`/`Exiting GPU process` loop on a host with no GPU. The GPU process restarted repeatedly, preventing the renderer from initializing, leaving ws5 with a blank window. Fixed by replacing `--use-gl=swiftshader` with `--disable-gpu`, which prevents the GPU child process from starting entirely.
+  2. The Hub binary defaulted to `~/.config/Antigravity` as its Electron userData directory — the same directory as the IDE binary on ws2. Electron's `ProcessSingleton` (SingletonLock/SingletonSocket) permits only one instance per userData directory. The IDE wins the lock (it boots first), so the Hub process ran silently with no window on ws5. Fixed by adding `--user-data-dir=/home/user/.config/Antigravity-Hub` to the Hub launch only.
+
+### Changed
+- **`workstation-image/boot/08-workspaces.sh`** — Three targeted changes:
+  1. ws1 Chrome: `--disable-gpu` added (consistent GPU-less treatment; Chrome was working but had a silent crashing GPU process).
+  2. ws2 Antigravity IDE: `--use-gl=swiftshader` → `--disable-gpu`.
+  3. ws5 Antigravity Hub: `--use-gl=swiftshader` → `--disable-gpu`, `--user-data-dir=/home/user/.config/Antigravity-Hub` added.
+- **`workstation-image/boot/10-tests.sh`** — 4 new F-0111 tests: Hub user-data-dir grep, IDE `--disable-gpu` grep, negative check that no `launch_and_wait` call still uses `--use-gl=swiftshader`.
+- **`docs/STARTUP_SCRIPTS.md`** — Execution flow note added documenting the `--disable-gpu` flag choice and Hub `--user-data-dir` rationale.
+
+### Notes
+- Live validated before commit: Hub window appeared on ws5 within 15s with `--disable-gpu --user-data-dir=/home/user/.config/Antigravity-Hub`; no GPU process crash errors in launch log; `Starting app (v2.0.10)` and language server spawn confirmed.
+- IDE userData directory (`~/.config/Antigravity`) is unchanged — auth tokens remain valid for the IDE.
+- `~/boot/08-workspaces.sh` and `~/boot/10-tests.sh` updated live (three-places rule). `cloud-build-setup.sh` deploys the boot dir via tar — no inline script changes needed there.
+
+---
+
 ## v1.24.3 — Hub WS5 Auth-Friendly Launch (2026-05-29)
 
 ### Fixed
