@@ -32,7 +32,7 @@ mkdir -p "${LOG_DIR}"
   # No su/runuser needed; chown fixes ownership after copy
   echo "Pulling latest repo changes from ${REPO_DIR}..."
   git config --global --add safe.directory "${REPO_DIR}" 2>/dev/null || true
-  if HOME="${USER_HOME}" git -C "${REPO_DIR}" pull --ff-only 2>&1; then
+  if HOME="${USER_HOME}" GIT_SSH_COMMAND="ssh -i ${USER_HOME}/.ssh/id_ed25519 -o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=${USER_HOME}/.ssh/known_hosts" git -C "${REPO_DIR}" pull --ff-only 2>&1; then
     echo "✓ Git pull succeeded"
     # Restore ownership of any root-owned files created by pull
     chown -R 1000:1000 "${REPO_DIR}" 2>/dev/null || true

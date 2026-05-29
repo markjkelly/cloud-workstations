@@ -1,5 +1,20 @@
 # Release Notes — Cloud Workstation
 
+## v1.24.1 — Fix SSH Authentication in Boot Sync (2026-05-29)
+
+### Fixed
+- **Boot sync SSH authentication failure** (F-0109) — `09-sync.sh` runs as root at boot to pull latest repo and sync configs. Root has no GitHub SSH key, causing silent "Permission denied (publickey)" failures on every boot. Fixed by passing `GIT_SSH_COMMAND` environment variable that explicitly uses user's `/home/user/.ssh/id_ed25519` key with `StrictHostKeyChecking=accept-new` (safe, non-interactive). Git pull now succeeds when running as root, enabling config updates to propagate to live workstations on every boot.
+
+### Changed
+- **`workstation-image/boot/09-sync.sh`** — Line 35: Added `GIT_SSH_COMMAND="ssh -i ${USER_HOME}/.ssh/id_ed25519 -o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=${USER_HOME}/.ssh/known_hosts"` before `git pull --ff-only` invocation
+- **`workstation-image/boot/10-tests.sh`** — Added 4 new boot tests for F-0109: verify GIT_SSH_COMMAND is set, verify SSH key path is id_ed25519, verify StrictHostKeyChecking safety setting
+
+### Notes
+- Boot sync remains non-fatal: if git pull still fails for any reason, the error is logged and boot continues using existing scripts on disk
+- Fixes the root cause of config drift on live workstations — boot sync was silently failing while appearing to succeed in the log
+
+---
+
 ## v1.24 — Automatic Boot Script Sync (2026-05-29)
 
 ### Added

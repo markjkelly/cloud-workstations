@@ -728,6 +728,45 @@ else
 fi
 
 # =============================================================================
+# Boot Sync SSH Authentication (F-0109)
+# =============================================================================
+log ""
+log "--- Boot Sync SSH Auth (09-sync.sh) ---"
+
+# Check that 09-sync.sh exists and has GIT_SSH_COMMAND for SSH auth
+SYNC_SSH_SCRIPT="$HOME_DIR/boot/09-sync.sh"
+if [ -f "$SYNC_SSH_SCRIPT" ]; then
+    if [ -x "$SYNC_SSH_SCRIPT" ]; then
+        test_pass "09-sync.sh exists and is executable"
+    else
+        test_fail "09-sync.sh exists but is not executable"
+    fi
+else
+    test_fail "09-sync.sh not found at $SYNC_SSH_SCRIPT"
+fi
+
+# Check that GIT_SSH_COMMAND is set with user's SSH key
+if grep -q "GIT_SSH_COMMAND=" "$SYNC_SSH_SCRIPT" 2>/dev/null; then
+    test_pass "09-sync.sh: GIT_SSH_COMMAND is set for SSH auth"
+else
+    test_fail "09-sync.sh: GIT_SSH_COMMAND missing — SSH auth will fail as root"
+fi
+
+# Check that the SSH key path points to user's id_ed25519
+if grep -q "id_ed25519" "$SYNC_SSH_SCRIPT" 2>/dev/null; then
+    test_pass "09-sync.sh: SSH key path is id_ed25519"
+else
+    test_fail "09-sync.sh: SSH key path not specified"
+fi
+
+# Check for StrictHostKeyChecking safety setting
+if grep -q "StrictHostKeyChecking=accept-new" "$SYNC_SSH_SCRIPT" 2>/dev/null; then
+    test_pass "09-sync.sh: StrictHostKeyChecking set safely"
+else
+    test_fail "09-sync.sh: StrictHostKeyChecking not set (will prompt for host key)"
+fi
+
+# =============================================================================
 # Summary
 # =============================================================================
 TOTAL=$((PASS+FAIL+WARN+SKIP))
