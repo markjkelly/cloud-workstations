@@ -29,7 +29,7 @@ mkdir -p "${LOG_DIR}"
 
   # Git pull with error tolerance
   echo "Pulling latest repo changes from ${REPO_DIR}..."
-  if runuser -u user -- git -C "${REPO_DIR}" pull --ff-only 2>&1; then
+  if su -s /bin/bash user -c "git -C '${REPO_DIR}' pull --ff-only" 2>&1; then
     echo "✓ Git pull succeeded"
   else
     PULL_EXIT=$?
@@ -50,7 +50,7 @@ mkdir -p "${LOG_DIR}"
   for script in "${BOOT_SRC}"/*.sh; do
     script_name=$(basename "${script}")
     dest="${BOOT_DST}/${script_name}"
-    if runuser -u user -- cp "${script}" "${dest}"; then
+    if cp "${script}" "${dest}" && chown user:user "${dest}"; then
       echo "  ✓ Copied ${script_name}"
     else
       echo "  ✗ Failed to copy ${script_name} (continuing)"
@@ -60,7 +60,7 @@ mkdir -p "${LOG_DIR}"
   # Copy sway config
   echo "Syncing sway config from ${SWAY_SRC}..."
   if [[ -f "${SWAY_SRC}" ]]; then
-    if runuser -u user -- cp "${SWAY_SRC}" "${SWAY_DST}"; then
+    if cp "${SWAY_SRC}" "${SWAY_DST}" && chown user:user "${SWAY_DST}"; then
       echo "  ✓ Copied sway config"
     else
       echo "  ✗ Failed to copy sway config (continuing)"
