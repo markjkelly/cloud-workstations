@@ -25,6 +25,7 @@ log "=== App update started ==="
 
 # --- Upgrade Antigravity apt package ---
 log "Upgrading Antigravity apt package..."
+sudo apt-get update -qq >> "$LOG_FILE" 2>&1
 sudo apt-get install -y --only-upgrade antigravity >> "$LOG_FILE" 2>&1
 log "Antigravity apt upgrade done"
 
