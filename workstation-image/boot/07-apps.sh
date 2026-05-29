@@ -2,8 +2,9 @@
 # =============================================================================
 # 07-apps.sh — Update apps to latest versions on boot
 # =============================================================================
-# Updates Claude Code, Gemini CLI (npm), Nix apps (home-manager), and
-# Antigravity. Logs to ~/logs/app-update.log.
+# Updates Claude Code, Gemini CLI (npm), Nix apps (home-manager),
+# Antigravity IDE, Antigravity Hub, and Antigravity CLI.
+# Logs to ~/logs/app-update.log.
 # =============================================================================
 
 USER="user"
@@ -28,6 +29,47 @@ log "Upgrading Antigravity apt package..."
 sudo apt-get update -qq >> "$LOG_FILE" 2>&1
 sudo apt-get install -y --only-upgrade antigravity >> "$LOG_FILE" 2>&1
 log "Antigravity apt upgrade done"
+
+# --- Install/update Antigravity 2.0 Desktop App (Hub) ---
+# NOTE: URL version 2.0.10-5119448496078848 is hardcoded. Update this URL when a
+# new version of antigravity-hub is released.
+log "Installing/updating Antigravity 2.0 Desktop App (Hub)..."
+HUB_INSTALL_DIR="$HOME_DIR/.local/share/antigravity-hub"
+HUB_BIN_DIR="$HUB_INSTALL_DIR"
+HUB_SYMLINK="$HOME_DIR/.local/bin/antigravity-hub"
+HUB_URL="https://storage.googleapis.com/antigravity-public/antigravity-hub/2.0.10-5119448496078848/linux-x64/Antigravity.tar.gz"
+HUB_TEMP="/tmp/antigravity-hub-download.tar.gz"
+
+if [ ! -d "$HUB_INSTALL_DIR" ]; then
+    log "Antigravity Hub not found — downloading and extracting..."
+    runuser -u $USER -- mkdir -p "$HOME_DIR/.local/share" "$HOME_DIR/.local/bin"
+    if runuser -u $USER -- curl -fsSL -o "$HUB_TEMP" "$HUB_URL" >> "$LOG_FILE" 2>&1; then
+        if runuser -u $USER -- tar -xzf "$HUB_TEMP" -C "$HOME_DIR/.local/share/" >> "$LOG_FILE" 2>&1; then
+            # Rename extracted directory to standard name
+            runuser -u $USER -- mv "$HOME_DIR/.local/share/Antigravity" "$HUB_INSTALL_DIR" 2>/dev/null || true
+            # Create symlink to main binary
+            # The tar.gz extracts to a directory with the binary at the root (likely named 'Antigravity' or 'antigravity-hub')
+            if [ -f "$HUB_INSTALL_DIR/Antigravity" ]; then
+                runuser -u $USER -- ln -sf "$HUB_INSTALL_DIR/Antigravity" "$HUB_SYMLINK"
+            elif [ -f "$HUB_INSTALL_DIR/antigravity-hub" ]; then
+                runuser -u $USER -- ln -sf "$HUB_INSTALL_DIR/antigravity-hub" "$HUB_SYMLINK"
+            else
+                # Fallback: link to the directory itself, shell will find the binary
+                runuser -u $USER -- ln -sf "$HUB_INSTALL_DIR" "$HUB_SYMLINK"
+            fi
+            rm -f "$HUB_TEMP"
+            log "Antigravity Hub downloaded, extracted, and symlinked"
+        else
+            log "Antigravity Hub extraction failed"
+            rm -f "$HUB_TEMP"
+        fi
+    else
+        log "Antigravity Hub download failed"
+        rm -f "$HUB_TEMP"
+    fi
+else
+    log "Antigravity Hub already installed at $HUB_INSTALL_DIR"
+fi
 
 # --- Update npm global packages (Claude Code, Gemini CLI) ---
 log "Updating npm global packages..."

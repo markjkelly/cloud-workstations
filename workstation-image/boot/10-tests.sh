@@ -119,6 +119,8 @@ log ""
 log "--- Antigravity Tools ---"
 check_file "Antigravity 2.0 binary" "/usr/bin/antigravity"
 check_dir "Antigravity CLI config" "$HOME_DIR/.gemini/antigravity-cli"
+check_dir "Antigravity Hub directory" "$HOME_DIR/.local/share/antigravity-hub"
+check_file "Antigravity Hub symlink" "$HOME_DIR/.local/bin/antigravity-hub"
 # Version check: boot script 07-apps.sh auto-upgrades antigravity via apt on every boot
 if runuser -u $USER -- /usr/bin/antigravity --version >/dev/null 2>&1; then
     ANTIGRAV_VER=$(/usr/bin/antigravity --version 2>&1 | head -1)
@@ -285,6 +287,7 @@ check_grep "Clipman keybinding" "mod+a.*clipman" "$SWAY_CFG"
 check_grep "Windsurf keybinding" "mod+w.*windsurf" "$SWAY_CFG"
 check_grep "Apps button click" "button1.*wofi" "$SWAY_CFG"
 check_grep "Antigravity CLI keybinding" "mod+g.*/usr/bin/antigravity" "$SWAY_CFG"
+check_grep "Antigravity Hub keybinding" "mod+h.*antigravity-hub" "$SWAY_CFG"
 check_grep "Snippet picker keybinding" "snippet-picker" "$SWAY_CFG"
 # F-0095: foot CWD drift guard. Standardized on
 # --working-directory=/home/user (commits 0dd33b3, 20d3352). The earlier

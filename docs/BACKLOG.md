@@ -280,6 +280,14 @@ Tracks fork-only work that pre-dated or accompanied v1.17. All items are documen
 
 ---
 
+## Milestone 23: Antigravity 2.0 Desktop App
+
+| ID | Feature | Spec | Priority | Status | Owner | Branch | Dependencies | Feedback |
+|----|---------|------|----------|--------|-------|--------|--------------|----------|
+| F-0106 | Install Antigravity 2.0 Desktop App (Hub) | [F-0106](specs/F-0106-antigravity-hub-desktop-app.md) | P1 | in-review | SWE-1 | feature/antigravity-hub-desktop-app | F-0087, F-0088 | **Implementation complete.** `07-apps.sh` downloads v2.0.10 from GCS, extracts to `~/.local/share/antigravity-hub/`, creates symlink at `~/.local/bin/antigravity-hub`. Sway config: `$mod+h` launches with Electron flags. Boot tests added for directory, symlink, and keybinding. **Note:** Home Manager sway-config at `~/.config/home-manager/sway-config` must be manually synced when deployed to live workstations (three-places rule). |
+
+---
+
 ## Future Items
 
 | ID | Feature | Spec | Priority | Status | Owner | Branch | Dependencies | Feedback |

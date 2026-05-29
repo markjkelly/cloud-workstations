@@ -1,5 +1,24 @@
 # Release Notes — Cloud Workstation
 
+## v1.22 — Antigravity 2.0 Desktop App (Hub) (2026-05-29)
+
+### Added
+- **Antigravity 2.0 Desktop App (Hub)** — Standalone graphical launcher and project hub interface. Installed on first boot if missing, persists on subsequent boots. Location: `~/.local/share/antigravity-hub/`. Launcher symlink: `~/.local/bin/antigravity-hub`. Version 2.0.10 via GCS direct download (no apt package available).
+- **Hub keybinding** — `$mod+h` launches Antigravity Hub with full Electron support (Wayland, GPU disabled for headless VNC, dev-shm constraints handled)
+- **Boot tests for Hub** — Verification tests for Hub directory, symlink, and keybinding presence
+
+### Changed
+- **`07-apps.sh`** — Added Antigravity Hub download/extract/symlink block (idempotent: first boot only). URL is hardcoded; update required when new version released.
+- **`workstation-image/configs/sway/config`** — Added `$mod+h` keybinding for Hub launch, placed alongside existing `$mod+n` (IDE) and `$mod+g` (CLI) Antigravity bindings
+- **`10-tests.sh`** — Added three tests for Hub (directory existence, symlink existence, keybinding in config)
+
+### Notes
+- Hub is a separate product from the existing Antigravity IDE (apt) and CLI (curl installer)
+- All three Antigravity products now available: IDE (`$mod+n`), Hub (`$mod+h`), CLI (`$mod+g`)
+- Requires manual Home Manager sway-config sync on live workstations using HM-managed configs (`~/.config/home-manager/sway-config` must match repo config's `$mod+h` keybinding for persistent effect across reboots)
+
+---
+
 ## v1.21 — Antigravity 2.0 + CLI (2026-05-29)
 
 ### Added

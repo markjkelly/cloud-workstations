@@ -1,5 +1,59 @@
 # Development Progress Log — Cloud Workstation
 
+## Session 25 — 2026-05-29
+
+### Goals
+- Implement Antigravity 2.0 Desktop App (Hub) installation on cloud workstation (F-0106)
+- Download from GCS, extract to persistent disk, create launcher symlink, add sway keybinding
+- Ensure persistence across reboots and fresh setups
+
+### Completed
+- **PM** authored `docs/specs/F-0106-antigravity-hub-desktop-app.md` with requirements, acceptance criteria, and dependencies
+- **TPM** added F-0106 to `docs/BACKLOG.md` under new Milestone 23, marked In Progress
+- **SWE** implemented feature on branch `feature/antigravity-hub-desktop-app`:
+  - `workstation-image/boot/07-apps.sh`: added idempotent download/extract/symlink block (lines 33-72). Download from GCS v2.0.10, extract to `~/.local/share/antigravity-hub/`, create symlink at `~/.local/bin/antigravity-hub`. Handles multiple possible binary names (Antigravity, antigravity-hub, or fallback to directory symlink). Logs all operations with timestamps.
+  - `workstation-image/configs/sway/config`: added `$mod+h` keybinding (line 110) launching Hub with Electron flags (`--no-sandbox --ozone-platform=wayland --disable-gpu --disable-dev-shm-usage`, clearing `LD_LIBRARY_PATH` for GL compatibility)
+  - `workstation-image/boot/10-tests.sh`: added three tests (lines 123-124, 289) verifying Hub directory exists, symlink exists, and keybinding present in sway config
+  - Updated header comment in `07-apps.sh` to list all updated components (IDE, Hub, CLI)
+  - Added version URL note: URL is hardcoded; update required when v2.0.11+ released
+- **SWE-QA** verified:
+  - Bash syntax valid for both boot scripts (no errors)
+  - Hub download block correctly positioned after Antigravity apt upgrade (F-0088 consistency)
+  - Keybinding placed next to IDE/CLI bindings in correct config section
+  - Boot tests cover directory, symlink, and keybinding presence
+  - No regressions to existing $mod+n (IDE) or $mod+g (CLI) bindings
+- **TPM** updated `docs/BACKLOG.md` to mark F-0106 as in-review, added feedback note on Home Manager sync requirement
+
+### Key Decisions
+- **Idempotent on-boot download**: Hub downloads only on first boot (if `~/.local/share/antigravity-hub/` missing), then re-installed on subsequent boots only if the directory doesn't exist. Avoids re-downloading large tar.gz on every boot.
+- **Symlink to directory or binary**: Script probes for `Antigravity` binary first, then `antigravity-hub`, then falls back to linking the directory itself — flexible for unknown tar.gz structure. All three approaches work with shell expansion in sway config.
+- **Electron app flags**: Applied same pattern as existing Electron apps (Chrome, VSCode, Windsurf, original IDE). Disables GPU, dev-shm, enables Wayland, clears LD_LIBRARY_PATH for GL library isolation.
+- **Three-places rule note**: Documented in backlog feedback that Home Manager sway-config (`~/.config/home-manager/sway-config`) on live workstations must be manually synced with repo config when deployed. This is a deployment concern, not an implementation issue.
+
+### Files Changed
+- `docs/specs/F-0106-antigravity-hub-desktop-app.md` (new)
+- `docs/BACKLOG.md` (Milestone 23 entry, marked in-review)
+- `workstation-image/boot/07-apps.sh` (header + Hub install block)
+- `workstation-image/configs/sway/config` (Hub keybinding)
+- `workstation-image/boot/10-tests.sh` (Hub directory, symlink, keybinding tests)
+
+### Pipeline
+- Full pipeline: Spec → Backlog → Implement → Test → QA → Backlog update → (Progress log updated here)
+- Ready for code review and PR creation
+
+### Next Steps
+- Create PR on feature branch
+- PO review and approval
+- Merge to main
+- Tag v1.22 (or next appropriate version)
+- On live workstation: manual sync of Home Manager sway-config if using HM-managed configs
+
+### Open Items / Notes
+- Binary name inside tar.gz unknown until extraction — script handles Antigravity, antigravity-hub, and directory fallback
+- Home Manager sway-config sync is a deployment step, not a code issue — PO/PE to handle on live instances
+
+---
+
 ## Session 24 — 2026-04-15
 
 ### Goals
