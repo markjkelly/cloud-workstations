@@ -564,6 +564,13 @@ if [ -f "$WS_SCRIPT" ]; then
     else
         test_fail "08-workspaces.sh header comment does not reflect new order (F-0098)"
     fi
+
+    # F-0110: launch_and_wait must return 1 on timeout so HUB_OK captures failure
+    if grep -A1 "WARNING: Timeout" "$WS_SCRIPT" | grep -q "return 1"; then
+        test_pass "08-workspaces.sh launch_and_wait returns 1 on timeout"
+    else
+        test_fail "08-workspaces.sh launch_and_wait does NOT return 1 on timeout — HUB_OK will always be 0"
+    fi
 else
     test_fail "08-workspaces.sh not found at $WS_SCRIPT (F-0098 check)"
 fi

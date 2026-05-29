@@ -1351,3 +1351,28 @@ Milestone 18 — Claude Code Auto-Update Fix (F-0093)
 - SWE-1 commits the branch `fix/claude-autoupdate` and opens a PR (task #3, blocked by this TPM update and the PM RELEASENOTES update)
 - PM adds a v1.18 entry to `docs/RELEASENOTES.md` (task #2)
 - After merge + PO approval: `git tag -a v1.18` and push tags
+
+---
+
+## Session 22 — 2026-05-29 (validation patch)
+
+### Date
+2026-05-29
+
+### Milestone
+F-0110 — Hub WS5 Auth-Friendly Launch (validation fix)
+
+### Completed
+- **Validation surfaced a logic bug in `launch_and_wait`**: the timeout path ended with `log "WARNING: ..."` whose exit code (0) was silently returned by the function. `HUB_OK=$?` therefore always captured 0, making the "stay on ws5 on Hub timeout" conditional dead code — the workspace always switched back to ws1.
+- **Fixed** by adding `return 1` immediately after the `log "WARNING: Timeout ..."` line in `workstation-image/boot/08-workspaces.sh`. The success path already had `return 0`; the capture and conditional at the call site were correct.
+- **Added test** in `workstation-image/boot/10-tests.sh`: `grep -A1 "WARNING: Timeout" | grep -q "return 1"` — ensures the timeout path explicitly returns non-zero on every future validation run.
+- **Folded** the fix into the existing v1.24.3 release notes entry (PR not yet merged) under a new "Fixed (validation patch)" sub-section.
+
+### Files Changed
+- `workstation-image/boot/08-workspaces.sh` — added `return 1` after timeout warning in `launch_and_wait`
+- `workstation-image/boot/10-tests.sh` — added grep test for `return 1` in timeout branch
+- `docs/RELEASENOTES.md` — appended validation patch note to v1.24.3 entry
+- `docs/PROGRESS.md` — this entry
+
+### Decisions
+- Fold into v1.24.3 (not a new version) since the PR is still open and unmerged — cleaner changelog history

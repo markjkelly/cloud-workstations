@@ -118,6 +118,7 @@ launch_and_wait() {
         fi
     done
     log "WARNING: Timeout (${timeout}s) waiting for window on ws$ws: $*"
+    return 1
 }
 
 # Workspace 1: Google Chrome (Electron — 15s timeout)

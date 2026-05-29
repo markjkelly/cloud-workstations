@@ -13,6 +13,9 @@
 - **`workstation-image/boot/10-tests.sh`** — Replaced false-positive Hub test (was grepping for a literal inline arg string that no longer exists after the redirect wrap) with three accurate tests: Hub timeout=90, hub-launch.log redirect presence, HUB_OK conditional logic.
 - **`docs/STARTUP_SCRIPTS.md`** — Added `~/logs/hub-launch.log` to the Logs table.
 
+### Fixed (validation patch)
+- **`launch_and_wait` returned 0 on timeout** — the timeout path ended with `log "WARNING: ..."` (exit code of `echo`), so `HUB_OK=$?` was always 0 and the "stay on ws5" conditional was dead code. Added `return 1` immediately after the warning log line. Added a corresponding test in `10-tests.sh` (`grep -A1 "WARNING: Timeout" | grep -q "return 1"`).
+
 ### Notes
 - `launch_and_wait` function signature is unchanged; the redirect and timeout change are isolated to the Hub call site. All other workspace timeouts (ws1=15, ws2=30, ws3=5, ws4=5) are unchanged.
 - On a successful Hub launch (OAuth already completed from a prior boot), behaviour is identical to before: focus returns to ws1 after the workspace sequence completes.
