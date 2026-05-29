@@ -118,6 +118,7 @@ launch_and_wait() {
         fi
     done
     log "WARNING: Timeout (${timeout}s) waiting for window on ws$ws: $*"
+    return 1
 }
 
 # Workspace 1: Google Chrome (Electron — 15s timeout)
@@ -136,14 +137,32 @@ launch_and_wait 3 5 "$FOOT" --working-directory=/home/user
 # Workspace 4: foot terminal (fast — 5s timeout)
 launch_and_wait 4 5 "$FOOT" --working-directory=/home/user
 
-# Workspace 5: Antigravity 2.0 Hub (Electron — 30s timeout, needs longer to initialize)
+# Workspace 5: Antigravity 2.0 Hub (Electron — 90s timeout; Hub may need to complete
+# a Google OAuth flow before its window first paints, which can take 30–60s on the
+# first run. F-0110: bumped from 30s → 90s to accommodate auth delays.)
+HUB_OK=0
 if [ -x "$HUB" ]; then
-    launch_and_wait 5 30 "$HUB" --no-sandbox --ozone-platform=wayland --use-gl=swiftshader --disable-dev-shm-usage
+    HUB_LOG="/home/user/logs/hub-launch.log"
+    mkdir -p "$(dirname "$HUB_LOG")"
+    echo "=== Hub launch: $(date '+%Y-%m-%d %H:%M:%S') ===" >> "$HUB_LOG"
+    # Redirect Hub stdout+stderr to the log so auth errors are diagnosable.
+    # launch_and_wait signature is unchanged; wrapping the call site keeps
+    # the generic function clean (F-0110).
+    {
+        launch_and_wait 5 90 "$HUB" --no-sandbox --ozone-platform=wayland --use-gl=swiftshader --disable-dev-shm-usage
+        HUB_OK=$?
+    } >> "$HUB_LOG" 2>&1
 else
     log "WARNING: Hub not found at $HUB — skipping ws5"
 fi
 
-# Switch back to workspace 1
-sleep 1
-sway_cmd "workspace number 1"
-log "All workspaces launched, switched to workspace 1"
+# Switch back to workspace 1 only if Hub launched successfully.
+# F-0110: if Hub timed out (OAuth window not yet painted), leave focus on ws5
+# so the auth window is visible to the user when it eventually appears.
+if [ "$HUB_OK" -eq 0 ]; then
+    sleep 1
+    sway_cmd "workspace number 1"
+    log "All workspaces launched, switched to workspace 1"
+else
+    log "All workspaces launched; Hub timed out — leaving focus on ws5 for OAuth"
+fi

@@ -60,6 +60,7 @@ systemd (after Sway starts)
 
 | File | Content |
 |------|---------|
+| `~/logs/hub-launch.log` | 08-workspaces.sh Hub launch output — stdout+stderr from the Antigravity Hub process; append mode with `=== Hub launch: YYYY-MM-DD HH:MM:SS ===` header per boot (F-0110) |
 | `~/logs/sync.log` | 06-sync.sh output (git pull, boot script sync, sway config sync) |
 | `~/logs/app-update.log` | 07-apps.sh output (npm updates, home-manager switch) |
 | `~/logs/language-install.log` | 07b-languages.sh output (Go, Rust, Python, Ruby) |
