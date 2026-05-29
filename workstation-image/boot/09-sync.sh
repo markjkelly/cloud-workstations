@@ -1,8 +1,9 @@
 #!/bin/bash
 set -e
 
-# 06-sync.sh: Sync boot scripts and sway config from git repo on every boot
-# Runs as root but executes git/cp operations as the user to preserve ownership
+# 09-sync.sh: Sync boot scripts and sway config from git repo on every boot
+# Runs at order 9 (after 07-apps and 08-workspaces) so the user exists.
+# Updates take effect on the next reboot.
 # Exits gracefully if repo is missing or git pull fails (non-fatal)
 
 REPO_DIR="/home/user/dev/git/cloud-workstations"
