@@ -103,7 +103,7 @@ bindsym $mod+e exec $nix/thunar
 # Web Browser (Google Chrome — /dev/shm too small at 64MB in container)
 bindsym $mod+b exec google-chrome-stable --disable-dev-shm-usage
 
-# Antigravity (Electron app — Wayland, no-sandbox, /dev/shm too small at 64MB)
+# Antigravity 2.0 desktop app (Electron app — Wayland, no-sandbox, /dev/shm too small at 64MB)
 bindsym $mod+n exec /usr/bin/antigravity --no-sandbox --ozone-platform=wayland --disable-gpu --disable-dev-shm-usage
 
 # IntelliJ IDEA Community (X11/Swing app — needs DISPLAY for Xwayland)
@@ -115,8 +115,8 @@ bindsym $mod+y exec env -u LD_LIBRARY_PATH $nix/code --no-sandbox --ozone-platfo
 # Windsurf (Electron app — same flags as VSCode)
 bindsym $mod+w exec env -u LD_LIBRARY_PATH $nix/windsurf --no-sandbox --ozone-platform=wayland --disable-gpu --disable-dev-shm-usage
 
-# Clipboard history picker (clipman — needs wofi in PATH and clear LD_LIBRARY_PATH)
-bindsym $mod+a exec env -u LD_LIBRARY_PATH PATH=/home/user/.nix-profile/bin:$PATH $nix/clipman pick --tool wofi
+# Antigravity CLI (terminal app — launch in foot terminal)
+bindsym $mod+a exec $nix/foot -e antigravity-cli
 
 # Snippet picker (text expansion)
 bindsym $mod+s exec /home/user/.local/bin/snippet-picker

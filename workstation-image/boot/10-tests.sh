@@ -113,6 +113,22 @@ else
 fi
 
 # =============================================================================
+# Antigravity Tools
+# =============================================================================
+log ""
+log "--- Antigravity Tools ---"
+check_file "Antigravity 2.0 binary" "/usr/bin/antigravity"
+if runuser -u $USER -- bash -c "command -v antigravity-cli" >/dev/null 2>&1; then
+    test_pass "Antigravity CLI (found in PATH)"
+else
+    if [ -f "$HOME_DIR/.local/bin/antigravity-cli" ]; then
+        test_pass "Antigravity CLI ($HOME_DIR/.local/bin/antigravity-cli)"
+    else
+        test_fail "Antigravity CLI (not found in PATH or ~/.local/bin)"
+    fi
+fi
+
+# =============================================================================
 # AI CLI Tools
 # =============================================================================
 log ""

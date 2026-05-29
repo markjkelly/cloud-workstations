@@ -119,7 +119,7 @@ launch_and_wait 1 5 "$FOOT" --working-directory=/home/user
 # Workspace 2: Google Chrome (Electron — 15s timeout)
 launch_and_wait 2 15 google-chrome-stable --ozone-platform=wayland --disable-dev-shm-usage
 
-# Workspace 3: Antigravity (Electron — 30s timeout, needs longer to initialize)
+# Workspace 3: Antigravity 2.0 desktop app (Electron — 30s timeout, needs longer to initialize)
 if [ -x "$ANTIGRAVITY" ]; then
     launch_and_wait 3 30 "$ANTIGRAVITY" --no-sandbox --ozone-platform=wayland --disable-gpu --disable-dev-shm-usage
 else
