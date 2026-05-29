@@ -3,6 +3,9 @@
 ## Session 26 — 2026-05-29
 
 ### Goals
+- Implement automatic boot script sync from git repo on every workstation boot (F-0108)
+- Create `06-sync.sh` to run `git pull` and copy boot scripts + sway config from repo
+- Graceful failure handling; non-fatal if git or repo missing
 - Implement Antigravity 2.0 Hub as workspace 5 auto-launch (F-0107)
 - Fix `$mod+h` keybinding conflict (was both exec Hub and workspace number 5)
 - Fix Antigravity IDE GPU flag (--use-gl=swiftshader instead of --disable-gpu)
@@ -347,7 +350,6 @@ Fork-only commits mapped to specs/backlog items:
 - PO review of v1.17 release notes and four new specs
 - After PO approval: `git tag -a v1.17 -m "..."` and push tags
 - Future: decide whether F-0089 custom-tools module should be folded into a dedicated `--profile extras` or remain opt-in via module flag
->>>>>>> origin/main
 
 ---
 

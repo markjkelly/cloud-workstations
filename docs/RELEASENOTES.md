@@ -1,5 +1,23 @@
 # Release Notes — Cloud Workstation
 
+## v1.24 — Automatic Boot Script Sync (2026-05-29)
+
+### Added
+- **Automatic boot script sync** (F-0108) — New `06-sync.sh` script runs on every boot to automatically synchronize boot scripts and Sway config from the git repo. Pulls latest code from repo and copies `workstation-image/boot/*.sh` to `~/boot/` and `workstation-image/configs/sway/config` to `~/.config/home-manager/sway-config`. Graceful error handling: missing repo or git pull failures are logged as warnings and do not fail the boot sequence.
+- **Boot tests for sync** — Added verification tests to `10-tests.sh` ensuring `06-sync.sh` exists, has correct repo path, and creates log file with success markers
+- **Sync log** — All sync operations logged to `~/logs/sync.log` for troubleshooting
+
+### Changed
+- **Boot sequence** — `06-sync.sh` added as order 6 script (before `06-prompt.sh`), ensuring subsequent boot scripts always have latest repo code
+- **`docs/STARTUP_SCRIPTS.md`** — Updated boot sequence table with `06-sync.sh` entry, execution flow diagram, and logs section
+
+### Notes
+- **Bootstrap procedure**: On first deployment, user manually copies `workstation-image/boot/06-sync.sh` to `~/boot/06-sync.sh` and optionally runs it once; thereafter, it auto-syncs on every boot
+- Graceful failure: If git repo is missing (e.g., freshly provisioned workstation not yet with repo clone), `06-sync.sh` logs a warning and continues boot using existing scripts on disk
+- Non-fatal git errors: If `git pull --ff-only` fails (network down, merge conflict, etc.), the error is logged and sync is skipped; boot continues with existing scripts
+
+---
+
 ## v1.23 — Antigravity Hub Auto-Launch + GPU Flag Fix (2026-05-29)
 
 ### Added
@@ -214,7 +232,6 @@ complete.
 ### Docs & Templating
 - `GEMINI.md` added with project context and branching/PR conventions for Gemini-driven workflows
 - `REPO_URL` placeholder updated to point at the markjkelly fork
->>>>>>> origin/main
 
 ---
 
