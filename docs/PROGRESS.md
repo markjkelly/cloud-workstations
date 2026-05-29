@@ -1,5 +1,82 @@
 # Development Progress Log — Cloud Workstation
 
+## Session 35 — 2026-05-29 (F-0117: Hub boot resilience — readiness-based wait, retry, instrumentation)
+
+### Goals
+- Fix the intermittent blank workspace 1 at cold boot caused by the Hub's bundled
+  `language_server` failing to reach "listening" state.
+- Add a readiness-based retry loop so the boot launcher detects and recovers from a
+  failed launch attempt instead of silently leaving ws1 blank.
+- Add boot-time instrumentation to capture the root cause of the next cold-boot failure.
+
+### Root Cause (confirmed by orchestrator)
+- The Hub Electron main process starts fine; it spawns `language_server` with
+  `--https_server_port 0` (random port).
+- At cold boot, `language_server` intermittently fails to reach "listening" state.
+- Without a listening `language_server`, Electron never fires the "Port changed!" event,
+  the BrowserWindow is never navigated, no renderer process starts, and no
+  `app_id=antigravity` window ever maps in sway.
+- The prior `launch_and_wait 1 90` only watched for a sway window; it timed out and
+  did not retry. The Hub process stayed alive (renderer-less) and ws1 remained blank.
+- This is a boot-timing/environmental failure, not a hard crash. Auth (F-0115) is healthy.
+
+### Completed
+- **PM** authored `docs/specs/F-0117-hub-boot-resilience.md`
+- **TPM** added F-0117 to `docs/BACKLOG.md` under Milestone 32, marked done
+- **SWE** implemented changes in `workstation-image/boot/08-workspaces.sh`:
+  - Added named constants: `HUB_LAUNCH_TIMEOUT=90`, `HUB_MAX_RETRIES=3`,
+    `HUB_LS_LOG=/home/user/logs/language_server_boot_diag.log`
+  - Added `hub_language_server_ready()` function that finds the `language_server` pid via
+    `pgrep -x language_server` + cmdline grep, then checks `/proc/<pid>/net/tcp6` for a
+    LISTEN socket (hex state `0A`); falls back to `/proc/net/tcp6` and `/proc/net/tcp`
+  - Replaced single-shot `launch_and_wait 1 90` with a readiness-based retry loop:
+    each attempt polls `hub_language_server_ready()` OR sway window on ws1;
+    on failure: captures diagnostics to `HUB_LS_LOG`, kills stale processes via
+    `_kill_stale_hub()` helper, removes `Singleton*` locks, relaunches
+  - Extracted `_kill_stale_hub()` helper (same safe pgrep/exe-path filtering as F-0114)
+  - F-0110/F-0111/F-0112/F-0114/F-0115/F-0116 behavior fully preserved
+- **SWE-Test** updated `workstation-image/boot/10-tests.sh`:
+  - Added 8 new F-0117 tests (constants, function, tcp6 poll, log path, retry helper,
+    attempt counter, diag log filename)
+  - Updated F-0110/F-0112 timeout test: old `launch_and_wait 1 90` check replaced by
+    `HUB_LAUNCH_TIMEOUT=90` constant check
+  - Updated ws1 layout test: checks `$HUB` + `workspace number 1` in retry block
+- **SWE** updated `docs/STARTUP_SCRIPTS.md` with new `HUB_LS_LOG` log row and F-0117
+  readiness/retry note in the `ws-autolaunch` service description
+- **Three-places persistence satisfied**: only boot scripts changed (not sway config);
+  `~/boot/08-workspaces.sh` and `~/boot/10-tests.sh` synced live from repo
+- **No Dockerfile / home.nix / cloud-build-setup.sh changes needed** — pure boot-script fix
+
+### Files Changed
+- `workstation-image/boot/08-workspaces.sh` (implementation)
+- `workstation-image/boot/10-tests.sh` (tests)
+- `docs/STARTUP_SCRIPTS.md` (new log entry + F-0117 description)
+- `docs/specs/F-0117-hub-boot-resilience.md` (spec)
+- `docs/BACKLOG.md` (Milestone 32 entry)
+- `docs/PROGRESS.md` (this entry)
+- `docs/RELEASENOTES.md` (new patch entry)
+- `~/boot/08-workspaces.sh`, `~/boot/10-tests.sh` (live disk — boot scripts synced)
+
+### Decisions
+- **Readiness signal: language_server LISTEN socket** — more reliable than waiting for a
+  sway window because it fires when the server is ready to accept connections, before
+  Electron navigates the BrowserWindow. The `/proc/<pid>/net/tcp6` approach requires no
+  new dependencies (pure bash + grep).
+- **3 retries, 90 s per attempt** — keeps the existing per-attempt timeout unchanged
+  (so a working boot is equally fast), while adding resilience for the intermittent failure.
+- **Instrumentation captures env/process state on failure** — so the next cold-boot failure
+  produces a diagnostic log for a targeted root-cause investigation.
+- **Boot-script-only fix** — PO can test immediately by rebooting; no image rebuild needed.
+
+### Next Steps
+- PO reboots the workstation and verifies ws1 shows the Hub
+- Check `~/logs/language_server_boot_diag.log` after any cold boot to see if retries fire
+- If retries fire consistently, the log content will guide the next targeted fix
+- Residual pre-existing test FAIL for IDE-present assertion requires a `ws.sh setup`
+  image rebuild (F-0116 Docker layer not yet in image) — unrelated to this fix
+
+---
+
 ## Session 34 — 2026-05-29 (F-0116: Remove Antigravity IDE and fix Hub ws1 placement)
 
 ### Goals
