@@ -28,10 +28,14 @@ mkdir -p "${LOG_DIR}"
     exit 0
   fi
 
-  # Git pull with error tolerance
+  # Git pull with error tolerance — run as root with HOME set so git uses user config
+  # No su/runuser needed; chown fixes ownership after copy
   echo "Pulling latest repo changes from ${REPO_DIR}..."
-  if su -s /bin/bash user -c "git -C '${REPO_DIR}' pull --ff-only" 2>&1; then
+  git config --global --add safe.directory "${REPO_DIR}" 2>/dev/null || true
+  if HOME="${USER_HOME}" git -C "${REPO_DIR}" pull --ff-only 2>&1; then
     echo "✓ Git pull succeeded"
+    # Restore ownership of any root-owned files created by pull
+    chown -R 1000:1000 "${REPO_DIR}" 2>/dev/null || true
   else
     PULL_EXIT=$?
     echo "⚠ Git pull failed with exit code ${PULL_EXIT} (skipping sync, continuing boot)"
@@ -46,22 +50,22 @@ mkdir -p "${LOG_DIR}"
     exit 0
   fi
 
-  # Copy all boot scripts
+  # Copy all boot scripts and restore ownership
   echo "Syncing boot scripts from ${BOOT_SRC}..."
   for script in "${BOOT_SRC}"/*.sh; do
     script_name=$(basename "${script}")
     dest="${BOOT_DST}/${script_name}"
-    if cp "${script}" "${dest}" && chown user:user "${dest}"; then
+    if cp "${script}" "${dest}" && chown 1000:1000 "${dest}"; then
       echo "  ✓ Copied ${script_name}"
     else
       echo "  ✗ Failed to copy ${script_name} (continuing)"
     fi
   done
 
-  # Copy sway config
+  # Copy sway config and restore ownership
   echo "Syncing sway config from ${SWAY_SRC}..."
   if [[ -f "${SWAY_SRC}" ]]; then
-    if cp "${SWAY_SRC}" "${SWAY_DST}" && chown user:user "${SWAY_DST}"; then
+    if cp "${SWAY_SRC}" "${SWAY_DST}" && chown 1000:1000 "${SWAY_DST}"; then
       echo "  ✓ Copied sway config"
     else
       echo "  ✗ Failed to copy sway config (continuing)"
