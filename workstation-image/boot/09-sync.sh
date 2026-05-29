@@ -31,7 +31,7 @@ mkdir -p "${LOG_DIR}"
   # Git pull with error tolerance — run as root with HOME set so git uses user config
   # No su/runuser needed; chown fixes ownership after copy
   echo "Pulling latest repo changes from ${REPO_DIR}..."
-  git config --global --add safe.directory "${REPO_DIR}" 2>/dev/null || true
+  HOME="${USER_HOME}" git config --global --add safe.directory "${REPO_DIR}" 2>/dev/null || true
   if HOME="${USER_HOME}" GIT_SSH_COMMAND="ssh -i ${USER_HOME}/.ssh/id_ed25519 -o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=${USER_HOME}/.ssh/known_hosts" git -C "${REPO_DIR}" pull --ff-only 2>&1; then
     echo "✓ Git pull succeeded"
     # Restore ownership of any root-owned files created by pull
