@@ -23,10 +23,27 @@ runuser -u $USER -- mkdir -p "$LOG_DIR"
 
 log "=== App update started ==="
 
+# --- Upgrade Antigravity apt package ---
+log "Upgrading Antigravity apt package..."
+sudo apt-get install -y --only-upgrade antigravity >> "$LOG_FILE" 2>&1
+log "Antigravity apt upgrade done"
+
 # --- Update npm global packages (Claude Code, Gemini CLI) ---
 log "Updating npm global packages..."
 runuser -u $USER -- bash -c ". $NIX_SH && export NPM_CONFIG_PREFIX=$HOME_DIR/.npm-global && npm update -g @anthropic-ai/claude-code @google/gemini-cli @openai/codex @sourcegraph/cody @mariozechner/pi-coding-agent" >> "$LOG_FILE" 2>&1
 log "npm update complete"
+
+# --- Install/update Antigravity CLI ---
+log "Installing/updating Antigravity CLI..."
+if [ ! -d "$HOME_DIR/.gemini/antigravity-cli" ]; then
+    log "Antigravity CLI not initialized — installing..."
+    runuser -u $USER -- bash -c "curl -fsSL https://antigravity.google/cli/install.sh | bash" >> "$LOG_FILE" 2>&1
+    log "Antigravity CLI installed"
+else
+    log "Antigravity CLI found — updating..."
+    runuser -u $USER -- bash -c "curl -fsSL https://antigravity.google/cli/install.sh | bash" >> "$LOG_FILE" 2>&1
+    log "Antigravity CLI updated"
+fi
 
 # --- Install/update GitHub Copilot CLI extension ---
 log "Updating GitHub Copilot CLI..."

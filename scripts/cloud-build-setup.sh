@@ -878,8 +878,18 @@ if echo "$AI_MODULE_CHECK" | grep -q "full"; then
         test_warn "NPM AI tools install had errors (some tools may be missing)"
     fi
 
-    # Antigravity is pre-installed via apt in the Docker image (/usr/bin/antigravity).
-    # No manual download needed.
+    # Install Antigravity CLI via curl (persists to ~/.gemini/antigravity-cli on persistent disk)
+    if ws_ssh 'curl -fsSL https://antigravity.google/cli/install.sh | bash' >/dev/null 2>&1 && \
+       ws_ssh 'test -d $HOME/.gemini/antigravity-cli'; then
+        test_pass "Antigravity CLI installed"
+    else
+        test_warn "Antigravity CLI install had errors (curl script may have failed)"
+    fi
+
+    # Antigravity 2.0 is pre-installed via apt in the Docker image (/usr/bin/antigravity).
+    # The boot script (07-apps.sh) automatically upgrades it on every boot via:
+    # sudo apt-get install -y --only-upgrade antigravity
+    # This ensures the workstation always runs the latest apt release without requiring a rebuild.
 
     # Install OpenCode via go install
     if ws_ssh "${NIX_SOURCE}"' && export GOROOT=$HOME/go GOPATH=$HOME/gopath && export PATH=$GOROOT/bin:$GOPATH/bin:$PATH && go install github.com/opencode-ai/opencode@latest'; then
@@ -909,11 +919,13 @@ if echo "$AI_MODULE_CHECK" | grep -q "full"; then
     AI_VERIFY=$(ws_ssh '
     echo "claude=$(~/.npm-global/bin/claude --version 2>/dev/null | head -1)"
     echo "gemini=$(~/.npm-global/bin/gemini --version 2>/dev/null | head -1)"
+    echo "antigravity-cli=$(test -d $HOME/.gemini/antigravity-cli && echo exists || echo missing)"
     echo "antigravity=$(which antigravity 2>/dev/null && antigravity --version 2>/dev/null | head -1 || echo missing)"
     ')
     echo "$AI_VERIFY" | grep -q "claude=.*Claude" && test_pass "Claude Code" || test_warn "Claude Code not verified"
     echo "$AI_VERIFY" | grep -q "gemini=[0-9]" && test_pass "Gemini CLI" || test_warn "Gemini CLI not verified"
-    echo "$AI_VERIFY" | grep -q "/usr/bin/antigravity" && test_pass "Antigravity" || test_warn "Antigravity not verified"
+    echo "$AI_VERIFY" | grep -q "antigravity-cli=exists" && test_pass "Antigravity CLI" || test_warn "Antigravity CLI not verified"
+    echo "$AI_VERIFY" | grep -q "/usr/bin/antigravity" && test_pass "Antigravity 2.0" || test_warn "Antigravity 2.0 not verified"
 
 elif echo "$AI_MODULE_CHECK" | grep -q "minimal"; then
     # Minimal AI tools (dev profile): Claude Code only

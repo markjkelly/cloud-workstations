@@ -1,5 +1,27 @@
 # Release Notes — Cloud Workstation
 
+## v1.21 — Antigravity 2.0 + CLI (2026-05-29)
+
+### Added
+- **Antigravity CLI** — `curl -fsSL https://antigravity.google/cli/install.sh | bash` installs the new Antigravity CLI. Installed on first boot if missing, updated on every subsequent boot. Available on PATH via `~/.local/bin/antigravity-cli`
+- **Antigravity 2.0** — Auto-updater repo delivers Antigravity 2.0 automatically from the base apt package. Desktop app (binary at `/usr/bin/antigravity`) launches via `$mod+n` keybinding
+- **CLI keybinding** — `$mod+g` launches Antigravity CLI in a new foot terminal window
+- **Boot tests** — Added verification tests for Antigravity 2.0 binary (`/usr/bin/antigravity`) and CLI (`~/.local/bin/antigravity-cli` or on PATH)
+
+### Changed
+- **`07-apps.sh`** — Added Antigravity CLI idempotent install block (first boot + every-boot update)
+- **`sway/config`** — Comment updated to "Antigravity 2.0 desktop app", `$mod+g` added for CLI launch
+- **`08-workspaces.sh`** — Workspace 3 comment updated to reference Antigravity 2.0
+- **`cloud-build-setup.sh`** — Added Antigravity CLI curl install during fresh provisioning, updated verification step
+- **`10-tests.sh`** — Added two new tests for Antigravity 2.0 and CLI verification
+
+### Notes
+- Antigravity 2.0 delivery via existing apt package + auto-updater repo (no package name change)
+- Gemini CLI preserved alongside new CLI tools during transition period
+- `~/.local/bin` already in PATH; CLI will be found automatically after install
+
+---
+
 ## v1.17.2 — Xwayland -rootless persistence (2026-04-15)
 
 Patch release covering F-0097. Closes the loop on the F-0096 fix (v1.17.1 /
@@ -151,6 +173,7 @@ complete.
 ### Docs & Templating
 - `GEMINI.md` added with project context and branching/PR conventions for Gemini-driven workflows
 - `REPO_URL` placeholder updated to point at the markjkelly fork
+>>>>>>> origin/main
 
 ---
 

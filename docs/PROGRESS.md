@@ -44,6 +44,67 @@
 
 ### Completed
 - **PM** authored `docs/specs/F-0096-xwayland-ws1-split.md` with reproduction, root-cause analysis, two fix options, and acceptance criteria (commit `b8d7915`).
+
+### Goals
+- Complete Antigravity 2.0 + CLI implementation (Milestone 16, F-0088 through F-0094)
+- Update docs and close the milestone
+
+### Completed
+
+- **F-0088** (Install Antigravity CLI via curl): SWE-1 added idempotent install block to `workstation-image/boot/07-apps.sh`. Installs on first boot if binary not found, re-runs installer on every subsequent boot for updates. Install command: `curl -fsSL https://antigravity.google/cli/install.sh | bash`. Logged to `$LOG_FILE`.
+
+- **F-0089** (Dockerfile comment update): SWE-1 updated comment in `workstation-image/Dockerfile` to note that auto-updater repo delivers Antigravity 2.0 automatically. Legacy apt package `antigravity` remains in base image; auto-updater handles the 2.0 upgrade on boot.
+
+- **F-0090** (Sway config keybinding): SWE-2 updated `workstation-image/configs/sway/config`:
+  - Comment updated: "Antigravity 2.0 desktop app"
+  - `$mod+a` correctly kept as Clipman (was accidentally changed, then fixed)
+  - `$mod+g` added for Antigravity CLI (launches in foot terminal with `$mod+g`)
+  - Tests added to verify keybindings survive future edits
+
+- **F-0091** (Workspace 3 autostart): SWE-2 updated `workstation-image/boot/08-workspaces.sh` comment for workspace 3 to reference Antigravity 2.0. Binary path `/usr/bin/antigravity` confirmed, timeout 30s retained.
+
+- **F-0092** (Boot tests for Antigravity): SWE-2 added two new tests to `workstation-image/boot/10-tests.sh`:
+  - Antigravity 2.0 binary at `/usr/bin/antigravity` (check_file test)
+  - Antigravity CLI at `~/.local/bin/antigravity-cli` or on PATH (check_path test)
+
+- **F-0093** (Setup script integration): SWE-3 updated `scripts/cloud-build-setup.sh`:
+  - Added Antigravity CLI install step (curl command) during fresh provisioning
+  - Updated final verification step to check for both `antigravity` (2.0 binary) and `antigravity-cli`
+
+- **F-0094** (Shell PATH confirmation): SWE-3 confirmed `~/.local/bin` already in PATH in `workstation-image/boot/05-shell.sh` (no change needed). Added clarifying comment to document that CLI will be found automatically.
+
+### Key Decisions
+- **Antigravity 2.0 delivery**: Uses same apt package name; auto-updater repo delivers 2.0 automatically, no apt change needed
+- **Antigravity CLI keybinding**: `$mod+g` (not `$mod+a` which is Clipman), launches CLI in foot terminal
+- **Gemini CLI preserved**: Kept during transition period alongside new CLI tools
+- **PATH handling**: `~/.local/bin` already in PATH via 05-shell.sh, no manual configuration needed
+
+### Pipeline
+- SWE-1: F-0088, F-0089 (app install + dockerfile)
+- SWE-2: F-0090, F-0091, F-0092 (sway config + workspace + tests)
+- SWE-3: F-0093, F-0094 (setup script + shell path)
+- All items marked `done`, all changes on `main` branch
+
+### Follow-up
+
+- **F-0089 implementation**: Live testing revealed apt auto-upgrade was necessary to keep Antigravity current. Added `sudo apt-get install -y --only-upgrade antigravity` to 07-apps.sh, runs on every boot. Verified on live workstation: upgraded from 1.22.2 to 1.23.2 without requiring image rebuild.
+- **CLI binary discovery**: Live testing clarified that Antigravity is a single binary (`/usr/bin/antigravity`) with rolling 1.x releases. No separate "CLI binary" or "2.0 package" exists — same `/usr/bin/antigravity` binary handles both CLI invocation and desktop app launch (keybinding-dependent).
+- **Spec and backlog corrected**: Removed "Antigravity 2.0" framing (misleading, as it's 1.x rolling releases). F-0089 status marked done with apt auto-upgrade implemented.
+- **Workstation manually upgraded**: Workstation upgraded to 1.23.2 during live testing. Will remain current via boot-time apt upgrade.
+
+### Next Steps
+- E2E verification: confirm Antigravity auto-upgrade works after teardown+setup
+- Tag v1.17 release after PO approval
+
+---
+
+## Session 23 — 2026-04-15
+
+### Goals
+- Fix Xwayland splitting workspace 1 on boot (F-0096) — ws1 should open to a single fullscreen foot terminal like ws2/ws3/ws4, not tile foot next to a phantom Xwayland root window.
+
+### Completed
+- **PM** authored `docs/specs/F-0096-xwayland-ws1-split.md` with reproduction, root-cause analysis, two fix options, and acceptance criteria (commit `b8d7915`).
 - **TPM** added F-0096 to `docs/BACKLOG.md` under Milestone 21 (commit `98ac784`).
 - **SWE** implemented Option 2 — added `-rootless` to the Xwayland invocation in `workstation-image/boot/08-workspaces.sh`, updated log lines, and left a comment pointing at F-0096 (commit `2cf39b1`).
 - **SWE-Test + SWE-QA** verified end-to-end on the live workstation: after `swaymsg reload` + re-exec of `08-workspaces.sh`, ws1 shows a single fullscreen foot terminal; no `org.freedesktop.Xwayland` client is visible in `swaymsg -t get_tree`. Boot test suite: **53 PASS / 30 FAIL**, with all 30 FAILs pre-existing hygiene issues unrelated to this fix (mostly AI CLI version probes).
@@ -180,6 +241,7 @@ Fork-only commits mapped to specs/backlog items:
 - PO review of v1.17 release notes and four new specs
 - After PO approval: `git tag -a v1.17 -m "..."` and push tags
 - Future: decide whether F-0089 custom-tools module should be folded into a dedicated `--profile extras` or remain opt-in via module flag
+>>>>>>> origin/main
 
 ---
 

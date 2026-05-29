@@ -65,7 +65,7 @@ fi
 # Timezone
 export TZ="America/Los_Angeles"
 
-# PATH additions
+# PATH additions (includes ~/.local/bin for Antigravity CLI and user scripts)
 export PATH="$HOME/.npm-global/bin:$HOME/.local/bin:/var/lib/nvidia/bin:$PATH"
 
 # History

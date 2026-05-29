@@ -103,7 +103,7 @@ bindsym $mod+e exec $nix/thunar
 # Web Browser (Google Chrome — /dev/shm too small at 64MB in container)
 bindsym $mod+b exec google-chrome-stable --disable-dev-shm-usage
 
-# Antigravity (Electron app — Wayland, no-sandbox, /dev/shm too small at 64MB)
+# Antigravity 2.0 desktop app (Electron app — Wayland, no-sandbox, /dev/shm too small at 64MB)
 bindsym $mod+n exec /usr/bin/antigravity --no-sandbox --ozone-platform=wayland --disable-gpu --disable-dev-shm-usage
 
 # IntelliJ IDEA Community (X11/Swing app — needs DISPLAY for Xwayland)
@@ -120,6 +120,9 @@ bindsym $mod+a exec env -u LD_LIBRARY_PATH PATH=/home/user/.nix-profile/bin:$PAT
 
 # Snippet picker (text expansion)
 bindsym $mod+s exec /home/user/.local/bin/snippet-picker
+
+# Antigravity CLI (terminal app — launch in foot terminal)
+bindsym $mod+g exec $nix/foot -e /usr/bin/antigravity
 
 # -----------------------------------------------------------------------------
 # General — Window Management

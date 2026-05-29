@@ -113,6 +113,21 @@ else
 fi
 
 # =============================================================================
+# Antigravity Tools
+# =============================================================================
+log ""
+log "--- Antigravity Tools ---"
+check_file "Antigravity 2.0 binary" "/usr/bin/antigravity"
+check_dir "Antigravity CLI config" "$HOME_DIR/.gemini/antigravity-cli"
+# Version check: boot script 07-apps.sh auto-upgrades antigravity via apt on every boot
+if runuser -u $USER -- /usr/bin/antigravity --version >/dev/null 2>&1; then
+    ANTIGRAV_VER=$(/usr/bin/antigravity --version 2>&1 | head -1)
+    test_pass "Antigravity 2.0 version: $ANTIGRAV_VER"
+else
+    test_warn "Antigravity 2.0 version check failed"
+fi
+
+# =============================================================================
 # AI CLI Tools
 # =============================================================================
 log ""
@@ -266,10 +281,10 @@ check_grep "xwayland disable" "xwayland disable" "$SWAY_CFG"
 check_grep "IntelliJ DISPLAY=:0" "DISPLAY=:0.*idea-oss" "$SWAY_CFG"
 check_grep "VSCode LD_LIBRARY_PATH" "LD_LIBRARY_PATH.*code" "$SWAY_CFG"
 check_grep "Wofi XDG_DATA_DIRS" "XDG_DATA_DIRS" "$SWAY_CFG"
-check_grep "Clipman wofi PATH" "PATH=.*clipman.*wofi\|clipman store" "$SWAY_CFG"
+check_grep "Clipman keybinding" "mod+a.*clipman" "$SWAY_CFG"
 check_grep "Windsurf keybinding" "mod+w.*windsurf" "$SWAY_CFG"
 check_grep "Apps button click" "button1.*wofi" "$SWAY_CFG"
-check_grep "Antigravity keybinding" "antigravity" "$SWAY_CFG"
+check_grep "Antigravity CLI keybinding" "mod+g.*/usr/bin/antigravity" "$SWAY_CFG"
 check_grep "Snippet picker keybinding" "snippet-picker" "$SWAY_CFG"
 # F-0095: foot CWD drift guard. Standardized on
 # --working-directory=/home/user (commits 0dd33b3, 20d3352). The earlier
