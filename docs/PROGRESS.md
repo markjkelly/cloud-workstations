@@ -1,5 +1,57 @@
 # Development Progress Log — Cloud Workstation
 
+## Session 26 — 2026-05-29
+
+### Goals
+- Implement Antigravity 2.0 Hub as workspace 5 auto-launch (F-0107)
+- Fix `$mod+h` keybinding conflict (was both exec Hub and workspace number 5)
+- Fix Antigravity IDE GPU flag (--use-gl=swiftshader instead of --disable-gpu)
+
+### Completed
+- **PM** authored `docs/specs/F-0107-antigravity-hub-workspace.md` with requirements, acceptance criteria, and resolution of keybinding conflict
+- **TPM** added F-0107 to `docs/BACKLOG.md` under Milestone 23, marked In Progress
+- **SWE** implemented feature on branch `feature/antigravity-hub-workspace`:
+  - `workstation-image/boot/08-workspaces.sh`: updated header to "5 workspaces", added HUB variable, fixed ws2 Antigravity IDE to use `--use-gl=swiftshader` (not `--disable-gpu`), added ws5 Hub auto-launch block with 30s timeout and guard condition
+  - `workstation-image/configs/sway/config`: removed duplicate `$mod+h exec` binding (line 110) that launched Hub, keeping only `$mod+h workspace number 5` (line 179) to switch to ws5. Hub now launches automatically on boot via 08-workspaces.sh. Also fixed Antigravity IDE binding line 107 to use `--use-gl=swiftshader`
+  - `workstation-image/boot/10-tests.sh`: added test for keybinding uniqueness and correctness (F-0107 guard), added test for Hub ws5 auto-launch configuration in boot script
+- **SWE-QA** verified:
+  - Sway config has exactly one `$mod+h` binding (to workspace 5), no exec duplicate
+  - 08-workspaces.sh ws2 and ws5 both use correct Electron flags (`--use-gl=swiftshader --disable-dev-shm-usage`)
+  - Guard conditions on both IDE and Hub prevent launch if binary missing
+  - Tests cover keybinding conflict fix, ws5 auto-launch configuration, and Electron flags
+  - No regressions to existing keybindings or workspace definitions
+  - Three-places rule documented in spec/feedback for Home Manager sway-config sync on live workstations
+
+### Key Decisions
+- **Remove `$mod+h exec` from sway config, not add workspace keybinding**: conflict resolution was to keep workspace 5 switching (useful), remove Hub launch from keybinding (redundant with auto-launch). Hub is auto-started in ws5, so no manual launch keybinding needed.
+- **Auto-launch Hub with 30s timeout**: matches Antigravity IDE timeout (longer than terminals' 5s). Hub takes longer to initialize than terminals.
+- **Use `--use-gl=swiftshader` for both IDE and Hub**: fixes blank-window bug from `--disable-gpu`. Electron apps on Wayland with nvidia GL libraries need this flag, not `--disable-gpu`.
+- **Guard both IDE and Hub launches**: skip if binary missing, prevents boot errors on minimal installs
+
+### Files Changed
+- `docs/specs/F-0107-antigravity-hub-workspace.md` (new)
+- `docs/BACKLOG.md` (Milestone 23 F-0107 entry, marked in-progress)
+- `workstation-image/boot/08-workspaces.sh` (header, HUB variable, ws2 GPU flag fix, ws5 launch block)
+- `workstation-image/configs/sway/config` (removed `$mod+h exec`, kept `workspace number 5`, fixed ws2 IDE flags)
+- `workstation-image/boot/10-tests.sh` (keybinding uniqueness test, ws5 auto-launch config test)
+
+### Pipeline
+- Full pipeline: Spec → Backlog → Implement → Test → QA → Backlog update → Progress log (in progress)
+- Ready for code review and PR creation
+
+### Next Steps
+- Create PR on feature branch
+- PO review and approval
+- Merge to main
+- Tag next version (v1.23 or appropriate)
+- On live workstations: sync `~/.config/home-manager/sway-config` with repo sway config if using Home Manager
+
+### Open Items / Notes
+- Home Manager sway-config sync is a deployment step — documented in spec feedback
+- Keybinding conflict was residual from F-0106 (Hub installation) — no prior session touched ws5 workspaces until this feature
+
+---
+
 ## Session 25 — 2026-05-29
 
 ### Goals

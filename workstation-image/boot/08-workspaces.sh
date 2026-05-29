@@ -1,9 +1,9 @@
 #!/bin/bash
 # =============================================================================
-# 08-workspaces.sh — Auto-launch apps across 4 Sway workspaces
+# 08-workspaces.sh — Auto-launch apps across 5 Sway workspaces
 # =============================================================================
 # Waits for Sway to be ready, then launches:
-#   ws1 = Chrome, ws2 = Antigravity, ws3 = foot terminal, ws4 = foot terminal
+#   ws1 = Chrome, ws2 = Antigravity IDE, ws3 = foot terminal, ws4 = foot terminal, ws5 = Hub
 # Idempotent: skips if windows already exist.
 # Runs as systemd service (ws-autolaunch) after wayvnc.service.
 # =============================================================================
@@ -13,6 +13,7 @@ NIX="/home/user/.nix-profile/bin"
 SWAYMSG="$NIX/swaymsg"
 FOOT="$NIX/foot"
 ANTIGRAVITY="/usr/bin/antigravity"
+HUB="/home/user/.local/bin/antigravity-hub"
 
 log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] [08-workspaces] $1"; }
 
@@ -124,7 +125,7 @@ launch_and_wait 1 15 google-chrome-stable --ozone-platform=wayland --disable-dev
 
 # Workspace 2: Antigravity 2.0 desktop app (Electron — 30s timeout, needs longer to initialize)
 if [ -x "$ANTIGRAVITY" ]; then
-    launch_and_wait 2 30 "$ANTIGRAVITY" --no-sandbox --ozone-platform=wayland --disable-gpu --disable-dev-shm-usage
+    launch_and_wait 2 30 "$ANTIGRAVITY" --no-sandbox --ozone-platform=wayland --use-gl=swiftshader --disable-dev-shm-usage
 else
     log "WARNING: Antigravity not found at $ANTIGRAVITY — skipping ws2"
 fi
@@ -134,6 +135,13 @@ launch_and_wait 3 5 "$FOOT" --working-directory=/home/user
 
 # Workspace 4: foot terminal (fast — 5s timeout)
 launch_and_wait 4 5 "$FOOT" --working-directory=/home/user
+
+# Workspace 5: Antigravity 2.0 Hub (Electron — 30s timeout, needs longer to initialize)
+if [ -x "$HUB" ]; then
+    launch_and_wait 5 30 "$HUB" --no-sandbox --ozone-platform=wayland --use-gl=swiftshader --disable-dev-shm-usage
+else
+    log "WARNING: Hub not found at $HUB — skipping ws5"
+fi
 
 # Switch back to workspace 1
 sleep 1
