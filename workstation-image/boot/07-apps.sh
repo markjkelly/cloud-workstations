@@ -43,20 +43,12 @@ HUB_TEMP="/tmp/antigravity-hub-download.tar.gz"
 if [ ! -d "$HUB_INSTALL_DIR" ]; then
     log "Antigravity Hub not found — downloading and extracting..."
     runuser -u $USER -- mkdir -p "$HOME_DIR/.local/share" "$HOME_DIR/.local/bin"
-    if runuser -u $USER -- curl -fsSL -o "$HUB_TEMP" "$HUB_URL" >> "$LOG_FILE" 2>&1; then
+    if runuser -u $USER -- curl -fsSL --retry 3 --retry-delay 5 --connect-timeout 30 -o "$HUB_TEMP" "$HUB_URL" >> "$LOG_FILE" 2>&1; then
         if runuser -u $USER -- tar -xzf "$HUB_TEMP" -C "$HOME_DIR/.local/share/" >> "$LOG_FILE" 2>&1; then
-            # Rename extracted directory to standard name
-            runuser -u $USER -- mv "$HOME_DIR/.local/share/Antigravity" "$HUB_INSTALL_DIR" 2>/dev/null || true
-            # Create symlink to main binary
-            # The tar.gz extracts to a directory with the binary at the root (likely named 'Antigravity' or 'antigravity-hub')
-            if [ -f "$HUB_INSTALL_DIR/Antigravity" ]; then
-                runuser -u $USER -- ln -sf "$HUB_INSTALL_DIR/Antigravity" "$HUB_SYMLINK"
-            elif [ -f "$HUB_INSTALL_DIR/antigravity-hub" ]; then
-                runuser -u $USER -- ln -sf "$HUB_INSTALL_DIR/antigravity-hub" "$HUB_SYMLINK"
-            else
-                # Fallback: link to the directory itself, shell will find the binary
-                runuser -u $USER -- ln -sf "$HUB_INSTALL_DIR" "$HUB_SYMLINK"
-            fi
+            # tar.gz extracts to Antigravity-x64/ — rename to standard install dir
+            runuser -u $USER -- mv "$HOME_DIR/.local/share/Antigravity-x64" "$HUB_INSTALL_DIR" 2>/dev/null || true
+            # Binary is named 'antigravity' inside the extracted directory
+            runuser -u $USER -- ln -sf "$HUB_INSTALL_DIR/antigravity" "$HUB_SYMLINK"
             rm -f "$HUB_TEMP"
             log "Antigravity Hub downloaded, extracted, and symlinked"
         else
