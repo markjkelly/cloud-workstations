@@ -1,7 +1,7 @@
 # Project Backlog — Cloud Workstation
 
 **Maintained by:** TPM
-**Last updated:** 2026-04-02 (Milestone 15 completed — composable install profiles)
+**Last updated:** 2026-05-29 (Milestone 16 extended — Antigravity 2.0 + CLI)
 
 ---
 
@@ -209,6 +209,20 @@
 | ID | Feature | Spec | Priority | Status | Owner | Branch | Dependencies | Feedback |
 |----|---------|------|----------|--------|-------|--------|--------------|----------|
 | F-0087 | Foot terminal starts in $HOME | — | P2 | done | PO | main | — | Sway bindings ($mod+Return, $mod+t) wrapped with `cd ~ &&` so foot inherits HOME instead of sway's cwd. Test added to 10-tests.sh. |
+
+---
+
+## Milestone 16: Antigravity 2.0 + CLI
+
+| ID | Feature | Spec | Priority | Status | Owner | Branch | Dependencies | Feedback |
+|----|---------|------|----------|--------|-------|--------|--------------|----------|
+| F-0088 | Install Antigravity CLI via curl in 07-apps.sh | [F-0040](specs/F-0040-antigravity-2-cli.md) | P1 | backlog | SWE-1 | — | F-0087 | First-boot install + every-boot update via `curl -fsSL https://antigravity.google/cli/install.sh \| bash`. Must persist to persistent disk ($HOME). |
+| F-0089 | Update Dockerfile: replace legacy apt antigravity with 2.0 apt package | [F-0040](specs/F-0040-antigravity-2-cli.md) | P1 | backlog | SWE-1 | — | F-0087 | **Research needed**: Exact Antigravity 2.0 apt package name (currently legacy `antigravity` v1.107.0). Check https://us-central1-apt.pkg.dev/projects/antigravity-auto-updater-dev/ repo before implementation. If apt unavailable, document alternative install. |
+| F-0090 | Update sway config: keybinding for Antigravity 2.0 desktop app | [F-0040](specs/F-0040-antigravity-2-cli.md) | P1 | backlog | SWE-2 | — | F-0087 | Maintain `$mod+n` keybinding with updated binary path for Antigravity 2.0. Add Wayland flags (--ozone-platform=wayland, etc). Confirm binary path after F-0089 completes. |
+| F-0091 | Update 08-workspaces.sh: workspace 3 auto-launch Antigravity 2.0 | [F-0040](specs/F-0040-antigravity-2-cli.md) | P1 | backlog | SWE-2 | — | F-0089, F-0090 | Update workspace 3 to launch Antigravity 2.0 binary with latest flags. Confirm binary path and timeout (currently 30s). |
+| F-0092 | Update 10-tests.sh: add boot tests for Antigravity CLI + 2.0 binary | [F-0040](specs/F-0040-antigravity-2-cli.md) | P1 | backlog | SWE-2 | — | F-0088, F-0091 | Add tests: `which antigravity-cli` (or `which ag`), `which antigravity` (or equivalent for 2.0 binary), sway config grep for `$mod+n` keybinding. |
+| F-0093 | Update cloud-build-setup.sh: Antigravity CLI + 2.0 in fresh provisioning | [F-0040](specs/F-0040-antigravity-2-cli.md) | P1 | backlog | SWE-3 | — | F-0088, F-0089 | Add Antigravity CLI install step (after Step 17, npm/Go installs). Update verification step. Ensure apt upgrade includes 2.0 package. |
+| F-0094 | Add Antigravity CLI PATH to 05-shell.sh if needed | [F-0040](specs/F-0040-antigravity-2-cli.md) | P1 | backlog | SWE-3 | — | F-0088 | If CLI installs to non-standard location (e.g., `~/.local/bin`, `~/.nix-profile/bin`), add PATH entry to 05-shell.sh .zshrc template. Confirm after F-0088 curl install. |
 
 ---
 

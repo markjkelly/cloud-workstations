@@ -115,11 +115,14 @@ bindsym $mod+y exec env -u LD_LIBRARY_PATH $nix/code --no-sandbox --ozone-platfo
 # Windsurf (Electron app — same flags as VSCode)
 bindsym $mod+w exec env -u LD_LIBRARY_PATH $nix/windsurf --no-sandbox --ozone-platform=wayland --disable-gpu --disable-dev-shm-usage
 
-# Antigravity CLI (terminal app — launch in foot terminal)
-bindsym $mod+a exec $nix/foot -e antigravity-cli
+# Clipboard history picker (clipman — needs wofi in PATH and clear LD_LIBRARY_PATH)
+bindsym $mod+a exec env -u LD_LIBRARY_PATH PATH=/home/user/.nix-profile/bin:$PATH $nix/clipman pick --tool wofi
 
 # Snippet picker (text expansion)
 bindsym $mod+s exec /home/user/.local/bin/snippet-picker
+
+# Antigravity CLI (terminal app — launch in foot terminal)
+bindsym $mod+g exec $nix/foot -e antigravity-cli
 
 # -----------------------------------------------------------------------------
 # General — Window Management
