@@ -1,5 +1,49 @@
 # Development Progress Log — Cloud Workstation
 
+## Session 27 — 2026-05-29 (F-0109: Boot Sync SSH Auth Fix)
+
+### Goals
+- Fix SSH authentication failure in boot sync script (F-0109)
+- Boot sync runs as root, but git pull fails due to missing SSH key in /root/.ssh
+- Add GIT_SSH_COMMAND to pass user's id_ed25519 key explicitly
+
+### Completed
+- **PM** authored `docs/specs/F-0109-sync-ssh-auth.md` with requirements and acceptance criteria
+- **TPM** added F-0109 to `docs/BACKLOG.md` under Milestone 23, marked done
+- **SWE** already implemented fix on 2026-05-29:
+  - `workstation-image/boot/09-sync.sh` line 35: Added `GIT_SSH_COMMAND="ssh -i ${USER_HOME}/.ssh/id_ed25519 -o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=${USER_HOME}/.ssh/known_hosts"` before git pull
+  - Root can now authenticate to GitHub using user's SSH key
+  - Maintains non-fatal error handling; graceful skip if git pull fails
+- **SWE-Test** added tests to `workstation-image/boot/10-tests.sh`:
+  - Verify 09-sync.sh exists and is executable
+  - Verify GIT_SSH_COMMAND is set (grep check)
+  - Verify SSH key path is id_ed25519
+  - Verify StrictHostKeyChecking=accept-new is set
+- **SWE-QA** verified:
+  - GIT_SSH_COMMAND on line 35 is set correctly
+  - SSH key path points to user's id_ed25519 (not root's)
+  - StrictHostKeyChecking=accept-new avoids host-key prompts without disabling verification
+  - UserKnownHostsFile set to user's known_hosts file
+
+### Files Changed
+- `docs/specs/F-0109-sync-ssh-auth.md` (new)
+- `docs/BACKLOG.md` (Milestone 23 new section with F-0109 entry, marked done)
+- `workstation-image/boot/09-sync.sh` (GIT_SSH_COMMAND added to git pull line 35)
+- `workstation-image/boot/10-tests.sh` (4 new tests for F-0109)
+
+### Key Decisions
+- **Use GIT_SSH_COMMAND instead of modifying git config**: avoids persistent changes to system config, clean environment variable-based override
+- **StrictHostKeyChecking=accept-new**: safer than `no` (accepts unknown keys without prompt), safer than unset (would prompt interactively during boot)
+
+### Next Steps
+- Commit on feature branch
+- Create PR
+- PO review and approval
+- Merge to main
+- Tag next version
+
+---
+
 ## Session 26 — 2026-05-29
 
 ### Goals

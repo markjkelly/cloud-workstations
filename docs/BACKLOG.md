@@ -280,7 +280,15 @@ Tracks fork-only work that pre-dated or accompanied v1.17. All items are documen
 
 ---
 
-## Milestone 23: Xwayland `-rootless` Persistence Fix (F-0096 Regression)
+## Milestone 23: Boot Sync SSH Authentication Fix
+
+| ID | Feature | Spec | Priority | Status | Owner | Branch | Dependencies | Feedback |
+|----|---------|------|----------|--------|-------|--------|--------------|----------|
+| F-0109 | Fix SSH authentication in boot sync script | [F-0109](specs/F-0109-sync-ssh-auth.md) | P0 | done | SWE-1 | feature/fix-sync-ssh-auth | F-0108 | Boot sync runs as root but git pull failed due to missing SSH key. Added `GIT_SSH_COMMAND` pointing to user's `id_ed25519` key with `StrictHostKeyChecking=accept-new`. Test added to `10-tests.sh`. Fixes silent auth failures on every boot. |
+
+---
+
+## Milestone 24: Xwayland `-rootless` Persistence Fix (F-0096 Regression)
 
 | ID | Feature | Spec | Priority | Status | Owner | Branch | Dependencies | Feedback |
 |----|---------|------|----------|--------|-------|--------|--------------|----------|
