@@ -14,6 +14,7 @@ SWAYMSG="$NIX/swaymsg"
 FOOT="$NIX/foot"
 ANTIGRAVITY="/usr/bin/antigravity"
 HUB="/home/user/.local/bin/antigravity-hub"
+DBUS_ADDR="unix:path=/run/user/1000/bus"
 
 log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] [08-workspaces] $1"; }
 
@@ -102,7 +103,7 @@ launch_and_wait() {
     # Launch the app
     local sock
     sock="$(find_swaysock)"
-    runuser -u $USER -- env WAYLAND_DISPLAY=wayland-1 XDG_RUNTIME_DIR=/run/user/1000 SWAYSOCK="$sock" "$@" &
+    runuser -u $USER -- env WAYLAND_DISPLAY=wayland-1 XDG_RUNTIME_DIR=/run/user/1000 SWAYSOCK="$sock" DBUS_SESSION_BUS_ADDRESS="$DBUS_ADDR" "$@" &
     local app_pid=$!
 
     # Wait for a new window to appear on this workspace
@@ -120,6 +121,34 @@ launch_and_wait() {
     log "WARNING: Timeout (${timeout}s) waiting for window on ws$ws: $*"
     return 1
 }
+
+# =============================================================================
+# F-0115: Start gnome-keyring Secret Service before any app launch.
+# The Hub's bundled language_server persists and reloads its OAuth token via
+# the freedesktop.org Secret Service API.  Without a provider, every token
+# persist/reload fails and the Hub reverts to logged-out after first paint.
+# We start gnome-keyring-daemon with an empty password so the login keyring
+# (stored on the persistent home disk at ~/.local/share/keyrings/) is unlocked
+# non-interactively on every boot.  DBUS_ADDR is set above; apps also receive
+# DBUS_SESSION_BUS_ADDRESS so they can reach the bus.
+# Idempotent: if gnome-keyring-daemon is already running, skip re-launch.
+# =============================================================================
+if [ ! -x /usr/bin/gnome-keyring-daemon ]; then
+    log "WARNING: /usr/bin/gnome-keyring-daemon not found — Secret Service unavailable; Hub OAuth token will not persist"
+elif pgrep -x gnome-keyring-daemon >/dev/null 2>&1; then
+    log "Secret service already running, skipping gnome-keyring-daemon start"
+else
+    log "Starting gnome-keyring secret service (F-0115)..."
+    runuser -u "$USER" -- env XDG_RUNTIME_DIR=/run/user/1000 DBUS_SESSION_BUS_ADDRESS="$DBUS_ADDR" \
+        sh -c 'printf "\n" | /usr/bin/gnome-keyring-daemon --unlock --components=secrets' \
+        >/dev/null 2>&1 &
+    sleep 1
+    if pgrep -x gnome-keyring-daemon >/dev/null 2>&1; then
+        log "Started gnome-keyring secret service"
+    else
+        log "WARNING: gnome-keyring-daemon failed to start — Hub OAuth token persistence may not work"
+    fi
+fi
 
 # =============================================================================
 # Launch order: Chrome first (fast, needed for IDE OAuth), then Hub (ws1,

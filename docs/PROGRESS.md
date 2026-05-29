@@ -1,5 +1,55 @@
 # Development Progress Log — Cloud Workstation
 
+## Session 33 — 2026-05-29 (F-0115: Keyring Secret Service for Hub OAuth token persistence)
+
+### Goals
+- Fix the root cause of "logged in tab 1 is there, blank, then disappears": the Hub's
+  bundled `language_server` cannot persist or reload its OAuth token because no
+  Secret Service provider is running in the headless Sway session.
+- Export `DBUS_SESSION_BUS_ADDRESS` to all app processes so they can reach the session bus.
+
+### Completed
+- **PM** authored `docs/specs/F-0115-keyring-auth-persistence.md`
+- **TPM** added F-0115 to `docs/BACKLOG.md` under Milestone 30, marked done
+- **SWE** updated `workstation-image/boot/08-workspaces.sh`:
+  - Added `DBUS_ADDR="unix:path=/run/user/1000/bus"` constant near top of script
+  - Added `DBUS_SESSION_BUS_ADDRESS="$DBUS_ADDR"` to the `runuser ... env` block inside
+    `launch_and_wait` so every launched Electron/language_server process can reach the bus
+  - Added idempotent F-0115 keyring block (before the Chrome `launch_and_wait` call):
+    - Guards on `/usr/bin/gnome-keyring-daemon` existing (WARNING + continue if missing)
+    - `pgrep -x gnome-keyring-daemon` check — skips if already running
+    - `runuser -u user -- env ... sh -c 'printf "\n" | gnome-keyring-daemon --unlock --components=secrets'`
+      with empty password (login keyring on persistent disk, works across reboots)
+    - Logs "Started gnome-keyring secret service" or "Secret service already running"
+- **SWE-Test** extended `workstation-image/boot/10-tests.sh` with 4 new F-0115 checks:
+  - PASS: `gnome-keyring-daemon --unlock` present in `08-workspaces.sh`
+  - PASS: `--components=secrets` present in `08-workspaces.sh`
+  - PASS: `DBUS_SESSION_BUS_ADDRESS` present in `08-workspaces.sh`
+  - PASS: `pgrep.*gnome-keyring-daemon` guard present
+- **Persistence**: `~/boot/08-workspaces.sh` and `~/boot/10-tests.sh` synced live.
+  `scripts/cloud-build-setup.sh` deploys entire `workstation-image/boot/` via `tar czf` —
+  no additional change needed (verified at line 708).
+- `docs/STARTUP_SCRIPTS.md` updated with F-0115 keyring startup note in the
+  `ws-autolaunch.service → 08-workspaces.sh` section.
+- `bash -n` PASS on both `08-workspaces.sh` and `10-tests.sh`.
+
+### Decisions
+- Used `gnome-keyring-daemon` (already installed at `/usr/bin/gnome-keyring-daemon`) rather
+  than introducing a new Secret Service provider — zero new dependencies.
+- Empty-password unlock (`printf '\n' | gnome-keyring-daemon --unlock`) makes the keyring
+  usable non-interactively across reboots; the keyring files live on the persistent home disk
+  at `~/.local/share/keyrings/` so they survive workstation restarts.
+- The keyring block is placed before the Chrome launch (the first `launch_and_wait` call) so
+  the Secret Service is ready before any Electron app starts.
+- `DBUS_ADDR` constant defined at the top of the script so both the keyring block and the
+  `launch_and_wait` env share the same value with no duplication.
+
+### Next Steps
+- On next boot, verify `~/logs/hub-launch.log` no longer contains
+  "Failed to persist token to keyring" or "Failed to connect to the bus" errors.
+- After signing into the Hub once, verify the session survives a reboot (token reloaded
+  from keyring on subsequent boots without re-authentication).
+
 ## Session 32 — 2026-05-29 (F-0114: Hub stale singleton lock cleanup before launch)
 
 ### Goals

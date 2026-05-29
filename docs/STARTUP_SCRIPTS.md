@@ -64,6 +64,13 @@ systemd (after Sway starts)
   │         child process that crashed in a loop). Hub (ws1) additionally
   │         uses --user-data-dir=/home/user/.config/Antigravity-Hub to
   │         avoid the Electron SingletonLock conflict with the IDE (ws2).
+  │         F-0115: gnome-keyring-daemon is started with empty-password
+  │         unlock (--unlock --components=secrets) BEFORE any app launch
+  │         so the Hub's language_server can persist and reload its OAuth
+  │         token via the Secret Service API. DBUS_SESSION_BUS_ADDRESS is
+  │         exported to all launched app processes. Startup is idempotent
+  │         (pgrep guard); missing binary logs WARNING and boot continues.
+  │         Requires /usr/bin/gnome-keyring-daemon (present in base image).
   └── ws-boot-tests.service (After=ws-autolaunch, 30s delay)
         └── 10-tests.sh (run ~82 verification tests)
 ```
