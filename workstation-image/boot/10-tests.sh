@@ -187,6 +187,32 @@ else
     test_fail "08-workspaces.sh not found at $WS_SCRIPT_F0114 (F-0114 check)"
 fi
 
+# F-0115: gnome-keyring Secret Service for Hub OAuth token persistence.
+# Without a Secret Service provider the Hub's language_server cannot persist
+# or reload its OAuth token, causing the Hub to revert to logged-out on every
+# boot.  Verify the fix block is present in the boot script:
+#   (a) gnome-keyring-daemon started with --unlock (empty-password unlock)
+#   (b) gnome-keyring-daemon started with --components=secrets
+#   (c) DBUS_SESSION_BUS_ADDRESS exported to launched app processes
+#   (d) idempotent pgrep guard prevents duplicate daemon launches
+WS_SCRIPT_F0115="$HOME_DIR/boot/08-workspaces.sh"
+if [ -f "$WS_SCRIPT_F0115" ]; then
+    check_grep "Keyring: gnome-keyring-daemon started with --unlock (F-0115)" \
+        'gnome-keyring-daemon --unlock' \
+        "$WS_SCRIPT_F0115"
+    check_grep "Keyring: gnome-keyring-daemon started with --components=secrets (F-0115)" \
+        '\-\-components=secrets' \
+        "$WS_SCRIPT_F0115"
+    check_grep "Keyring: DBUS_SESSION_BUS_ADDRESS exported in launch_and_wait env (F-0115)" \
+        'DBUS_SESSION_BUS_ADDRESS' \
+        "$WS_SCRIPT_F0115"
+    check_grep "Keyring: idempotent pgrep guard present (F-0115)" \
+        'pgrep.*gnome-keyring-daemon' \
+        "$WS_SCRIPT_F0115"
+else
+    test_fail "08-workspaces.sh not found at $WS_SCRIPT_F0115 (F-0115 check)"
+fi
+
 # =============================================================================
 # AI CLI Tools
 # =============================================================================

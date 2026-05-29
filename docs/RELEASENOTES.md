@@ -1,5 +1,39 @@
 # Release Notes — Cloud Workstation
 
+## v1.24.8 — Hub keyring Secret Service for OAuth token persistence (2026-05-29)
+
+### Fixed
+- **Hub blank ws1 / logged-in state lost after first paint** (F-0115) — The Antigravity Hub
+  authenticated successfully but immediately reverted to logged-out because the bundled
+  `language_server` could not persist or reload its OAuth token: no Secret Service provider
+  was running and `DBUS_SESSION_BUS_ADDRESS` was never exported to launched app processes.
+  `language_server` logs confirmed:
+  `auth_client.go:332] Failed to persist token to keyring: failed to unlock correct collection`
+  `auth_client.go:106] Background token refresh failed: failed to load token: ...`
+
+### Changed
+- **`workstation-image/boot/08-workspaces.sh`** — Three changes:
+  - Added `DBUS_ADDR="unix:path=/run/user/1000/bus"` constant near top
+  - Added `DBUS_SESSION_BUS_ADDRESS="$DBUS_ADDR"` to the `env` block inside `launch_and_wait`
+    so all launched Electron/`language_server` processes can reach the session bus
+  - Added idempotent F-0115 block (before first `launch_and_wait`):
+    - Logs WARNING and continues if `/usr/bin/gnome-keyring-daemon` is absent
+    - Skips if `gnome-keyring-daemon` is already running (pgrep guard)
+    - Otherwise starts `gnome-keyring-daemon --unlock --components=secrets` with empty
+      password as `user` against the session bus; logs outcome
+- **`workstation-image/boot/10-tests.sh`** — 4 new F-0115 grep-based tests:
+  - Verifies `gnome-keyring-daemon --unlock` is present
+  - Verifies `--components=secrets` is present
+  - Verifies `DBUS_SESSION_BUS_ADDRESS` is exported in `launch_and_wait` env
+  - Verifies idempotent `pgrep.*gnome-keyring-daemon` guard is present
+
+### Notes
+- `/usr/bin/gnome-keyring-daemon` is already present in the base Docker image (no new
+  image rebuild required for this fix).
+- `~/boot/08-workspaces.sh` and `~/boot/10-tests.sh` synced live immediately.
+- `scripts/cloud-build-setup.sh` deploys boot scripts via tar — no change needed (verified).
+- `docs/STARTUP_SCRIPTS.md` updated with F-0115 keyring note.
+
 ## v1.24.7 — Hub stale singleton lock cleanup before launch (2026-05-29)
 
 ### Fixed
