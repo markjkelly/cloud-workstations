@@ -1,5 +1,53 @@
 # Development Progress Log — Cloud Workstation
 
+## Session 30 — 2026-05-29 (F-0112: Swap Chrome/Hub workspaces)
+
+### Goals
+- Move Antigravity Hub to ws1 (default landing workspace) and Chrome to ws5
+- Preserve all F-0110/F-0111 flags, timeouts, and log-redirect logic with the Hub
+- Update end-of-boot focus logic (both success and timeout paths land on ws1 = Hub)
+- Update 10-tests.sh to reflect new ws1=Hub, ws5=Chrome layout
+
+### Completed
+- **Prerequisite**: Merged PR #21 (F-0111) into main; created and pushed tag v1.24.4.
+- **PM** authored `docs/specs/F-0112-swap-chrome-hub-workspaces.md`
+- **TPM** added F-0112 to `docs/BACKLOG.md` under Milestone 27, marked done
+- **SWE** updated `workstation-image/boot/08-workspaces.sh`:
+  - Header comment updated: `ws1 = Hub, ws2 = Antigravity IDE, ws3 = foot, ws4 = foot, ws5 = Chrome`
+  - Chrome moved to `launch_and_wait 5 15 google-chrome-stable ...` (15s timeout unchanged)
+  - Hub moved to `launch_and_wait 1 90 "$HUB" ...` (90s timeout, all F-0110/F-0111 flags retained)
+  - Launch ORDER changed for OAuth dependency: Chrome (ws5) first, then Hub (ws1), then IDE (ws2), then foot (ws3, ws4)
+  - End-of-boot focus: unconditional `sway_cmd "workspace number 1"` after all launches, so both success and timeout land on ws1 (Hub). Log message differs per HUB_OK to preserve observability.
+  - F-0110 intent preserved: user always sees the Hub (OAuth window) on timeout, now because ws1 IS the Hub
+- **SWE** updated `workstation-image/boot/10-tests.sh`:
+  - Hub timeout test: `launch_and_wait 5 90` → `launch_and_wait 1 90`
+  - F-0098 order tests replaced with F-0112 layout tests (ws1=Hub, ws2=IDE, ws3=foot, ws4=foot, ws5=Chrome)
+  - All per-workspace assertions updated
+- **Three-places rule applied**: `~/boot/08-workspaces.sh` and `~/boot/10-tests.sh` synced; `cloud-build-setup.sh` deploys whole boot dir via tar — no inline changes needed there; `08-workspaces.sh` is not home-manager-managed
+- **bash -n**: PASS on updated `08-workspaces.sh`
+- **Static QA**: All test patterns verified against updated script before commit
+
+### Key Decisions
+- **Why Chrome launches first (not Hub)**: IDE and Hub both OAuth via Chrome. Chrome must be available before either attempts its flow. Chrome is fast (15s), so launching it first costs little.
+- **End-of-boot focus is always ws1**: Unlike F-0110 (which conditionally stayed on ws5 on timeout), with Hub on ws1 we always want ws1 in focus. Unconditional `sway_cmd "workspace number 1"` is simpler and correct for both paths.
+- **$mod+h still maps to ws5**: Sway config change is out of scope — keybinding still works (navigates to ws5, now Chrome). A follow-up item can remap it to ws1.
+
+### Files Changed
+- `workstation-image/boot/08-workspaces.sh` — workspace swap, launch order, focus logic
+- `workstation-image/boot/10-tests.sh` — Hub ws1 test, F-0098 layout tests updated to F-0112
+- `docs/specs/F-0112-swap-chrome-hub-workspaces.md` — new spec
+- `docs/BACKLOG.md` — F-0112 row added, milestone updated
+- `docs/PROGRESS.md` — this entry
+- `docs/RELEASENOTES.md` — v1.24.5 entry
+- `docs/STARTUP_SCRIPTS.md` — workspace layout description updated
+- `~/boot/08-workspaces.sh`, `~/boot/10-tests.sh` — live copies synced
+
+### Next Steps
+- PO reboots workstation to validate new layout
+- Follow-up: remap `$mod+h` from ws5 to ws1 (or rename to `$mod+c` for Chrome and add `$mod+h` for Hub on ws1)
+
+---
+
 ## Session 29 — 2026-05-29 (F-0111: Disable GPU and fix Hub user-data-dir)
 
 ### Goals

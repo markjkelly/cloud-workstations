@@ -131,9 +131,10 @@ fi
 # F-0107 / F-0110: verify Hub auto-launch configuration in 08-workspaces.sh.
 # F-0110 bumped the timeout from 30s → 90s and wrapped the Hub call site in a
 # { ... } redirect block, so the old single-line pattern no longer applies.
-# Three tests verify the F-0110 changes.
-check_grep "Hub ws5 timeout is 90s (F-0110)" \
-    "launch_and_wait 5 90" \
+# F-0112: Hub moved from ws5 → ws1; test updated to check ws1 (launch_and_wait 1 90).
+# Three tests verify the F-0110 / F-0112 changes.
+check_grep "Hub ws1 timeout is 90s (F-0110/F-0112)" \
+    "launch_and_wait 1 90" \
     "$HOME_DIR/boot/08-workspaces.sh"
 check_grep "Hub stderr redirected to hub-launch.log (F-0110)" \
     "hub-launch.log" \
@@ -529,36 +530,33 @@ else
 fi
 
 # =============================================================================
-# F-0098: Workspace autostart launch order
+# F-0098 / F-0112: Workspace autostart layout and launch order
 # =============================================================================
-# PO layout: ws1 = Chrome, ws2 = Antigravity, ws3 = foot, ws4 = foot.
-# Verify 08-workspaces.sh issues launch_and_wait calls in that order.
+# F-0112 layout: ws1 = Hub, ws2 = Antigravity IDE, ws3 = foot, ws4 = foot, ws5 = Chrome.
+# Launch order in script: Chrome (ws5) first (needed for OAuth), then Hub (ws1),
+# IDE (ws2), foot (ws3), foot (ws4).
+# Verify each workspace number maps to the correct app.
 log ""
-log "--- Workspace autostart order (F-0098) ---"
+log "--- Workspace autostart layout (F-0098/F-0112) ---"
 WS_SCRIPT="$HOME_DIR/boot/08-workspaces.sh"
 if [ -f "$WS_SCRIPT" ]; then
-    ORDER=$(grep -E '^[[:space:]]*launch_and_wait[[:space:]]+[1-4][[:space:]]' "$WS_SCRIPT" \
-        | awk '{print $2}' | xargs)
-    if [ "$ORDER" = "1 2 3 4" ]; then
-        test_pass "08-workspaces.sh launches workspaces in order 1 2 3 4"
-    else
-        test_fail "08-workspaces.sh launch order is '$ORDER' (expected '1 2 3 4')"
-    fi
-
+    # ws1 must be Hub (grep for literal $HUB variable reference)
     WS1_LINE=$(grep -nE '^[[:space:]]*launch_and_wait[[:space:]]+1[[:space:]]' "$WS_SCRIPT" | head -1)
-    if echo "$WS1_LINE" | grep -q "google-chrome-stable"; then
-        test_pass "08-workspaces.sh ws1 launches google-chrome-stable"
+    if echo "$WS1_LINE" | grep -q '\$HUB'; then
+        test_pass "08-workspaces.sh ws1 launches Hub (F-0112)"
     else
-        test_fail "08-workspaces.sh ws1 does not launch Chrome (line: $WS1_LINE)"
+        test_fail "08-workspaces.sh ws1 does not launch Hub (line: $WS1_LINE) (F-0112)"
     fi
 
+    # ws2 must be Antigravity IDE
     WS2_LINE=$(grep -nE '^[[:space:]]*launch_and_wait[[:space:]]+2[[:space:]]' "$WS_SCRIPT" | head -1)
     if echo "$WS2_LINE" | grep -q '"\$ANTIGRAVITY"'; then
-        test_pass "08-workspaces.sh ws2 launches Antigravity"
+        test_pass "08-workspaces.sh ws2 launches Antigravity IDE"
     else
         test_fail "08-workspaces.sh ws2 does not launch Antigravity (line: $WS2_LINE)"
     fi
 
+    # ws3 must be foot terminal
     WS3_LINE=$(grep -nE '^[[:space:]]*launch_and_wait[[:space:]]+3[[:space:]]' "$WS_SCRIPT" | head -1)
     if echo "$WS3_LINE" | grep -q '"\$FOOT"'; then
         test_pass "08-workspaces.sh ws3 launches foot terminal"
@@ -566,6 +564,7 @@ if [ -f "$WS_SCRIPT" ]; then
         test_fail "08-workspaces.sh ws3 does not launch foot (line: $WS3_LINE)"
     fi
 
+    # ws4 must be foot terminal
     WS4_LINE=$(grep -nE '^[[:space:]]*launch_and_wait[[:space:]]+4[[:space:]]' "$WS_SCRIPT" | head -1)
     if echo "$WS4_LINE" | grep -q '"\$FOOT"'; then
         test_pass "08-workspaces.sh ws4 launches foot terminal"
@@ -573,10 +572,19 @@ if [ -f "$WS_SCRIPT" ]; then
         test_fail "08-workspaces.sh ws4 does not launch foot (line: $WS4_LINE)"
     fi
 
-    if grep -qE '^#.*ws1 = Chrome, ws2 = Antigravity, ws3 = foot terminal, ws4 = foot terminal' "$WS_SCRIPT"; then
-        test_pass "08-workspaces.sh header comment reflects new order"
+    # ws5 must be Chrome (F-0112: Chrome moved from ws1 → ws5)
+    WS5_LINE=$(grep -nE '^[[:space:]]*launch_and_wait[[:space:]]+5[[:space:]]' "$WS_SCRIPT" | head -1)
+    if echo "$WS5_LINE" | grep -q "google-chrome-stable"; then
+        test_pass "08-workspaces.sh ws5 launches google-chrome-stable (F-0112)"
     else
-        test_fail "08-workspaces.sh header comment does not reflect new order (F-0098)"
+        test_fail "08-workspaces.sh ws5 does not launch Chrome (line: $WS5_LINE) (F-0112)"
+    fi
+
+    # Header comment must reflect the F-0112 layout
+    if grep -qE '^#.*ws1 = Hub.*ws2 = Antigravity IDE.*ws5 = Chrome' "$WS_SCRIPT"; then
+        test_pass "08-workspaces.sh header comment reflects F-0112 layout"
+    else
+        test_fail "08-workspaces.sh header comment does not reflect F-0112 layout (ws1=Hub, ws5=Chrome)"
     fi
 
     # F-0110: launch_and_wait must return 1 on timeout so HUB_OK captures failure
@@ -586,7 +594,7 @@ if [ -f "$WS_SCRIPT" ]; then
         test_fail "08-workspaces.sh launch_and_wait does NOT return 1 on timeout — HUB_OK will always be 0"
     fi
 else
-    test_fail "08-workspaces.sh not found at $WS_SCRIPT (F-0098 check)"
+    test_fail "08-workspaces.sh not found at $WS_SCRIPT (F-0098/F-0112 check)"
 fi
 
 # =============================================================================
