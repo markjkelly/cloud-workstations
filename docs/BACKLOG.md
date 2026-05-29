@@ -1,7 +1,7 @@
 # Project Backlog — Cloud Workstation
 
 **Maintained by:** TPM
-**Last updated:** 2026-05-29 (Milestone 28 — Remap workspace keybindings after Chrome/Hub swap)
+**Last updated:** 2026-05-29 (Milestone 29 — Hub stale singleton lock cleanup before launch)
 
 ---
 
@@ -327,6 +327,7 @@ Tracks fork-only work that pre-dated or accompanied v1.17. All items are documen
 | ID | Feature | Spec | Priority | Status | Owner | Branch | Dependencies | Feedback |
 |----|---------|------|----------|--------|-------|--------|--------------|----------|
 | F-0113 | Remap workspace keybindings after Chrome/Hub swap | [F-0113](specs/F-0113-remap-workspace-keys.md) | P1 | done | SWE-1 | feature/remap-workspace-keys | F-0112 | Fixed mnemonic mismatch introduced by F-0112: `$mod+h` now switches to ws1 (Hub), `$mod+u` now switches to ws5 (Chrome). Move-container bindings ($mod+Alt+h → ws1, $mod+Alt+u → ws5) updated to match. Applied to all three locations: repo sway config, `~/.config/home-manager/sway-config`, and `~/.config/sway/config` (live). `swaymsg reload` confirmed success (SWAYSOCK=/run/user/1000/sway-ipc.1000.3430.sock). `10-tests.sh` updated: old F-0107 test (mod+h → ws5) replaced with F-0113 test (mod+h → ws1); new tests for mod+u → ws5 and both Alt+move bindings. `docs/specs/sway-keybindings.md` cheat sheet updated. `~/boot/10-tests.sh` synced live. `scripts/cloud-build-setup.sh` deploys via cat pipe from repo — no inline edit needed. |
+| F-0114 | Hub stale singleton lock cleanup before launch | [F-0114](specs/F-0114-hub-stale-lock-cleanup.md) | P0 | done | SWE-1 | feature/hub-stale-lock-cleanup | F-0111, F-0112 | Fixed Hub blank-ws1 wedge after unclean shutdown. Root cause: stale `SingletonLock/Cookie/Socket` in `~/.config/Antigravity-Hub/` plus orphaned Hub/language_server processes prevent Electron from mapping a BrowserWindow. Added pre-launch cleanup block to `08-workspaces.sh`: safe pgrep-based process reaping (filtered by exe/cmdline, NOT broad `pkill -f`), `rm -f .../Singleton*`, and a log message. `10-tests.sh` extended with 5 new checks (4 positive grep, 1 negative pkill-f guard). `~/boot/08-workspaces.sh` and `~/boot/10-tests.sh` synced live. `scripts/cloud-build-setup.sh` deploys boot dir via tar — no change needed. |
 
 ---
 

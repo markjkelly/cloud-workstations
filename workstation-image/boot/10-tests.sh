@@ -157,6 +157,35 @@ if grep -qE 'launch_and_wait.*--use-gl=swiftshader' "$HOME_DIR/boot/08-workspace
 else
     test_pass "08-workspaces.sh has no --use-gl=swiftshader in launch_and_wait calls (F-0111)"
 fi
+# F-0114: Hub stale singleton lock cleanup — verify wedge-proof launch guards are present.
+# The cleanup block must appear BEFORE the Hub launch_and_wait call and must:
+#   (a) contain the singleton lock removal for the Hub's user-data-dir
+#   (b) contain safe pgrep-based process killing (not a broad pkill -f)
+#   (c) emit a log message confirming the cleanup
+WS_SCRIPT_F0114="$HOME_DIR/boot/08-workspaces.sh"
+if [ -f "$WS_SCRIPT_F0114" ]; then
+    check_grep "Hub stale lock cleanup: rm Singleton* present (F-0114)" \
+        'rm -f /home/user/.config/Antigravity-Hub/Singleton\*' \
+        "$WS_SCRIPT_F0114"
+    check_grep "Hub stale lock cleanup: safe pgrep exe-path filter present (F-0114)" \
+        'antigravity-hub/antigravity' \
+        "$WS_SCRIPT_F0114"
+    check_grep "Hub stale lock cleanup: language_server cmdline filter present (F-0114)" \
+        'antigravity-hub/resources' \
+        "$WS_SCRIPT_F0114"
+    check_grep "Hub stale lock cleanup: log message present (F-0114)" \
+        'Cleared.*stale Hub processes.*singleton lock' \
+        "$WS_SCRIPT_F0114"
+    # Negative check: broad pkill -f "antigravity-hub" must NOT be used
+    # (it can self-terminate the boot script — root cause of the F-0114 diagnosis)
+    if grep -qE 'pkill.*-f.*antigravity-hub' "$WS_SCRIPT_F0114"; then
+        test_fail "08-workspaces.sh uses broad 'pkill -f antigravity-hub' (F-0114 safety regression)"
+    else
+        test_pass "08-workspaces.sh does NOT use broad 'pkill -f antigravity-hub' (F-0114 safe)"
+    fi
+else
+    test_fail "08-workspaces.sh not found at $WS_SCRIPT_F0114 (F-0114 check)"
+fi
 
 # =============================================================================
 # AI CLI Tools

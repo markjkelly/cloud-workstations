@@ -149,6 +149,62 @@ launch_and_wait 5 15 google-chrome-stable --ozone-platform=wayland --disable-dev
 #   --disable-gpu               GPU-less host; stops crash loop from GPU child process.
 #   --user-data-dir=...Hub      Separate userData dir from IDE to avoid Electron
 #                               SingletonLock conflict (IDE wins lock on ~/.config/Antigravity).
+#
+# F-0114: Wedge-proof launch — clear stale Electron singleton lock files and
+# orphaned Hub processes BEFORE launching.  After an unclean shutdown the Hub's
+# user-data-dir retains SingletonLock/SingletonCookie/SingletonSocket from the
+# previous session; Electron detects the lock and the bundled language_server
+# never reports its port, so no BrowserWindow is ever created → blank ws1.
+# Safe process matching: target exe path / cmdline substrings that are unique to
+# Hub binaries, NOT a broad pkill -f pattern that can match this shell script
+# itself and cause self-termination.
+
+# --- Reap stale Hub processes (F-0114) ---
+HUB_REAPED=0
+
+# 1. Hub Electron main process: exe is ~/.local/share/antigravity-hub/antigravity
+#    Use pgrep -x to match the process name "antigravity" and filter by the
+#    full exe path so we do NOT kill the IDE's /usr/bin/antigravity.
+while IFS= read -r pid; do
+    exe_path=$(readlink -f /proc/"$pid"/exe 2>/dev/null || true)
+    if echo "$exe_path" | grep -q "antigravity-hub/antigravity"; then
+        kill "$pid" 2>/dev/null && HUB_REAPED=$((HUB_REAPED + 1)) || true
+    fi
+done < <(pgrep -x antigravity 2>/dev/null || true)
+
+# 2. Hub language_server: cmdline contains "antigravity-hub/resources"
+#    pgrep -x language_server matches exact process name; grep filters to Hub's copy.
+while IFS= read -r pid; do
+    cmdline=$(tr '\0' ' ' < /proc/"$pid"/cmdline 2>/dev/null || true)
+    if echo "$cmdline" | grep -q "antigravity-hub/resources"; then
+        kill "$pid" 2>/dev/null && HUB_REAPED=$((HUB_REAPED + 1)) || true
+    fi
+done < <(pgrep -x language_server 2>/dev/null || true)
+
+# Give killed processes a moment to exit, then force-kill any survivors
+if [ "$HUB_REAPED" -gt 0 ]; then
+    sleep 1
+    # Force-kill any that didn't exit cleanly (best-effort; ignore errors)
+    while IFS= read -r pid; do
+        exe_path=$(readlink -f /proc/"$pid"/exe 2>/dev/null || true)
+        if echo "$exe_path" | grep -q "antigravity-hub/antigravity"; then
+            kill -9 "$pid" 2>/dev/null || true
+        fi
+    done < <(pgrep -x antigravity 2>/dev/null || true)
+    while IFS= read -r pid; do
+        cmdline=$(tr '\0' ' ' < /proc/"$pid"/cmdline 2>/dev/null || true)
+        if echo "$cmdline" | grep -q "antigravity-hub/resources"; then
+            kill -9 "$pid" 2>/dev/null || true
+        fi
+    done < <(pgrep -x language_server 2>/dev/null || true)
+fi
+
+# 3. Remove stale Electron singleton lock files — safe on boot because no Hub
+#    instance is legitimately running at this point.
+rm -f /home/user/.config/Antigravity-Hub/Singleton*
+
+log "Cleared $HUB_REAPED stale Hub processes and singleton lock before launch (F-0114)"
+
 HUB_OK=0
 if [ -x "$HUB" ]; then
     HUB_LOG="/home/user/logs/hub-launch.log"

@@ -1,5 +1,49 @@
 # Development Progress Log — Cloud Workstation
 
+## Session 32 — 2026-05-29 (F-0114: Hub stale singleton lock cleanup before launch)
+
+### Goals
+- Fix post-reboot Hub blank-ws1 wedge: after an unclean shutdown, stale `SingletonLock` in
+  `~/.config/Antigravity-Hub/` prevents the Hub from starting cleanly on ws1.
+- Add safe pre-launch cleanup to `08-workspaces.sh` that clears stale locks and orphaned Hub
+  processes without risk of self-terminating the boot script via broad `pkill -f`.
+
+### Completed
+- **PM** authored `docs/specs/F-0114-hub-stale-lock-cleanup.md`
+- **TPM** added F-0114 to `docs/BACKLOG.md` under Milestone 29, marked done
+- **SWE** added pre-launch cleanup block to `workstation-image/boot/08-workspaces.sh`
+  immediately before `HUB_OK=0` / Hub `launch_and_wait` call:
+  - Loop over `pgrep -x antigravity` results, filter by `/proc/<pid>/exe` containing
+    `antigravity-hub/antigravity` → `kill` + force `kill -9` for survivors
+  - Loop over `pgrep -x language_server` results, filter `/proc/<pid>/cmdline` containing
+    `antigravity-hub/resources` → `kill` + force `kill -9` for survivors
+  - `rm -f /home/user/.config/Antigravity-Hub/Singleton*` (safe: no legitimate Hub running)
+  - `log "Cleared $HUB_REAPED stale Hub processes and singleton lock before launch (F-0114)"`
+- **SWE-Test** extended `workstation-image/boot/10-tests.sh` with 5 new F-0114 checks:
+  - PASS: `rm -f .../Antigravity-Hub/Singleton*` present
+  - PASS: `antigravity-hub/antigravity` exe-path filter present
+  - PASS: `antigravity-hub/resources` cmdline filter present
+  - PASS: log message `Cleared.*stale Hub processes.*singleton lock` present
+  - FAIL-if: broad `pkill -f antigravity-hub` absent (safety regression guard)
+- **Persistence**: `~/boot/08-workspaces.sh` and `~/boot/10-tests.sh` synced live; confirmed
+  `scripts/cloud-build-setup.sh` deploys whole `boot/` dir via tar — no change needed.
+- `docs/STARTUP_SCRIPTS.md` not updated (no new script, no changed purpose/log paths — just
+  added defensive pre-launch logic to existing `08-workspaces.sh`).
+
+### Decisions
+- Used `/proc/<pid>/exe` + `/proc/<pid>/cmdline` filtering rather than `pkill -f` because the
+  orchestrator confirmed that `pkill -f "antigravity-hub"` matched the running boot script
+  itself (the shell command line contained the pattern) and self-terminated it.
+- Kept scope tight to Hub only; IDE (`~/.config/Antigravity`) did not exhibit this failure.
+- The `rm -f Singleton*` glob is safe at boot time — by definition no Hub instance is running
+  when the boot script executes this block.
+
+### Next Steps
+- Monitor `~/logs/hub-launch.log` on the next boot to confirm the Hub maps in ~4 s (as seen
+  in live recovery), rather than timing out at 90 s.
+- Hub authentication ("You are not logged into Antigravity") remains a separate manual
+  concern — out of scope for F-0114.
+
 ## Session 31 — 2026-05-29 (F-0113: Remap workspace keybindings after Chrome/Hub swap)
 
 ### Goals
