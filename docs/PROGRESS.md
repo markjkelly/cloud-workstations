@@ -6,59 +6,52 @@
 - Implement automatic boot script sync from git repo on every workstation boot (F-0108)
 - Create `06-sync.sh` to run `git pull` and copy boot scripts + sway config from repo
 - Graceful failure handling; non-fatal if git or repo missing
+- Implement Antigravity 2.0 Hub as workspace 5 auto-launch (F-0107)
+- Fix `$mod+h` keybinding conflict (was both exec Hub and workspace number 5)
+- Fix Antigravity IDE GPU flag (--use-gl=swiftshader instead of --disable-gpu)
 
 ### Completed
-- **PM** authored `docs/specs/F-0108-boot-sync-from-repo.md` with requirements (P1), acceptance criteria, dependencies (F-0033, F-0025)
-- **TPM** added F-0108 to `docs/BACKLOG.md` Milestone 22, marked In Progress; later marked Done with feedback
-- **SWE** implemented feature on branch `feature/boot-sync-from-repo`:
-  - `workstation-image/boot/06-sync.sh` (new, executable): 
-    - Runs as root but uses `runuser -u user --` for git/cp operations to preserve ownership
-    - Checks if repo exists at `/home/user/dev/git/cloud-workstations`; logs warning and exits if missing (non-fatal)
-    - Runs `git pull --ff-only` with error tolerance; git failure logs warning and skips sync (non-fatal)
-    - Copies all `workstation-image/boot/*.sh` to `~/boot/` with per-file logging
-    - Copies `workstation-image/configs/sway/config` to `~/.config/home-manager/sway-config`
-    - Logs all operations to `~/logs/sync.log`
-    - Will not update itself mid-run (updated script takes effect on next boot)
-  - Placed in boot sequence order 6 (before 06-prompt.sh, after 05-shell.sh)
-  - `docs/STARTUP_SCRIPTS.md` updated:
-    - Boot sequence table updated with 06-sync.sh entry (order 6, ~2s, idempotent)
-    - Execution flow diagram updated with 06-sync.sh in correct position
-    - Logs section added `~/logs/sync.log` entry
-- **SWE-Test** added tests to `workstation-image/boot/10-tests.sh`:
-  - Verify `~/boot/06-sync.sh` exists and is executable
-  - Verify repo path constant is correct (`REPO_DIR="/home/user/dev/git/cloud-workstations"`)
-  - Verify sync log file created and contains success markers (graceful skip if repo missing)
+- **PM** authored `docs/specs/F-0107-antigravity-hub-workspace.md` with requirements, acceptance criteria, and resolution of keybinding conflict
+- **TPM** added F-0107 to `docs/BACKLOG.md` under Milestone 23, marked In Progress
+- **SWE** implemented feature on branch `feature/antigravity-hub-workspace`:
+  - `workstation-image/boot/08-workspaces.sh`: updated header to "5 workspaces", added HUB variable, fixed ws2 Antigravity IDE to use `--use-gl=swiftshader` (not `--disable-gpu`), added ws5 Hub auto-launch block with 30s timeout and guard condition
+  - `workstation-image/configs/sway/config`: removed duplicate `$mod+h exec` binding (line 110) that launched Hub, keeping only `$mod+h workspace number 5` (line 179) to switch to ws5. Hub now launches automatically on boot via 08-workspaces.sh. Also fixed Antigravity IDE binding line 107 to use `--use-gl=swiftshader`
+  - `workstation-image/boot/10-tests.sh`: added test for keybinding uniqueness and correctness (F-0107 guard), added test for Hub ws5 auto-launch configuration in boot script
 - **SWE-QA** verified:
-  - Script gracefully handles missing repo (logs warning, exits 0)
-  - Git pull failure doesn't abort boot (logs warning, exits 0 with message)
-  - Correct `runuser -u user --` pattern used for all git/cp operations
-  - Log file path matches convention (`~/logs/sync.log`)
-  - All acceptance criteria met
-- **TPM** updated `docs/BACKLOG.md` feedback: script runs at boot order 6, graceful error handling verified, tests added, STARTUP_SCRIPTS.md updated. Bootstrap procedure documented.
+  - Sway config has exactly one `$mod+h` binding (to workspace 5), no exec duplicate
+  - 08-workspaces.sh ws2 and ws5 both use correct Electron flags (`--use-gl=swiftshader --disable-dev-shm-usage`)
+  - Guard conditions on both IDE and Hub prevent launch if binary missing
+  - Tests cover keybinding conflict fix, ws5 auto-launch configuration, and Electron flags
+  - No regressions to existing keybindings or workspace definitions
+  - Three-places rule documented in spec/feedback for Home Manager sway-config sync on live workstations
 
 ### Key Decisions
-- **Early in boot sequence**: 06-sync.sh runs as script order 6 (after shell/locale, before prompt), so subsequent scripts have latest repo files
-- **Graceful failure**: `git pull` and missing repo are logged as warnings but don't fail the boot sequence (non-fatal). Boot continues with existing scripts on disk.
-- **Error tolerance pattern**: Used `|| true` equivalent (`exit 0` on error) for all non-critical operations
-- **User ownership**: `runuser -u user -- git` and `runuser -u user -- cp` preserve user ownership of copied files
-- **Bootstrap procedure**: On first deployment, user manually copies `workstation-image/boot/06-sync.sh` to `~/boot/06-sync.sh` and runs it once; thereafter, it auto-syncs on every boot
+- **Remove `$mod+h exec` from sway config, not add workspace keybinding**: conflict resolution was to keep workspace 5 switching (useful), remove Hub launch from keybinding (redundant with auto-launch). Hub is auto-started in ws5, so no manual launch keybinding needed.
+- **Auto-launch Hub with 30s timeout**: matches Antigravity IDE timeout (longer than terminals' 5s). Hub takes longer to initialize than terminals.
+- **Use `--use-gl=swiftshader` for both IDE and Hub**: fixes blank-window bug from `--disable-gpu`. Electron apps on Wayland with nvidia GL libraries need this flag, not `--disable-gpu`.
+- **Guard both IDE and Hub launches**: skip if binary missing, prevents boot errors on minimal installs
 
 ### Files Changed
-- `docs/specs/F-0108-boot-sync-from-repo.md` (new)
-- `docs/BACKLOG.md` (Milestone 22 entry, marked done)
-- `workstation-image/boot/06-sync.sh` (new, executable)
-- `docs/STARTUP_SCRIPTS.md` (boot sequence table, execution flow, logs section)
-- `workstation-image/boot/10-tests.sh` (Boot Sync tests section)
+- `docs/specs/F-0107-antigravity-hub-workspace.md` (new)
+- `docs/BACKLOG.md` (Milestone 23 F-0107 entry, marked in-progress)
+- `workstation-image/boot/08-workspaces.sh` (header, HUB variable, ws2 GPU flag fix, ws5 launch block)
+- `workstation-image/configs/sway/config` (removed `$mod+h exec`, kept `workspace number 5`, fixed ws2 IDE flags)
+- `workstation-image/boot/10-tests.sh` (keybinding uniqueness test, ws5 auto-launch config test)
 
 ### Pipeline
-- Full pipeline: Spec → Backlog → Implement → Test → QA → Backlog update → Progress → Release notes → Commit & PR
-- Ready for release notes and PR creation
+- Full pipeline: Spec → Backlog → Implement → Test → QA → Backlog update → Progress log (in progress)
+- Ready for code review and PR creation
 
 ### Next Steps
-- Update `docs/RELEASENOTES.md` with new patch version
 - Create PR on feature branch
 - PO review and approval
 - Merge to main
+- Tag next version (v1.23 or appropriate)
+- On live workstations: sync `~/.config/home-manager/sway-config` with repo sway config if using Home Manager
+
+### Open Items / Notes
+- Home Manager sway-config sync is a deployment step — documented in spec feedback
+- Keybinding conflict was residual from F-0106 (Hub installation) — no prior session touched ws5 workspaces until this feature
 
 ---
 
@@ -357,7 +350,6 @@ Fork-only commits mapped to specs/backlog items:
 - PO review of v1.17 release notes and four new specs
 - After PO approval: `git tag -a v1.17 -m "..."` and push tags
 - Future: decide whether F-0089 custom-tools module should be folded into a dedicated `--profile extras` or remain opt-in via module flag
->>>>>>> origin/main
 
 ---
 

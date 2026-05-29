@@ -18,6 +18,28 @@
 
 ---
 
+## v1.23 — Antigravity Hub Auto-Launch + GPU Flag Fix (2026-05-29)
+
+### Added
+- **Workspace 5 auto-launch with Antigravity Hub** (F-0107) — Antigravity Hub now launches automatically in workspace 5 on boot, completing the auto-launch workspace setup (Chrome ws1, IDE ws2, terminals ws3-4, Hub ws5). Hub launch uses the same 30-second timeout as Antigravity IDE for full initialization.
+- **Boot tests for keybinding uniqueness** (F-0107) — Added test assertions that `$mod+h` keybinding maps uniquely to `workspace number 5` (not duplicated as an exec), and that Hub auto-launch configuration is present in 08-workspaces.sh.
+
+### Changed
+- **`workstation-image/boot/08-workspaces.sh`** — Header updated to "5 workspaces", added HUB variable and ws5 launch block with guard condition, fixed ws2 Antigravity IDE GPU flags from `--disable-gpu` to `--use-gl=swiftshader` (closes blank-window bug on Wayland with nvidia GL libraries).
+- **`workstation-image/configs/sway/config`** — Removed duplicate `$mod+h exec` binding that launched Hub (line 110 in v1.22), keeping only `workspace number 5` switch binding (line 179). Hub is now auto-started on boot, so manual keybinding launch is redundant. Also updated Antigravity IDE binding (`$mod+n`) from `--disable-gpu` to `--use-gl=swiftshader`.
+- **`workstation-image/boot/10-tests.sh`** — Added tests for keybinding conflict fix (exactly one `$mod+h`, maps to workspace 5) and Hub ws5 auto-launch configuration in boot script.
+
+### Fixed
+- **`$mod+h` keybinding conflict** (F-0107) — In v1.22, `$mod+h` was defined twice: once to exec Hub, once to switch to workspace 5. Now it maps only to workspace 5, with Hub launched automatically on boot. Resolves the config ambiguity and simplifies the workspace-switching model.
+- **Antigravity IDE blank-window bug** (F-0107) — Changed IDE Electron flags from `--disable-gpu` to `--use-gl=swiftshader`, fixing blank windows on Wayland when Nix nvidia GL libraries conflict with headless VNC rendering. Same fix applied to Hub launch flags.
+
+### Notes
+- Hub auto-launch timeout (30s) matches Antigravity IDE, is longer than terminals (5s), and is longer than Chrome (15s) to allow full UI initialization before returning focus to ws1.
+- `$mod+h` keybinding now provides fast workspace switching to ws5, consistent with other workspace keybindings (`$mod+u/i/o/p/j/k/l`).
+- Three-places rule: Home Manager sway-config on live workstations must be manually synced when deployed. See `docs/specs/F-0107-antigravity-hub-workspace.md`.
+
+---
+
 ## v1.22 — Antigravity 2.0 Desktop App (Hub) (2026-05-29)
 
 ### Added
@@ -210,7 +232,6 @@ complete.
 ### Docs & Templating
 - `GEMINI.md` added with project context and branching/PR conventions for Gemini-driven workflows
 - `REPO_URL` placeholder updated to point at the markjkelly fork
->>>>>>> origin/main
 
 ---
 
