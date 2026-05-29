@@ -1,6 +1,6 @@
 # Release Notes — Cloud Workstation
 
-## v1.24.2 — Hub WS5 Auth-Friendly Launch (2026-05-29)
+## v1.24.3 — Hub WS5 Auth-Friendly Launch (2026-05-29)
 
 ### Fixed
 - **Hub workspace 5 disappears after boot** (F-0110) — Antigravity Hub's window never registered within the previous 30-second timeout because the Google OAuth flow delays first-paint by 30–60 seconds. Hub timed out silently and focus switched back to ws1, hiding the auth window from the user.

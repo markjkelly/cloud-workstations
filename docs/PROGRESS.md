@@ -30,7 +30,7 @@
 - `workstation-image/boot/10-tests.sh` (false-positive test replaced with 3 accurate tests)
 - `docs/STARTUP_SCRIPTS.md` (hub-launch.log added to Logs table)
 - `docs/PROGRESS.md` (this entry)
-- `docs/RELEASENOTES.md` (v1.24.2 entry)
+- `docs/RELEASENOTES.md` (v1.24.3 entry)
 
 ### Key Decisions
 - **Wrap call site, not function**: `launch_and_wait` is a generic helper used for all workspaces. Adding redirect only at the Hub call site (via `{ ... } >> log 2>&1`) keeps the function reusable without adding per-app log path parameters.
@@ -41,7 +41,7 @@
 ### Next Steps
 - Commit on feature branch, push, open PR
 - PO review and approval
-- Merge to main, tag v1.24.2
+- Merge to main, tag v1.24.3
 
 ---
 
