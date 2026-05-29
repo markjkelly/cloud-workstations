@@ -28,6 +28,18 @@ log "Updating npm global packages..."
 runuser -u $USER -- bash -c ". $NIX_SH && export NPM_CONFIG_PREFIX=$HOME_DIR/.npm-global && npm update -g @anthropic-ai/claude-code @google/gemini-cli @openai/codex @sourcegraph/cody @mariozechner/pi-coding-agent" >> "$LOG_FILE" 2>&1
 log "npm update complete"
 
+# --- Install/update Antigravity CLI ---
+log "Installing/updating Antigravity CLI..."
+if ! command -v antigravity-cli &>/dev/null && ! command -v ag &>/dev/null; then
+    log "Antigravity CLI not found — installing..."
+    runuser -u $USER -- bash -c "curl -fsSL https://antigravity.google/cli/install.sh | bash" >> "$LOG_FILE" 2>&1
+    log "Antigravity CLI installed"
+else
+    log "Antigravity CLI found — updating..."
+    runuser -u $USER -- bash -c "curl -fsSL https://antigravity.google/cli/install.sh | bash" >> "$LOG_FILE" 2>&1
+    log "Antigravity CLI updated"
+fi
+
 # --- Install/update GitHub Copilot CLI extension ---
 log "Updating GitHub Copilot CLI..."
 runuser -u $USER -- bash -c ". $NIX_SH && gh extension install github/gh-copilot 2>/dev/null || gh extension upgrade gh-copilot" >> "$LOG_FILE" 2>&1
