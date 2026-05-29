@@ -23,6 +23,11 @@ runuser -u $USER -- mkdir -p "$LOG_DIR"
 
 log "=== App update started ==="
 
+# --- Upgrade Antigravity apt package ---
+log "Upgrading Antigravity apt package..."
+sudo apt-get install -y --only-upgrade antigravity >> "$LOG_FILE" 2>&1
+log "Antigravity apt upgrade done"
+
 # --- Update npm global packages (Claude Code, Gemini CLI) ---
 log "Updating npm global packages..."
 runuser -u $USER -- bash -c ". $NIX_SH && export NPM_CONFIG_PREFIX=$HOME_DIR/.npm-global && npm update -g @anthropic-ai/claude-code @google/gemini-cli @openai/codex @sourcegraph/cody @mariozechner/pi-coding-agent" >> "$LOG_FILE" 2>&1

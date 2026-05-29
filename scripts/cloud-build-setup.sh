@@ -879,7 +879,9 @@ if echo "$AI_MODULE_CHECK" | grep -q "full"; then
     fi
 
     # Antigravity 2.0 is pre-installed via apt in the Docker image (/usr/bin/antigravity).
-    # No manual download needed.
+    # The boot script (07-apps.sh) automatically upgrades it on every boot via:
+    # sudo apt-get install -y --only-upgrade antigravity
+    # This ensures the workstation always runs the latest apt release without requiring a rebuild.
 
     # Install OpenCode via go install
     if ws_ssh "${NIX_SOURCE}"' && export GOROOT=$HOME/go GOPATH=$HOME/gopath && export PATH=$GOROOT/bin:$GOPATH/bin:$PATH && go install github.com/opencode-ai/opencode@latest'; then

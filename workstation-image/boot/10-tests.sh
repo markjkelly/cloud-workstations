@@ -119,6 +119,13 @@ log ""
 log "--- Antigravity Tools ---"
 check_file "Antigravity 2.0 binary" "/usr/bin/antigravity"
 check_dir "Antigravity CLI config" "$HOME_DIR/.gemini/antigravity-cli"
+# Version check: boot script 07-apps.sh auto-upgrades antigravity via apt on every boot
+if runuser -u $USER -- /usr/bin/antigravity --version >/dev/null 2>&1; then
+    ANTIGRAV_VER=$(/usr/bin/antigravity --version 2>&1 | head -1)
+    test_pass "Antigravity 2.0 version: $ANTIGRAV_VER"
+else
+    test_warn "Antigravity 2.0 version check failed"
+fi
 
 # =============================================================================
 # AI CLI Tools
