@@ -42,9 +42,15 @@
 - SWE-3: F-0093, F-0094 (setup script + shell path)
 - All items marked `done`, all changes on `main` branch
 
+### Follow-up
+
+- **F-0089 implementation**: Live testing revealed apt auto-upgrade was necessary to keep Antigravity current. Added `sudo apt-get install -y --only-upgrade antigravity` to 07-apps.sh, runs on every boot. Verified on live workstation: upgraded from 1.22.2 to 1.23.2 without requiring image rebuild.
+- **CLI binary discovery**: Live testing clarified that Antigravity is a single binary (`/usr/bin/antigravity`) with rolling 1.x releases. No separate "CLI binary" or "2.0 package" exists — same `/usr/bin/antigravity` binary handles both CLI invocation and desktop app launch (keybinding-dependent).
+- **Spec and backlog corrected**: Removed "Antigravity 2.0" framing (misleading, as it's 1.x rolling releases). F-0089 status marked done with apt auto-upgrade implemented.
+- **Workstation manually upgraded**: Workstation upgraded to 1.23.2 during live testing. Will remain current via boot-time apt upgrade.
+
 ### Next Steps
-- E2E verification: confirm CLI installs correctly after teardown+setup
-- Verify Antigravity 2.0 is actually delivered by auto-updater repo (check version after next boot)
+- E2E verification: confirm Antigravity auto-upgrade works after teardown+setup
 - Tag v1.17 release after PO approval
 
 ---
