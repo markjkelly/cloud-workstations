@@ -1,5 +1,36 @@
 # Release Notes — Cloud Workstation
 
+## v1.24.7 — Hub stale singleton lock cleanup before launch (2026-05-29)
+
+### Fixed
+- **Hub blank ws1 after unclean shutdown** (F-0114) — After an unclean reboot, stale
+  `SingletonLock` / `SingletonCookie` / `SingletonSocket` files in
+  `~/.config/Antigravity-Hub/` caused the Hub's bundled `language_server` to never report
+  its dynamic port back to Electron; no BrowserWindow was created and ws1 remained blank.
+  `launch_and_wait` timed out at 90 s. Root cause confirmed live: deleting the Singleton
+  files and killing orphaned processes allowed the Hub to map in ~4 s.
+
+### Changed
+- **`workstation-image/boot/08-workspaces.sh`** — Added pre-launch cleanup block
+  immediately before the Hub `launch_and_wait` call:
+  - Kills orphaned `antigravity-hub/antigravity` processes by filtering `/proc/<pid>/exe`
+    (safe: does not match the IDE's `/usr/bin/antigravity` or the boot script itself)
+  - Kills orphaned `language_server` processes whose cmdline contains
+    `antigravity-hub/resources` (safe: does not match IDE's language_server)
+  - `rm -f /home/user/.config/Antigravity-Hub/Singleton*` after processes are reaped
+  - Logs count of reaped processes + lock removal; no-op on a clean boot (nothing to kill)
+- **`workstation-image/boot/10-tests.sh`** — 5 new F-0114 tests added:
+  - Verifies `rm -f .../Antigravity-Hub/Singleton*` is present
+  - Verifies exe-path filter `antigravity-hub/antigravity` is present
+  - Verifies cmdline filter `antigravity-hub/resources` is present
+  - Verifies log message `Cleared.*stale Hub processes.*singleton lock` is present
+  - Fails if broad `pkill -f antigravity-hub` is found (safety regression guard)
+
+### Notes
+- `~/boot/08-workspaces.sh` and `~/boot/10-tests.sh` synced live immediately.
+- `scripts/cloud-build-setup.sh` deploys boot dir via tar — no change needed (verified).
+- Hub sign-in authentication is a separate manual step; out of scope for this fix.
+
 ## v1.24.6 — Remap workspace keybindings after Chrome/Hub swap (2026-05-29)
 
 ### Fixed
