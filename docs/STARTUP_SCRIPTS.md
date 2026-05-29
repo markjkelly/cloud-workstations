@@ -52,10 +52,16 @@ systemd (after Sway starts)
   │         by the sway config's `exec /usr/bin/Xwayland -rootless :0`
   │         autostart — 08-workspaces.sh only re-launches if that
   │         is somehow absent — see F-0097)
-  │         Electron flags (F-0111): all Electron apps (Chrome ws1,
-  │         Antigravity IDE ws2, Hub ws5) use --disable-gpu since this
+  │         F-0112 workspace layout: ws1 = Hub, ws2 = Antigravity IDE,
+  │         ws3 = foot, ws4 = foot, ws5 = Chrome. Hub is the default
+  │         landing workspace; Chrome is a background OAuth helper on ws5.
+  │         Launch order: Chrome (ws5) first so the IDE and Hub have a
+  │         browser available for their OAuth flows; Hub (ws1) second;
+  │         IDE (ws2) third; foot (ws3, ws4) last. Final focus: ws1 (Hub).
+  │         Electron flags (F-0111): all Electron apps (Hub ws1,
+  │         Antigravity IDE ws2, Chrome ws5) use --disable-gpu since this
   │         host has no GPU (--use-gl=swiftshader still launched a GPU
-  │         child process that crashed in a loop). Hub (ws5) additionally
+  │         child process that crashed in a loop). Hub (ws1) additionally
   │         uses --user-data-dir=/home/user/.config/Antigravity-Hub to
   │         avoid the Electron SingletonLock conflict with the IDE (ws2).
   └── ws-boot-tests.service (After=ws-autolaunch, 30s delay)

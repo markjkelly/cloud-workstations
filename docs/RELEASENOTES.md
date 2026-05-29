@@ -1,5 +1,29 @@
 # Release Notes — Cloud Workstation
 
+## v1.24.5 — Swap Chrome and Hub workspace assignments (2026-05-29)
+
+### Changed
+- **Workspace layout** (F-0112) — Chrome and Antigravity Hub swap workspace positions:
+  - **Before:** ws1 = Chrome, ws5 = Hub
+  - **After:** ws1 = Hub, ws5 = Chrome
+  - ws2 (Antigravity IDE), ws3 (foot), ws4 (foot) are unchanged.
+- **`workstation-image/boot/08-workspaces.sh`** — Three targeted changes:
+  1. Hub `launch_and_wait` now targets ws1 (was ws5). All F-0110/F-0111 flags, the 90s timeout, and the `hub-launch.log` redirect block travel with it.
+  2. Chrome `launch_and_wait` now targets ws5 (was ws1). 15s timeout and `--disable-gpu` flag unchanged.
+  3. Launch order updated: Chrome (ws5) launches first so the browser is available for IDE and Hub OAuth flows; Hub (ws1) second; IDE (ws2) third; foot terminals (ws3, ws4) last.
+  4. End-of-boot focus is now unconditionally ws1 (Hub). Both success and timeout paths call `sway_cmd "workspace number 1"`, preserving the F-0110 intent (OAuth window visible on timeout) now that Hub IS ws1.
+- **`workstation-image/boot/10-tests.sh`** — Tests updated:
+  - Hub timeout test changed from `launch_and_wait 5 90` to `launch_and_wait 1 90`.
+  - F-0098 workspace-order tests replaced with F-0112 layout tests (ws1=Hub, ws2=IDE, ws3=foot, ws4=foot, ws5=Chrome).
+- **`docs/STARTUP_SCRIPTS.md`** — Execution flow updated with F-0112 workspace layout and launch order.
+
+### Notes
+- `~/boot/08-workspaces.sh` and `~/boot/10-tests.sh` updated live (three-places rule). `cloud-build-setup.sh` deploys boot dir via tar — no inline changes needed.
+- `$mod+h` sway keybinding still maps to workspace 5 (now Chrome). This is a known semantic mismatch; a follow-up item will remap it to ws1 for the Hub.
+- PO must reboot to validate the new layout. No live window-management changes were made (reboots required to test workspace autolaunch).
+
+---
+
 ## v1.24.4 — Hub GPU-less fix and user-data-dir isolation (2026-05-29)
 
 ### Fixed

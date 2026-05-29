@@ -1,7 +1,7 @@
 # Project Backlog — Cloud Workstation
 
 **Maintained by:** TPM
-**Last updated:** 2026-05-29 (Milestone 26 — Hub GPU-less fix)
+**Last updated:** 2026-05-29 (Milestone 27 — Swap Chrome/Hub workspaces)
 
 ---
 
@@ -318,6 +318,7 @@ Tracks fork-only work that pre-dated or accompanied v1.17. All items are documen
 | ID | Feature | Spec | Priority | Status | Owner | Branch | Dependencies | Feedback |
 |----|---------|------|----------|--------|-------|--------|--------------|----------|
 | F-0111 | Disable GPU and fix Hub user-data-dir for GPU-less workstation | [F-0111](specs/F-0111-disable-gpu-hub-user-data-dir.md) | P0 | done | SWE-1 | feature/disable-gpu-hub-fix | F-0110 | Two bugs fixed: (1) `--use-gl=swiftshader` replaced with `--disable-gpu` for IDE (ws2) and Hub (ws5) — swiftshader still launched a GPU child process that crashed in a loop on this GPU-less host; (2) `--user-data-dir=/home/user/.config/Antigravity-Hub` added to Hub — without it, Hub defaulted to `~/.config/Antigravity` (same as IDE), Electron SingletonLock let IDE win, Hub had no window. Also added `--disable-gpu` to Chrome (ws1) for consistency. Live validated: Hub window appeared on ws5 within 15s, no GPU process crash errors in log. `bash -n` PASS. 4 new tests + negative check added to `10-tests.sh`. Three-places rule applied. |
+| F-0112 | Swap Chrome and Hub workspace assignments | [F-0112](specs/F-0112-swap-chrome-hub-workspaces.md) | P1 | done | SWE-1 | feature/swap-chrome-hub | F-0110, F-0111 | Chrome moved ws1 → ws5; Hub moved ws5 → ws1. Hub is now the default landing workspace. Launch order updated: Chrome first (fast, needed for IDE/Hub OAuth), then Hub (ws1, 90s timeout), then IDE (ws2), then foot terminals (ws3, ws4). All F-0110/F-0111 flags/timeouts/log-redirect travel with the Hub to ws1. End-of-boot focus always lands on ws1 (Hub) — both success and timeout paths call `sway_cmd "workspace number 1"`. `10-tests.sh` updated: Hub ws1 90s test, ws1=Hub, ws5=Chrome assertions, F-0098 order tests replaced with F-0112 layout tests. `bash -n` PASS. Three-places rule applied (~/boot/08-workspaces.sh and ~/boot/10-tests.sh synced). |
 
 ---
 
