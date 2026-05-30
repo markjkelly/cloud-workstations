@@ -52,18 +52,18 @@ systemd (after Sway starts)
   │         by the sway config's `exec /usr/bin/Xwayland -rootless :0`
   │         autostart — 08-workspaces.sh only re-launches if that
   │         is somehow absent — see F-0097)
-  │         F-0116 workspace layout: ws1 = Hub, ws2 = empty (Antigravity
-  │         IDE removed in F-0116), ws3 = foot, ws4 = foot, ws5 = Chrome.
-  │         Hub is the default landing workspace; Chrome is a background
-  │         OAuth helper on ws5.
-  │         Launch order: Chrome (ws5) first, Hub (ws1) second,
-  │         foot (ws3, ws4) last. Final focus: ws1 (Hub).
-  │         Electron flags (F-0111): Hub and Chrome use --disable-gpu since
-  │         this host has no GPU. Hub uses --user-data-dir=
-  │         /home/user/.config/Antigravity-Hub for isolated Electron state.
-  │         F-0116 Hub placement: sway config has
-  │         for_window [app_id="antigravity"] → ws1, which pins the Hub's
-  │         BrowserWindow to ws1 regardless of async map timing.
+  │         F-0124 workspace layout: ws1 = empty (Hub NOT auto-launched),
+  │         ws2 = empty, ws3 = foot terminal, ws4 = foot terminal,
+  │         ws5 = Chrome.
+  │         Boot no longer launches the Hub (F-0124). Workspace 1 starts
+  │         empty. The user runs hub-restart (F-0122) after connecting to
+  │         launch the Hub — this always works reliably.
+  │         Launch order: Chrome (ws5) first, foot (ws3, ws4) last.
+  │         Final focus: ws3 (terminal — ready to run hub-restart).
+  │         Chrome uses --disable-gpu (no GPU on this host — F-0111).
+  │         F-0116 Hub placement rule (sway config): the
+  │         for_window [app_id="antigravity"] → ws1 rule is KEPT so that
+  │         hub-restart's window lands on ws1 as expected.
   │         F-0115: gnome-keyring-daemon is started with empty-password
   │         unlock (--unlock --components=secrets) BEFORE any app launch
   │         so the Hub's language_server can persist and reload its OAuth
@@ -71,33 +71,11 @@ systemd (after Sway starts)
   │         exported to all launched app processes. Startup is idempotent
   │         (pgrep guard); missing binary logs WARNING and boot continues.
   │         Requires /usr/bin/gnome-keyring-daemon (present in base image).
-  │         F-0117: Hub launch uses a readiness-based retry loop instead of
-  │         a single-shot window-wait. Each attempt (up to HUB_MAX_RETRIES=3)
-  │         polls the language_server HTTPS port in LISTEN state via
-  │         /proc/<pid>/net/tcp6 as the primary readiness signal, falling
-  │         back to a sway window appearing on ws1. On failure: stale Hub
-  │         processes are killed (safe pgrep/exe-path filter), Singleton*
-  │         locks cleared, diagnostics written to
-  │         ~/logs/language_server_boot_diag.log, then Hub is relaunched.
-  │         NOTE: F-0117's readiness check is a known false positive (reads
-  │         shared network namespace, sees host-wide LISTEN sockets, always
-  │         returns "ready" immediately — retry never fires). Fix pending
-  │         root-cause diagnosis from F-0118.
-  │         F-0118: Background diagnostic sampler runs during every Hub
-  │         launch window. Samples every 3 s, appends to
-  │         ~/logs/hub-ls-diag.log. Captures: LS pid/state/disappearance,
-  │         LS-owned LISTEN sockets (correct inode method), Hub-reported
-  │         port, curl probes, renderer count, DNS/network readiness, LS
-  │         log file locations, LS stdout/stderr fd targets. Diagnostic
-  │         only — does not change Hub launch behavior.
-  │         F-0119: Before the Hub launch block, `_f0119_install_ls_shim()`
-  │         installs a bash shim over `language_server` (idempotent via
-  │         marker on line 2 of the shim). The shim tees LS stdout →
-  │         ~/logs/ls-spawn.out and stderr → ~/logs/ls-spawn.err while
-  │         passing both streams UNMODIFIED to the Hub (Hub reads stdout
-  │         to discover the dynamic HTTPS port). Spawn/exit records with
-  │         timestamps, args, and exit code go to ~/logs/ls-spawn.log.
-  │         SIGTERM/SIGINT forwarded to real child. Diagnostic only.
+  │         F-0117/F-0118/F-0119/F-0120/F-0121-PartB: all Hub autostart
+  │         machinery (retry loop, readiness check, diagnostic sampler,
+  │         LS capture shim installer, user-session gate) REMOVED in
+  │         F-0124. The real language_server ELF was restored on the live
+  │         disk (mv language_server.real language_server).
   └── ws-boot-tests.service (After=ws-autolaunch, 30s delay)
         └── 10-tests.sh (run ~82 verification tests)
 ```
@@ -106,12 +84,12 @@ systemd (after Sway starts)
 
 | File | Content |
 |------|---------|
-| `~/logs/hub-launch.log` | 08-workspaces.sh Hub launch output — stdout+stderr from the Antigravity Hub process; append mode with `=== Hub launch: YYYY-MM-DD HH:MM:SS ===` header per boot (F-0110) |
-| `~/logs/language_server_boot_diag.log` | 08-workspaces.sh Hub resilience diagnostics (F-0117) — written only when a launch attempt fails. Contains: attempt number/timestamp, `uptime` output, language_server PID and process status headers, Hub Electron PIDs, key environment variables (WAYLAND_DISPLAY, DBUS_ADDR, SWAYSOCK), and `/proc/net/tcp6` + `/proc/net/tcp` LISTEN socket snapshots. Used to diagnose the intermittent cold-boot language_server non-readiness failure. |
-| `~/logs/hub-ls-diag.log` | 08-workspaces.sh Hub LS boot diagnostic sampler (F-0118) — written on every boot, continuously throughout the Hub launch window. Each boot opens with `=== F-0118 LS diag: YYYY-MM-DD HH:MM:SS ===`. Then, every 3 seconds during the 90 s launch window, a timestamped sample is appended with: (a) all `language_server` PIDs + `/proc/<pid>/stat` state + disappearance notifications; (b) LS-owned LISTEN sockets via correct inode→fd matching (NOT the shared-namespace method — fixes the F-0117 false-positive); (c) Hub-reported port from `hub-launch.log`; (d) curl/tcp probe of each LS-owned and Hub-reported port; (e) Hub renderer process count; (f) DNS resolution and curl probe of `daily-cloudcode-pa.googleapis.com` (leading cold-boot failure hypothesis); (g) one-time snapshot of LS log directories and LS stdout/stderr fd targets. This is the primary diagnostic artifact for root-causing the blank ws1 failure; read it after any cold boot where ws1 is blank. |
-| `~/logs/ls-spawn.log` | F-0119 LS capture shim — human-readable spawn/exit log. One record per LS invocation: `=== LS spawn: YYYY-MM-DD HH:MM:SS.NNNNNNNNN pid=<pid> ===` followed by `args: <command line>`, then `=== LS exit: YYYY-MM-DD HH:MM:SS.NNNNNNNNN pid=<pid> rc=<code> ===` when LS exits. Append mode — accumulates across reboots. |
-| `~/logs/ls-spawn.out` | F-0119 LS capture shim — raw LS stdout, append mode. On a successful warm launch contains version/build info and may include the port advertisement line the Hub parses. On a failing cold boot, may be sparse or empty (LS may exit before writing). |
-| `~/logs/ls-spawn.err` | F-0119 LS capture shim — raw LS stderr, append mode. On a successful warm launch contains glog-format server startup lines (port binding, auth, init time). On a failing cold boot this is the primary evidence for WHY LS exits — read this first after a blank ws1 reboot. |
+| `~/logs/hub-launch.log` | Hub launch output — written by `hub-restart` (F-0122) and any manual Hub invocation. Was also written by 08-workspaces.sh at boot prior to F-0124. Boot no longer writes this file. |
+| `~/logs/language_server_boot_diag.log` | **REMOVED in F-0124.** Was written by F-0117 retry loop on failed launch attempts. Boot no longer launches the Hub, so this log is no longer written. |
+| `~/logs/hub-ls-diag.log` | **REMOVED in F-0124.** Was written by the F-0118 background diagnostic sampler during every Hub launch window. Boot no longer launches the Hub, so this log is no longer written. |
+| `~/logs/ls-spawn.log` | **REMOVED in F-0124.** Was written by the F-0119 LS capture shim (spawn/exit records). Shim removed and live binary restored to real ELF. |
+| `~/logs/ls-spawn.out` | **REMOVED in F-0124.** Was written by the F-0119 LS capture shim (raw LS stdout). |
+| `~/logs/ls-spawn.err` | **REMOVED in F-0124.** Was written by the F-0119 LS capture shim (raw LS stderr). |
 | `~/logs/sync.log` | 06-sync.sh output (git pull, boot script sync, sway config sync) |
 | `~/logs/app-update.log` | 07-apps.sh output (npm updates, home-manager switch) |
 | `~/logs/language-install.log` | 07b-languages.sh output (Go, Rust, Python, Ruby) |

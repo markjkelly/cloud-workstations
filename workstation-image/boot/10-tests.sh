@@ -118,8 +118,6 @@ fi
 log ""
 log "--- Antigravity Tools ---"
 # F-0116: Antigravity IDE (/usr/bin/antigravity) removed — assert it is ABSENT.
-# The IDE shared app_id="antigravity" with the Hub and caused sway ws1 placement
-# collisions.  The Hub (below) must remain present and functional.
 if [ ! -f "/usr/bin/antigravity" ]; then
     test_pass "Antigravity IDE absent (/usr/bin/antigravity not present — F-0116)"
 else
@@ -128,27 +126,6 @@ fi
 check_dir "Antigravity CLI config" "$HOME_DIR/.gemini/antigravity-cli"
 check_dir "Antigravity Hub directory" "$HOME_DIR/.local/share/antigravity-hub"
 check_file "Antigravity Hub symlink" "$HOME_DIR/.local/bin/antigravity-hub"
-# F-0107 / F-0110 / F-0117: verify Hub auto-launch configuration in 08-workspaces.sh.
-# F-0110 bumped the timeout from 30s → 90s and wrapped the Hub call site in a
-# { ... } redirect block.  F-0112 moved Hub from ws5 → ws1.
-# F-0117 replaced the single-shot launch_and_wait 1 90 with a readiness-based
-# retry loop using HUB_LAUNCH_TIMEOUT=90.  The old "launch_and_wait 1 90" pattern
-# no longer applies; the timeout value now lives in the HUB_LAUNCH_TIMEOUT constant.
-check_grep "Hub timeout is 90s via HUB_LAUNCH_TIMEOUT constant (F-0110/F-0112/F-0117)" \
-    "HUB_LAUNCH_TIMEOUT=90" \
-    "$HOME_DIR/boot/08-workspaces.sh"
-check_grep "Hub stderr redirected to hub-launch.log (F-0110)" \
-    "hub-launch.log" \
-    "$HOME_DIR/boot/08-workspaces.sh"
-check_grep "Hub conditional ws1 switch (F-0110)" \
-    'HUB_OK.*-eq 0' \
-    "$HOME_DIR/boot/08-workspaces.sh"
-# F-0111: verify --disable-gpu replaces --use-gl=swiftshader for GPU-less host,
-# and that the Hub has its own --user-data-dir to avoid Electron SingletonLock
-# conflict with the IDE (ws2) which defaults to ~/.config/Antigravity.
-check_grep "Hub launch has separate user-data-dir (F-0111)" \
-    "user-data-dir=/home/user/.config/Antigravity-Hub" \
-    "$HOME_DIR/boot/08-workspaces.sh"
 # F-0116: IDE ws2 launch removed — assert the IDE launch block is absent
 if grep -qE 'launch_and_wait[[:space:]]+2[[:space:]].*ANTIGRAVITY' "$HOME_DIR/boot/08-workspaces.sh"; then
     test_fail "08-workspaces.sh still launches IDE on ws2 via ANTIGRAVITY variable (F-0116 regression)"
@@ -161,40 +138,9 @@ if grep -qE 'launch_and_wait.*--use-gl=swiftshader' "$HOME_DIR/boot/08-workspace
 else
     test_pass "08-workspaces.sh has no --use-gl=swiftshader in launch_and_wait calls (F-0111)"
 fi
-# F-0114: Hub stale singleton lock cleanup — verify wedge-proof launch guards are present.
-# The cleanup block must appear BEFORE the Hub launch_and_wait call and must:
-#   (a) contain the singleton lock removal for the Hub's user-data-dir
-#   (b) contain safe pgrep-based process killing (not a broad pkill -f)
-#   (c) emit a log message confirming the cleanup
-WS_SCRIPT_F0114="$HOME_DIR/boot/08-workspaces.sh"
-if [ -f "$WS_SCRIPT_F0114" ]; then
-    check_grep "Hub stale lock cleanup: rm Singleton* present (F-0114)" \
-        'rm -f /home/user/.config/Antigravity-Hub/Singleton\*' \
-        "$WS_SCRIPT_F0114"
-    check_grep "Hub stale lock cleanup: safe pgrep exe-path filter present (F-0114)" \
-        'antigravity-hub/antigravity' \
-        "$WS_SCRIPT_F0114"
-    check_grep "Hub stale lock cleanup: language_server cmdline filter present (F-0114)" \
-        'antigravity-hub/resources' \
-        "$WS_SCRIPT_F0114"
-    check_grep "Hub stale lock cleanup: log message present (F-0114)" \
-        'Cleared.*stale Hub processes.*singleton lock' \
-        "$WS_SCRIPT_F0114"
-    # Negative check: broad pkill -f "antigravity-hub" must NOT be used
-    # (it can self-terminate the boot script — root cause of the F-0114 diagnosis)
-    if grep -qE 'pkill.*-f.*antigravity-hub' "$WS_SCRIPT_F0114"; then
-        test_fail "08-workspaces.sh uses broad 'pkill -f antigravity-hub' (F-0114 safety regression)"
-    else
-        test_pass "08-workspaces.sh does NOT use broad 'pkill -f antigravity-hub' (F-0114 safe)"
-    fi
-else
-    test_fail "08-workspaces.sh not found at $WS_SCRIPT_F0114 (F-0114 check)"
-fi
 
 # F-0115: gnome-keyring Secret Service for Hub OAuth token persistence.
-# Without a Secret Service provider the Hub's language_server cannot persist
-# or reload its OAuth token, causing the Hub to revert to logged-out on every
-# boot.  Verify the fix block is present in the boot script:
+# Verify the fix block is still present in the boot script (F-0124 keeps F-0115):
 #   (a) gnome-keyring-daemon started with --unlock (empty-password unlock)
 #   (b) gnome-keyring-daemon started with --components=secrets
 #   (c) DBUS_SESSION_BUS_ADDRESS exported to launched app processes
@@ -217,214 +163,72 @@ else
     test_fail "08-workspaces.sh not found at $WS_SCRIPT_F0115 (F-0115 check)"
 fi
 
-# F-0117: Hub boot resilience — readiness-based wait, retry, and instrumentation.
-# Verify the new resilience logic exists in 08-workspaces.sh:
-#   (a) named constants HUB_LAUNCH_TIMEOUT and HUB_MAX_RETRIES present
-#   (b) hub_language_server_ready() function present (language_server port-listening poll)
-#   (c) language_server /proc/net/tcp6 LISTEN socket check present
-#   (d) HUB_LS_LOG (new instrumentation log path) referenced
-#   (e) retry loop present (_kill_stale_hub called on failure + attempt counter)
-WS_SCRIPT_F0117="$HOME_DIR/boot/08-workspaces.sh"
-if [ -f "$WS_SCRIPT_F0117" ]; then
-    check_grep "F-0117: HUB_LAUNCH_TIMEOUT constant present" \
-        'HUB_LAUNCH_TIMEOUT=' \
-        "$WS_SCRIPT_F0117"
-    check_grep "F-0117: HUB_MAX_RETRIES constant present" \
-        'HUB_MAX_RETRIES=' \
-        "$WS_SCRIPT_F0117"
-    check_grep "F-0117: hub_language_server_ready() function present" \
-        'hub_language_server_ready' \
-        "$WS_SCRIPT_F0117"
-    check_grep "F-0117: language_server /proc/net/tcp6 LISTEN-state poll present" \
-        '/proc/net/tcp6' \
-        "$WS_SCRIPT_F0117"
-    check_grep "F-0117: HUB_LS_LOG instrumentation log path referenced" \
-        'HUB_LS_LOG=' \
-        "$WS_SCRIPT_F0117"
-    check_grep "F-0117: retry loop uses _kill_stale_hub helper" \
-        '_kill_stale_hub' \
-        "$WS_SCRIPT_F0117"
-    check_grep "F-0117: retry attempt counter (hub_attempt) present" \
-        'hub_attempt=' \
-        "$WS_SCRIPT_F0117"
-    check_grep "F-0117: language_server_boot_diag.log path in HUB_LS_LOG constant" \
-        'language_server_boot_diag.log' \
-        "$WS_SCRIPT_F0117"
-else
-    test_fail "08-workspaces.sh not found at $WS_SCRIPT_F0117 (F-0117 check)"
-fi
-
-# F-0118: Hub LS boot diagnostics — thorough sampler instrumentation.
-# Verifies the new diagnostic sampler is present and correctly wired in
-# 08-workspaces.sh:
-#   (a) HUB_LS_DIAG_LOG constant (new dedicated log path) declared
-#   (b) HUB_LS_DIAG_INTERVAL constant (sample interval) declared
-#   (c) _f0118_ls_diag_sampler() function declared
-#   (d) hub-ls-diag.log path referenced (the actual log file the PO reads)
-#   (e) sampler started in background and PID captured (_f0118_sampler_pid=)
-#   (f) sampler stopped after poll loop (kill _f0118_sampler_pid)
-#   (g) per-boot header "F-0118 LS diag:" written to log
-#   (h) inode-based socket matching present (correct method, not shared-namespace)
-#   (i) DNS probe for daily-cloudcode-pa.googleapis.com present (leading hypothesis)
-WS_SCRIPT_F0118="$HOME_DIR/boot/08-workspaces.sh"
-if [ -f "$WS_SCRIPT_F0118" ]; then
-    check_grep "F-0118: HUB_LS_DIAG_LOG constant declared" \
-        'HUB_LS_DIAG_LOG=' \
-        "$WS_SCRIPT_F0118"
-    check_grep "F-0118: HUB_LS_DIAG_INTERVAL constant declared" \
-        'HUB_LS_DIAG_INTERVAL=' \
-        "$WS_SCRIPT_F0118"
-    check_grep "F-0118: _f0118_ls_diag_sampler() function present" \
-        '_f0118_ls_diag_sampler' \
-        "$WS_SCRIPT_F0118"
-    check_grep "F-0118: hub-ls-diag.log path referenced" \
-        'hub-ls-diag.log' \
-        "$WS_SCRIPT_F0118"
-    check_grep "F-0118: sampler started in background (_f0118_sampler_pid captured)" \
-        '_f0118_sampler_pid=' \
-        "$WS_SCRIPT_F0118"
-    check_grep "F-0118: sampler stopped after poll loop (kill _f0118_sampler_pid)" \
-        'kill.*_f0118_sampler_pid' \
-        "$WS_SCRIPT_F0118"
-    check_grep "F-0118: per-boot diag log header (F-0118 LS diag:)" \
-        'F-0118 LS diag:' \
-        "$WS_SCRIPT_F0118"
-    check_grep "F-0118: inode-based socket matching present (correct method)" \
-        'socket:\[' \
-        "$WS_SCRIPT_F0118"
-    check_grep "F-0118: DNS probe for daily-cloudcode-pa.googleapis.com present" \
-        'daily-cloudcode-pa.googleapis.com' \
-        "$WS_SCRIPT_F0118"
-else
-    test_fail "08-workspaces.sh not found at $WS_SCRIPT_F0118 (F-0118 check)"
-fi
-
-# F-0119: Hub language_server spawn capture shim.
-# Verifies the shim is installed, the real binary exists and is executable,
-# and that the install function is correctly wired into 08-workspaces.sh.
+# =============================================================================
+# F-0124: Hub autostart removed — regression guards.
+# These tests confirm that the dead autostart machinery was stripped and that
+# the live language_server binary is the real ELF (not the F-0119/F-0120 shim).
+# =============================================================================
 log ""
-log "--- F-0119: LS capture shim ---"
+log "--- F-0124: Hub autostart removed (regression guards) ---"
+
 LS_BIN_PATH="$HOME_DIR/.local/share/antigravity-hub/resources/bin/language_server"
 LS_REAL_PATH="${LS_BIN_PATH}.real"
-WS_SCRIPT_F0119="$HOME_DIR/boot/08-workspaces.sh"
+WS_SCRIPT_F0124="$HOME_DIR/boot/08-workspaces.sh"
 
-# (a) Shim is installed and contains the F-0119 marker
+# (a) 08-workspaces.sh does NOT contain the Hub launch command (antigravity-hub invocation)
+if [ -f "$WS_SCRIPT_F0124" ]; then
+    if grep -qE '"?\$HUB"?[[:space:]]|antigravity-hub.*--no-sandbox|runuser.*antigravity-hub' "$WS_SCRIPT_F0124" 2>/dev/null; then
+        test_fail "F-0124: 08-workspaces.sh still contains a Hub launch invocation (autostart not fully removed)"
+    else
+        test_pass "F-0124: 08-workspaces.sh does NOT launch the Hub (Hub autostart removed)"
+    fi
+
+    # (b) Dead diagnostic/shim functions must be absent
+    if grep -qE '_f0119_install_ls_shim|_f0118_ls_diag_sampler|hub_language_server_ready' "$WS_SCRIPT_F0124" 2>/dev/null; then
+        test_fail "F-0124: 08-workspaces.sh still contains removed function(s) (_f0119/_f0118/hub_language_server_ready)"
+    else
+        test_pass "F-0124: 08-workspaces.sh has no _f0119/_f0118/hub_language_server_ready functions (dead machinery removed)"
+    fi
+
+    # (c) Dead constants must be absent
+    if grep -qE 'HUB_LAUNCH_TIMEOUT=|HUB_MAX_RETRIES=|HUB_LS_LOG=|HUB_LS_DIAG_LOG=|HUB_LS_DIAG_INTERVAL=' "$WS_SCRIPT_F0124" 2>/dev/null; then
+        test_fail "F-0124: 08-workspaces.sh still has removed diagnostic constants (HUB_LAUNCH_TIMEOUT / HUB_MAX_RETRIES / etc.)"
+    else
+        test_pass "F-0124: 08-workspaces.sh has no dead diagnostic constants (F-0124 clean)"
+    fi
+else
+    test_fail "F-0124: 08-workspaces.sh not found at $WS_SCRIPT_F0124"
+fi
+
+# (d) language_server is NOT the F-0119 shim — must be an ELF binary
 if [ -f "$LS_BIN_PATH" ]; then
     if head -3 "$LS_BIN_PATH" 2>/dev/null | grep -qF "# F-0119 LS capture shim"; then
-        test_pass "F-0119: shim installed at LS_BIN with F-0119 marker"
+        test_fail "F-0124: language_server is still the F-0119 shim (live binary not restored — ELF expected)"
     else
-        test_fail "F-0119: LS_BIN exists but does NOT contain the F-0119 marker (shim not installed)"
+        test_pass "F-0124: language_server does NOT contain the F-0119 shim marker (real binary)"
     fi
-else
-    test_warn "F-0119: LS_BIN does not exist — Hub not installed on this workstation"
-fi
-
-# (b) language_server.real exists and is executable
-if [ -f "$LS_REAL_PATH" ]; then
-    if [ -x "$LS_REAL_PATH" ]; then
-        test_pass "F-0119: language_server.real exists and is executable"
-    else
-        test_fail "F-0119: language_server.real exists but is not executable"
-    fi
-else
-    if [ -f "$LS_BIN_PATH" ]; then
-        test_fail "F-0119: language_server.real missing — shim installed but .real binary absent"
-    else
-        test_warn "F-0119: language_server.real does not exist (Hub not installed)"
-    fi
-fi
-
-# (c) Shim itself is executable
-if [ -f "$LS_BIN_PATH" ]; then
+    # Also confirm it is executable
     if [ -x "$LS_BIN_PATH" ]; then
-        test_pass "F-0119: shim at LS_BIN is executable"
+        test_pass "F-0124: language_server is executable"
     else
-        test_fail "F-0119: shim at LS_BIN is not executable"
+        test_fail "F-0124: language_server is NOT executable"
     fi
+else
+    test_warn "F-0124: language_server does not exist — Hub not installed on this workstation"
 fi
 
-# (d) ~/logs directory exists and is writable by the user
+# (e) language_server.real must NOT exist — shim has been fully unwound
+if [ -f "$LS_REAL_PATH" ]; then
+    test_fail "F-0124: language_server.real still exists — shim restore incomplete (mv to language_server may have failed)"
+else
+    test_pass "F-0124: language_server.real does not exist (shim fully restored — F-0124)"
+fi
+
+# ~/logs directory must still be writable
 if runuser -u $USER -- bash -c "test -d '$HOME_DIR/logs' && test -w '$HOME_DIR/logs'" 2>/dev/null; then
-    test_pass "F-0119: $HOME_DIR/logs exists and is writable"
+    test_pass "F-0124: $HOME_DIR/logs exists and is writable"
 else
-    test_fail "F-0119: $HOME_DIR/logs missing or not writable"
-fi
-
-# (e) _f0119_install_ls_shim function defined and called in 08-workspaces.sh
-if [ -f "$WS_SCRIPT_F0119" ]; then
-    check_grep "F-0119: _f0119_install_ls_shim() defined in 08-workspaces.sh" \
-        '_f0119_install_ls_shim' \
-        "$WS_SCRIPT_F0119"
-    # (f) Call site appears BEFORE HUB_OK=0 (Hub launch block)
-    _call_line=$(grep -n '_f0119_install_ls_shim' "$WS_SCRIPT_F0119" 2>/dev/null | grep -v '()' | head -1 | cut -d: -f1)
-    _hub_ok_line=$(grep -n 'HUB_OK=0' "$WS_SCRIPT_F0119" 2>/dev/null | head -1 | cut -d: -f1)
-    if [ -n "$_call_line" ] && [ -n "$_hub_ok_line" ] && [ "$_call_line" -lt "$_hub_ok_line" ]; then
-        test_pass "F-0119: _f0119_install_ls_shim called before Hub launch block (line $_call_line < HUB_OK=0 line $_hub_ok_line)"
-    else
-        test_fail "F-0119: _f0119_install_ls_shim call not found before HUB_OK=0 in 08-workspaces.sh (call=$_call_line hub_ok=$_hub_ok_line)"
-    fi
-else
-    test_fail "F-0119: 08-workspaces.sh not found at $WS_SCRIPT_F0119"
-fi
-
-# F-0120: Hub LS shim env-capture + PATH repair.
-# Static tests against the 08-workspaces.sh source to verify the F-0120 shim
-# content and upgrade logic are present.  These tests run at boot without
-# requiring a Hub reboot — they grep the boot script source and the installed
-# shim file.
-log ""
-log "--- F-0120: LS shim env-capture + PATH repair ---"
-WS_SCRIPT_F0120="$HOME_DIR/boot/08-workspaces.sh"
-
-if [ -f "$WS_SCRIPT_F0120" ]; then
-    # (a) Shim heredoc uses absolute shebang #!/bin/bash
-    check_grep "F-0120: shim heredoc uses #!/bin/bash shebang" \
-        '#!/bin/bash' \
-        "$WS_SCRIPT_F0120"
-
-    # (b) Shim heredoc contains F-0120 version marker
-    check_grep "F-0120: shim heredoc contains # F-0120 version marker" \
-        '# F-0120' \
-        "$WS_SCRIPT_F0120"
-
-    # (c) Shim heredoc writes env capture to ls-spawn.env
-    check_grep "F-0120: shim heredoc writes to ls-spawn.env" \
-        'ls-spawn.env' \
-        "$WS_SCRIPT_F0120"
-
-    # (d) Shim heredoc repairs PATH with standard dirs
-    check_grep "F-0120: shim heredoc repairs PATH (/usr/bin:/bin:/usr/local/bin)" \
-        '/usr/bin:/bin:/usr/local/bin' \
-        "$WS_SCRIPT_F0120"
-
-    # (e) Upgrade logic: _f0119_install_ls_shim checks for F-0120 marker to detect stale shims
-    check_grep "F-0120: upgrade logic checks for SHIM_VERSION=# F-0120 in install function" \
-        'SHIM_VERSION' \
-        "$WS_SCRIPT_F0120"
-
-    # (f) Upgrade logic: log message for stale shim overwrite
-    check_grep "F-0120: upgrade log message present in install function" \
-        'Upgrading stale LS shim to F-0120' \
-        "$WS_SCRIPT_F0120"
-else
-    test_fail "F-0120: 08-workspaces.sh not found at $WS_SCRIPT_F0120"
-fi
-
-# (g) Installed shim (if present) contains the F-0120 marker
-if [ -f "$LS_BIN_PATH" ]; then
-    if grep -qF '# F-0120' "$LS_BIN_PATH" 2>/dev/null; then
-        test_pass "F-0120: installed shim at LS_BIN contains # F-0120 version marker"
-    else
-        test_fail "F-0120: installed shim at LS_BIN is missing # F-0120 marker (stale — upgrade should fire on next boot)"
-    fi
-    # (h) Installed shim uses #!/bin/bash shebang
-    if head -1 "$LS_BIN_PATH" 2>/dev/null | grep -qF '#!/bin/bash'; then
-        test_pass "F-0120: installed shim uses #!/bin/bash shebang"
-    else
-        test_fail "F-0120: installed shim does NOT use #!/bin/bash shebang (may still use #!/usr/bin/env bash)"
-    fi
-else
-    test_warn "F-0120: LS_BIN does not exist — Hub not installed on this workstation (F-0120 shim checks skipped)"
+    test_fail "F-0124: $HOME_DIR/logs missing or not writable"
 fi
 
 # =============================================================================
@@ -838,27 +642,21 @@ else
 fi
 
 # =============================================================================
-# F-0098 / F-0112 / F-0117: Workspace autostart layout and launch order
+# F-0098 / F-0112 / F-0124: Workspace autostart layout and launch order
 # =============================================================================
-# F-0117 note: ws1 Hub is now launched via the resilient retry loop (not via a
-# bare launch_and_wait 1 90 call).  The ws1 check is updated to verify that
-# the HUB variable is referenced within the retry loop block, and that the loop
-# switches to workspace 1 before each attempt.
-# F-0112 layout: ws1 = Hub, ws2 = empty, ws3 = foot, ws4 = foot, ws5 = Chrome.
-# Launch order in script: Chrome (ws5) first (needed for OAuth), then Hub (ws1,
-# retry loop), foot (ws3), foot (ws4).
+# F-0124 layout: ws1 = empty (Hub NOT auto-launched), ws2 = empty,
+#   ws3 = foot terminal, ws4 = foot terminal, ws5 = Chrome.
+# Launch order: Chrome (ws5) first, then foot (ws3, ws4).
+# Final focus: ws3 (terminal — user runs hub-restart from here).
 log ""
-log "--- Workspace autostart layout (F-0098/F-0112/F-0117) ---"
+log "--- Workspace autostart layout (F-0098/F-0112/F-0124) ---"
 WS_SCRIPT="$HOME_DIR/boot/08-workspaces.sh"
 if [ -f "$WS_SCRIPT" ]; then
-    # ws1 must be Hub.  F-0117: the Hub is launched via the resilient retry loop,
-    # which references $HUB and explicitly calls sway_cmd "workspace number 1"
-    # before each attempt.  Verify both signals: $HUB referenced in the launch
-    # block AND workspace-1 switch present in the retry section.
-    if grep -q '\$HUB' "$WS_SCRIPT" && grep -q 'sway_cmd "workspace number 1"' "$WS_SCRIPT"; then
-        test_pass "08-workspaces.sh ws1 launches Hub via retry loop (F-0112/F-0117)"
+    # ws1 must be empty — Hub is NOT auto-launched (F-0124)
+    if ! grep -qE '^[[:space:]]*launch_and_wait[[:space:]]+1[[:space:]]' "$WS_SCRIPT"; then
+        test_pass "08-workspaces.sh ws1 is empty (Hub not auto-launched — F-0124)"
     else
-        test_fail "08-workspaces.sh ws1 Hub retry loop: \$HUB or workspace-1 switch missing (F-0112/F-0117)"
+        test_fail "08-workspaces.sh ws1 still has a launch_and_wait call (F-0124 regression)"
     fi
 
     # ws2 must be empty (Antigravity IDE removed in F-0116)
@@ -893,21 +691,21 @@ if [ -f "$WS_SCRIPT" ]; then
         test_fail "08-workspaces.sh ws5 does not launch Chrome (line: $WS5_LINE) (F-0112)"
     fi
 
-    # Header comment must reflect the F-0116 layout (ws2 empty, IDE removed)
-    if grep -qE '^#.*ws1 = Hub.*ws2 = \(empty\).*ws5 = Chrome' "$WS_SCRIPT"; then
-        test_pass "08-workspaces.sh header comment reflects F-0116 layout (ws2 empty)"
+    # Header comment must reflect the F-0124 layout (ws1 empty — Hub not auto-launched)
+    if grep -qE '^#.*ws1 = \(empty|Hub not auto-launched' "$WS_SCRIPT"; then
+        test_pass "08-workspaces.sh header comment reflects F-0124 layout (ws1 empty, Hub not auto-launched)"
     else
-        test_fail "08-workspaces.sh header comment does not reflect F-0116 layout (ws1=Hub, ws2=empty, ws5=Chrome)"
+        test_fail "08-workspaces.sh header comment does not reflect F-0124 layout (expected ws1 empty)"
     fi
 
-    # F-0110: launch_and_wait must return 1 on timeout so HUB_OK captures failure
+    # launch_and_wait must return 1 on timeout
     if grep -A1 "WARNING: Timeout" "$WS_SCRIPT" | grep -q "return 1"; then
         test_pass "08-workspaces.sh launch_and_wait returns 1 on timeout"
     else
-        test_fail "08-workspaces.sh launch_and_wait does NOT return 1 on timeout — HUB_OK will always be 0"
+        test_fail "08-workspaces.sh launch_and_wait does NOT return 1 on timeout"
     fi
 else
-    test_fail "08-workspaces.sh not found at $WS_SCRIPT (F-0098/F-0112 check)"
+    test_fail "08-workspaces.sh not found at $WS_SCRIPT (F-0098/F-0112/F-0124 check)"
 fi
 
 # =============================================================================
@@ -1196,40 +994,14 @@ else
     test_fail "F-0121: 07-apps.sh is missing dbus-send probe in wait_for_user_session"
 fi
 
-# (f) 08-workspaces.sh defines wait_for_user_session
-if grep -q 'wait_for_user_session()' "$WS_SCRIPT_F0121" 2>/dev/null; then
-    test_pass "F-0121: 08-workspaces.sh defines wait_for_user_session helper"
+# F-0124: F-0121 Part B (wait_for_user_session in 08-workspaces.sh) was
+# removed as part of Hub autostart removal.  Only Part A (07-apps.sh) remains.
+# Regression guard: 08-workspaces.sh must NOT contain wait_for_user_session
+# (its removal is intentional — the session gate was only needed for the Hub launch).
+if ! grep -q 'wait_for_user_session' "$WS_SCRIPT_F0121" 2>/dev/null; then
+    test_pass "F-0121/F-0124: 08-workspaces.sh does NOT define wait_for_user_session (Part B removed — correct)"
 else
-    test_fail "F-0121: 08-workspaces.sh is missing wait_for_user_session helper"
-fi
-
-# (g) 08-workspaces.sh calls wait_for_user_session before the gnome-keyring / Hub launch block
-if grep -q 'wait_for_user_session' "$WS_SCRIPT_F0121" 2>/dev/null; then
-    ws_call_line=$(grep -n 'wait_for_user_session' "$WS_SCRIPT_F0121" 2>/dev/null | grep -v '()' | head -1 | cut -d: -f1)
-    keyring_line=$(grep -n 'gnome-keyring-daemon --unlock' "$WS_SCRIPT_F0121" 2>/dev/null | head -1 | cut -d: -f1)
-    if [ -n "$ws_call_line" ] && [ -n "$keyring_line" ] && [ "$ws_call_line" -lt "$keyring_line" ]; then
-        test_pass "F-0121: 08-workspaces.sh calls wait_for_user_session before gnome-keyring (line $ws_call_line < $keyring_line)"
-    else
-        test_fail "F-0121: 08-workspaces.sh does not call wait_for_user_session before gnome-keyring (call=$ws_call_line, keyring=$keyring_line)"
-    fi
-else
-    test_fail "F-0121: 08-workspaces.sh does not call wait_for_user_session"
-fi
-
-# (h) 08-workspaces.sh is fail-open (|| true on the call site)
-if grep -A1 'wait_for_user_session' "$WS_SCRIPT_F0121" 2>/dev/null | grep -q '|| true\|wait_for_user_session || true'; then
-    test_pass "F-0121: 08-workspaces.sh wait_for_user_session is fail-open (|| true)"
-elif grep -q 'wait_for_user_session || true' "$WS_SCRIPT_F0121" 2>/dev/null; then
-    test_pass "F-0121: 08-workspaces.sh wait_for_user_session is fail-open (|| true inline)"
-else
-    test_fail "F-0121: 08-workspaces.sh wait_for_user_session call is NOT fail-open (missing || true)"
-fi
-
-# (i) 08-workspaces.sh logs elapsed wait time
-if grep -q 'Session readiness gate elapsed' "$WS_SCRIPT_F0121" 2>/dev/null; then
-    test_pass "F-0121: 08-workspaces.sh logs session gate elapsed time"
-else
-    test_fail "F-0121: 08-workspaces.sh does not log session gate elapsed time"
+    test_fail "F-0121/F-0124: 08-workspaces.sh still defines wait_for_user_session (F-0124 removal incomplete)"
 fi
 
 # =============================================================================
