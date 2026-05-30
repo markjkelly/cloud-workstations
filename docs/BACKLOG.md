@@ -1,7 +1,7 @@
 # Project Backlog — Cloud Workstation
 
 **Maintained by:** TPM
-**Last updated:** 2026-05-29 (Milestone 38 — Remove Hub autostart machinery: F-0124)
+**Last updated:** 2026-05-29 (Milestone 39 — Antigravity IDE cleanup: F-0125)
 
 ---
 
@@ -391,6 +391,16 @@ Tracks fork-only work that pre-dated or accompanied v1.17. All items are documen
 | ID | Feature | Spec | Priority | Status | Owner | Branch | Dependencies | Feedback |
 |----|---------|------|----------|--------|-------|--------|--------------|----------|
 | F-0122 | hub-restart — manual Hub-relaunch utility (repo + setup persistence) | [F-0122](specs/F-0122-hub-restart-utility.md) | P1 | done | SWE-1 | feature/hub-restart-utility | F-0121 | **Implemented, tested, verified (2026-05-29).** Script captured verbatim from live `~/.local/bin/hub-restart` into `workstation-image/scripts/hub-restart` (diff clean). Wired into `cloud-build-setup.sh` (unconditional, after sway-status deploy). Three-places rule: repo has script, live copy byte-identical, setup installs it. 3 new tests in `10-tests.sh` (file exists, executable, on PATH). `docs/STARTUP_SCRIPTS.md` updated with new User Tools table. |
+
+---
+
+## Milestone 39: Antigravity IDE cleanup
+
+**Last updated:** 2026-05-29 (Milestone 39 — Antigravity IDE cleanup: F-0125)
+
+| ID | Feature | Spec | Priority | Status | Owner | Branch | Dependencies | Feedback |
+|----|---------|------|----------|--------|-------|--------|--------------|----------|
+| F-0125 | Clean up orphaned Antigravity IDE remnants (~/.config/Antigravity, ~/.antigravity, etc.) and remove dead sway for_window rule | [F-0125](specs/F-0125-antigravity-ide-cleanup.md) | P2 | done | SWE-1 | feature/antigravity-ide-cleanup | F-0116, F-0124 | **Implemented, tested, verified (2026-05-29).** Added idempotent F-0125 cleanup block to `07-apps.sh` (removes `~/.config/Antigravity`, `~/.config/Antigravity.bak.*`, `~/.antigravity`, `~/.cache/antigravity` via `runuser`; explicit guards prevent touching Hub/CLI dirs). Removed dead `for_window [app_id="antigravity"]` rule + F-0116 comment block from all three sway config locations: repo `workstation-image/configs/sway/config`, `~/.config/home-manager/sway-config` (diff clean), and `scripts/cloud-build-setup.sh` deploys from repo so no separate change needed. `10-tests.sh`: removed stale F-0116 Hub-placement-rule positive-presence test; added 7 new tests (4 orphaned-dir absent, 2 over-deletion guards, 1 dead-rule absent). bash -n PASS both scripts. `~/boot/07-apps.sh` and `~/boot/10-tests.sh` synced live (diff clean). Live dir cleanup will run on next boot. Live sway config: home-manager source updated; `home-manager switch` not run mid-session to avoid disrupting running Sway — takes effect on next boot. |
 
 ---
 

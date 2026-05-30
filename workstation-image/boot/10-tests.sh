@@ -126,6 +126,31 @@ fi
 check_dir "Antigravity CLI config" "$HOME_DIR/.gemini/antigravity-cli"
 check_dir "Antigravity Hub directory" "$HOME_DIR/.local/share/antigravity-hub"
 check_file "Antigravity Hub symlink" "$HOME_DIR/.local/bin/antigravity-hub"
+# F-0125: Orphaned IDE dirs must be absent (cleaned by 07-apps.sh on every boot).
+# Also assert Hub and CLI dirs are still present (over-deletion guard).
+if [ ! -e "$HOME_DIR/.config/Antigravity" ]; then
+    test_pass "IDE userData dir absent (~/.config/Antigravity cleaned — F-0125)"
+else
+    test_fail "IDE userData dir still present at ~/.config/Antigravity (07-apps.sh cleanup did not run — F-0125)"
+fi
+if ls "$HOME_DIR"/.config/Antigravity.bak.* >/dev/null 2>&1; then
+    test_fail "IDE userData backup(s) still present at ~/.config/Antigravity.bak.* (07-apps.sh cleanup did not run — F-0125)"
+else
+    test_pass "IDE userData backups absent (~/.config/Antigravity.bak.* cleaned — F-0125)"
+fi
+if [ ! -e "$HOME_DIR/.antigravity" ]; then
+    test_pass "IDE extensions dir absent (~/.antigravity cleaned — F-0125)"
+else
+    test_fail "IDE extensions dir still present at ~/.antigravity (07-apps.sh cleanup did not run — F-0125)"
+fi
+if [ ! -e "$HOME_DIR/.cache/antigravity" ]; then
+    test_pass "IDE cache dir absent (~/.cache/antigravity cleaned — F-0125)"
+else
+    test_fail "IDE cache dir still present at ~/.cache/antigravity (07-apps.sh cleanup did not run — F-0125)"
+fi
+# Over-deletion guard: Hub userData and CLI dirs MUST still be present
+check_dir "Hub userData preserved after F-0125 cleanup (anti-over-delete)" "$HOME_DIR/.config/Antigravity-Hub"
+check_dir "Antigravity CLI preserved after F-0125 cleanup (anti-over-delete)" "$HOME_DIR/.gemini/antigravity-cli"
 # F-0116: IDE ws2 launch removed — assert the IDE launch block is absent
 if grep -qE 'launch_and_wait[[:space:]]+2[[:space:]].*ANTIGRAVITY' "$HOME_DIR/boot/08-workspaces.sh"; then
     test_fail "08-workspaces.sh still launches IDE on ws2 via ANTIGRAVITY variable (F-0116 regression)"
@@ -407,10 +432,13 @@ if grep -qE 'bindsym.*mod\+g.*antigravity|bindsym.*mod\+n.*antigravity' "$SWAY_C
 else
     test_pass "Sway config has no antigravity IDE keybindings (\$mod+g/\$mod+n removed — F-0116)"
 fi
-# F-0116: Hub placement rule must be present
-check_grep "Hub placement rule: for_window app_id=antigravity to ws1 (F-0116)" \
-    'for_window \[app_id="antigravity"\] move container to workspace number 1' \
-    "$SWAY_CFG"
+# F-0125: Hub placement rule removed (dead since F-0124 removed Hub autostart;
+# hub-restart does its own swaymsg workspace 1). Assert it is ABSENT.
+if grep -q 'for_window \[app_id="antigravity"\]' "$SWAY_CFG"; then
+    test_fail "Dead for_window [app_id=\"antigravity\"] rule still in sway config (should be removed — F-0125)"
+else
+    test_pass "Dead for_window antigravity rule absent from sway config (F-0125)"
+fi
 check_grep "Snippet picker keybinding" "snippet-picker" "$SWAY_CFG"
 # F-0107: $mod+h keybinding conflict fix — must be exactly ONE workspace binding, not exec Hub.
 # F-0113: after Chrome/Hub workspace swap (F-0112), $mod+h must now be workspace 1 (Hub),
