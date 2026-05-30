@@ -79,6 +79,17 @@ systemd (after Sway starts)
   │         processes are killed (safe pgrep/exe-path filter), Singleton*
   │         locks cleared, diagnostics written to
   │         ~/logs/language_server_boot_diag.log, then Hub is relaunched.
+  │         NOTE: F-0117's readiness check is a known false positive (reads
+  │         shared network namespace, sees host-wide LISTEN sockets, always
+  │         returns "ready" immediately — retry never fires). Fix pending
+  │         root-cause diagnosis from F-0118.
+  │         F-0118: Background diagnostic sampler runs during every Hub
+  │         launch window. Samples every 3 s, appends to
+  │         ~/logs/hub-ls-diag.log. Captures: LS pid/state/disappearance,
+  │         LS-owned LISTEN sockets (correct inode method), Hub-reported
+  │         port, curl probes, renderer count, DNS/network readiness, LS
+  │         log file locations, LS stdout/stderr fd targets. Diagnostic
+  │         only — does not change Hub launch behavior.
   └── ws-boot-tests.service (After=ws-autolaunch, 30s delay)
         └── 10-tests.sh (run ~82 verification tests)
 ```
@@ -89,6 +100,7 @@ systemd (after Sway starts)
 |------|---------|
 | `~/logs/hub-launch.log` | 08-workspaces.sh Hub launch output — stdout+stderr from the Antigravity Hub process; append mode with `=== Hub launch: YYYY-MM-DD HH:MM:SS ===` header per boot (F-0110) |
 | `~/logs/language_server_boot_diag.log` | 08-workspaces.sh Hub resilience diagnostics (F-0117) — written only when a launch attempt fails. Contains: attempt number/timestamp, `uptime` output, language_server PID and process status headers, Hub Electron PIDs, key environment variables (WAYLAND_DISPLAY, DBUS_ADDR, SWAYSOCK), and `/proc/net/tcp6` + `/proc/net/tcp` LISTEN socket snapshots. Used to diagnose the intermittent cold-boot language_server non-readiness failure. |
+| `~/logs/hub-ls-diag.log` | 08-workspaces.sh Hub LS boot diagnostic sampler (F-0118) — written on every boot, continuously throughout the Hub launch window. Each boot opens with `=== F-0118 LS diag: YYYY-MM-DD HH:MM:SS ===`. Then, every 3 seconds during the 90 s launch window, a timestamped sample is appended with: (a) all `language_server` PIDs + `/proc/<pid>/stat` state + disappearance notifications; (b) LS-owned LISTEN sockets via correct inode→fd matching (NOT the shared-namespace method — fixes the F-0117 false-positive); (c) Hub-reported port from `hub-launch.log`; (d) curl/tcp probe of each LS-owned and Hub-reported port; (e) Hub renderer process count; (f) DNS resolution and curl probe of `daily-cloudcode-pa.googleapis.com` (leading cold-boot failure hypothesis); (g) one-time snapshot of LS log directories and LS stdout/stderr fd targets. This is the primary diagnostic artifact for root-causing the blank ws1 failure; read it after any cold boot where ws1 is blank. |
 | `~/logs/sync.log` | 06-sync.sh output (git pull, boot script sync, sway config sync) |
 | `~/logs/app-update.log` | 07-apps.sh output (npm updates, home-manager switch) |
 | `~/logs/language-install.log` | 07b-languages.sh output (Go, Rust, Python, Ruby) |
