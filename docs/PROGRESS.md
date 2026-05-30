@@ -1,5 +1,78 @@
 # Development Progress Log — Cloud Workstation
 
+## Session 38 — 2026-05-29 (F-0120: Hub LS shim env-capture + PATH repair)
+
+### Date
+2026-05-29
+
+### Milestone
+Milestone 35 — Hub LS shim env-capture + PATH repair (F-0120)
+
+### Root-cause breakthrough
+After F-0119 confirmed the `--standalone` LS invocation never reached the shim,
+the leading theory became: the Hub passes its `language_server --standalone` child
+a **stripped environment with an empty or broken `PATH`**, causing the kernel to
+call `/usr/bin/env bash` (from `#!/usr/bin/env bash`) and fail immediately when
+`env` cannot resolve `bash`. This is consistent with all evidence:
+- `--stamp` inherits the caller's full env (our env, sane PATH) → shim executes fine
+- `--standalone` receives a curated Electron child env → shim never executes
+- The real ELF works under every replicated stripped env → the ELF itself is not the problem
+
+### Completed
+- **PM** created `docs/specs/F-0120-hub-ls-shim-env-capture-repair.md` with root-cause
+  summary, requirements, and acceptance criteria
+- **TPM** added Milestone 35 to `docs/BACKLOG.md`; promoted F-0120 from Future Items
+  to In Progress with spec link
+- **SWE-1** upgraded `_f0119_install_ls_shim()` in `workstation-image/boot/08-workspaces.sh`:
+  - Shebang changed from `#!/usr/bin/env bash` → `#!/bin/bash` (absolute; runs under empty PATH)
+  - Env capture: first shim action writes Hub's child env to `~/logs/ls-spawn.env`
+    (timestamp, pid, args, raw PATH value, full env dump) — confirms or refutes the theory
+  - Env repair: prepends `/usr/bin:/bin:/usr/local/bin` to PATH; sets `HOME=/home/user`
+    if empty — the candidate fix
+  - Passthrough unchanged: stdout+stderr still tee'd unmodified to Hub (port-discovery safe)
+  - SIGTERM/SIGINT forwarding preserved
+  - Idempotent upgrade: detects F-0119-era shim (no `# F-0120` marker) and rewrites in-place
+    without touching `language_server.real`
+- **SWE-1** deployed updated `08-workspaces.sh` to `~/boot/08-workspaces.sh` (three-places rule)
+- **SWE-1** installed F-0120 shim over the live stale F-0119 shim immediately
+- **SWE-Test** added 8 F-0120 tests to `workstation-image/boot/10-tests.sh`:
+  static heredoc checks (shebang, F-0120 marker, ls-spawn.env, PATH repair, upgrade logic,
+  upgrade log message) plus installed-shim checks (marker present, shebang correct)
+- **SWE-Test** deployed updated `10-tests.sh` to `~/boot/10-tests.sh`
+- **SWE-QA** confirmed: diff clean (three-places parity), heredoc uses `'SHIM_EOF'` (single-quoted,
+  no install-time expansion), `cloud-build-setup.sh` deploys boot scripts via tarball wholesale
+  (no changes needed), F-0119 marker on line 2 of heredoc (idempotency check still matches)
+
+### Files Changed
+- `workstation-image/boot/08-workspaces.sh` — F-0120 shim upgrade in `_f0119_install_ls_shim()`
+- `workstation-image/boot/10-tests.sh` — 8 new F-0120 tests
+- `docs/specs/F-0120-hub-ls-shim-env-capture-repair.md` — new spec
+- `docs/BACKLOG.md` — Milestone 35 added; F-0120 promoted to In Progress
+- `docs/PROGRESS.md` — this entry
+- `docs/RELEASENOTES.md` — v1.24.13 entry added
+
+### Decisions
+- **`#!/bin/bash` over `#!/usr/bin/env bash`**: The absolute shebang is the core fix — if PATH
+  is empty, `/usr/bin/env` cannot find `bash` and the shim fails silently before writing
+  even its first line. `/bin/bash` is always present on Ubuntu 24.04.
+- **Env capture before repair**: Record the raw Hub-supplied environment first, then repair
+  it. This guarantees the log is diagnostic even if PATH is the wrong hypothesis.
+- **In-place upgrade (no `.real` touch)**: The F-0119 shim is overwritten in-place. Moving
+  the ELF again would be wrong — `.real` is already the real ELF.
+- **`cloud-build-setup.sh` unchanged**: Boot scripts are deployed as a tarball from
+  `workstation-image/boot/` — no hardcoded shim content there.
+
+### Next Steps
+- PO: merge PR, `git push` tag, then **reboot** the workstation
+- After reboot: read `~/logs/ls-spawn.env` — if `PATH=` is empty or minimal for
+  `--standalone`, theory confirmed; the PATH repair line should have fixed it
+- Also read `~/logs/ls-spawn.log` — a `--standalone` spawn header confirms the shim
+  now runs under the Hub's child env
+- Read `~/logs/hub-launch.log` for `Port changed!` — if present, ws1 is fixed
+- F-0121 (if needed): if PATH is not the issue, the env dump will reveal the next hypothesis
+
+---
+
 ## Session 37 — 2026-05-29 (F-0119: Hub language_server spawn capture shim)
 
 ### Goals

@@ -367,6 +367,66 @@ else
     test_fail "F-0119: 08-workspaces.sh not found at $WS_SCRIPT_F0119"
 fi
 
+# F-0120: Hub LS shim env-capture + PATH repair.
+# Static tests against the 08-workspaces.sh source to verify the F-0120 shim
+# content and upgrade logic are present.  These tests run at boot without
+# requiring a Hub reboot — they grep the boot script source and the installed
+# shim file.
+log ""
+log "--- F-0120: LS shim env-capture + PATH repair ---"
+WS_SCRIPT_F0120="$HOME_DIR/boot/08-workspaces.sh"
+
+if [ -f "$WS_SCRIPT_F0120" ]; then
+    # (a) Shim heredoc uses absolute shebang #!/bin/bash
+    check_grep "F-0120: shim heredoc uses #!/bin/bash shebang" \
+        '#!/bin/bash' \
+        "$WS_SCRIPT_F0120"
+
+    # (b) Shim heredoc contains F-0120 version marker
+    check_grep "F-0120: shim heredoc contains # F-0120 version marker" \
+        '# F-0120' \
+        "$WS_SCRIPT_F0120"
+
+    # (c) Shim heredoc writes env capture to ls-spawn.env
+    check_grep "F-0120: shim heredoc writes to ls-spawn.env" \
+        'ls-spawn.env' \
+        "$WS_SCRIPT_F0120"
+
+    # (d) Shim heredoc repairs PATH with standard dirs
+    check_grep "F-0120: shim heredoc repairs PATH (/usr/bin:/bin:/usr/local/bin)" \
+        '/usr/bin:/bin:/usr/local/bin' \
+        "$WS_SCRIPT_F0120"
+
+    # (e) Upgrade logic: _f0119_install_ls_shim checks for F-0120 marker to detect stale shims
+    check_grep "F-0120: upgrade logic checks for SHIM_VERSION=# F-0120 in install function" \
+        'SHIM_VERSION' \
+        "$WS_SCRIPT_F0120"
+
+    # (f) Upgrade logic: log message for stale shim overwrite
+    check_grep "F-0120: upgrade log message present in install function" \
+        'Upgrading stale LS shim to F-0120' \
+        "$WS_SCRIPT_F0120"
+else
+    test_fail "F-0120: 08-workspaces.sh not found at $WS_SCRIPT_F0120"
+fi
+
+# (g) Installed shim (if present) contains the F-0120 marker
+if [ -f "$LS_BIN_PATH" ]; then
+    if grep -qF '# F-0120' "$LS_BIN_PATH" 2>/dev/null; then
+        test_pass "F-0120: installed shim at LS_BIN contains # F-0120 version marker"
+    else
+        test_fail "F-0120: installed shim at LS_BIN is missing # F-0120 marker (stale — upgrade should fire on next boot)"
+    fi
+    # (h) Installed shim uses #!/bin/bash shebang
+    if head -1 "$LS_BIN_PATH" 2>/dev/null | grep -qF '#!/bin/bash'; then
+        test_pass "F-0120: installed shim uses #!/bin/bash shebang"
+    else
+        test_fail "F-0120: installed shim does NOT use #!/bin/bash shebang (may still use #!/usr/bin/env bash)"
+    fi
+else
+    test_warn "F-0120: LS_BIN does not exist — Hub not installed on this workstation (F-0120 shim checks skipped)"
+fi
+
 # =============================================================================
 # AI CLI Tools
 # =============================================================================
