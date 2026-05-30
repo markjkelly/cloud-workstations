@@ -135,6 +135,19 @@ Boot scripts are gated by the composable install module system. The `~/.ws-modul
 | `tailscale` | 06a-tailscale | full |
 | `tmux` | 06b-tmux | dev, ai, full |
 
+## User Tools (~/.local/bin)
+
+Scripts deployed to `~/.local/bin/` by `cloud-build-setup.sh` (persisted to the persistent disk; survive reboot and fresh-project setup).
+
+| Tool | Source in Repo | Purpose |
+|------|---------------|---------|
+| `antigravity-hub` | installed by `07-apps.sh` (tarball) | Symlink to the Antigravity Hub Electron binary |
+| `sway-status` | `workstation-image/configs/swaybar/sway-status` | swaybar status line (clock, battery, etc.) |
+| `snippet-picker` | `workstation-image/scripts/snippet-picker` | Wofi-based snippet launcher (desktop module) |
+| `claude-tmux` | `workstation-image/scripts/claude-tmux` | Open a named tmux window with Claude Code (tmux module) |
+| `tmux-debug` | `workstation-image/scripts/tmux-debug` | tmux session diagnostics (tmux module) |
+| `hub-restart` | `workstation-image/scripts/hub-restart` | (F-0122) Manually (re)launch the Antigravity Hub onto ws1 — kills any stuck Hub, clears Singleton lock, relaunches from user session, polls for language_server readiness. Workaround for the cold-boot blank-ws1 failure. |
+
 ## Key Design Decisions
 
 1. **All scripts are idempotent** — safe to run multiple times. No duplicate entries, no state corruption.
