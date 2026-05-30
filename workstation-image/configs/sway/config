@@ -77,14 +77,6 @@ for_window [title="(?:Open|Save) (?:File|Folder|As)"] floating enable
 for_window [app_id="pavucontrol"] floating enable
 for_window [app_id="thunar" title="File Operation Progress"] floating enable
 
-# F-0116: Pin the Antigravity Hub to workspace 1.
-# The Hub's BrowserWindow maps asynchronously (after its language_server starts
-# and picks a port), which previously caused the window to land on whatever
-# workspace had focus at map time.  The Antigravity IDE (the only other app
-# that shared app_id="antigravity") has been removed, so this rule is
-# unambiguous and reliably keeps the Hub on ws1 regardless of timing.
-for_window [app_id="antigravity"] move container to workspace number 1
-
 # =============================================================================
 # KEY BINDINGS
 # =============================================================================

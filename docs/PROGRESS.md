@@ -1,5 +1,69 @@
 # Development Progress Log — Cloud Workstation
 
+## Session 42 — 2026-05-29 (F-0125: Antigravity IDE cleanup)
+
+### Date
+2026-05-29
+
+### Milestone
+F-0125 — Clean up orphaned Antigravity IDE remnants
+
+### Completed
+- **PM** created `docs/specs/F-0125-antigravity-ide-cleanup.md` documenting the four
+  orphaned IDE dirs left by F-0116, the investigation of `~/.antigravitycli` (confirmed
+  CLI project state — KEEP), and the rationale for removing the dead `for_window` sway
+  rule (redundant since F-0124 removed Hub autostart; `hub-restart` does `swaymsg workspace 1`).
+- **SWE-1** added an idempotent F-0125 cleanup block to `workstation-image/boot/07-apps.sh`
+  that runs on every boot and fresh setup. The block removes `~/.config/Antigravity`,
+  `~/.config/Antigravity.bak.*`, `~/.antigravity`, and `~/.cache/antigravity` via
+  `runuser -u user -- rm -rf`. Each removal is individually guarded so it cannot match
+  Hub or CLI dirs (explicit path comparison + scoped glob patterns).
+- **SWE-1** removed the dead `for_window [app_id="antigravity"]` rule and its F-0116
+  explanatory comment block from all three sway config locations:
+  `workstation-image/configs/sway/config` (repo), `~/.config/home-manager/sway-config`
+  (home-manager source — diff clean against repo). `scripts/cloud-build-setup.sh` deploys
+  the repo sway config to home-manager on fresh setup, so no separate change needed there.
+- **SWE-Test** updated `10-tests.sh`: removed the now-stale F-0116 positive Hub-placement-rule
+  test; added 7 new F-0125 tests (4 orphaned-dir absent checks, 2 over-deletion guards for
+  Hub/CLI dirs, 1 dead-rule absent check).
+- **SWE-QA** verified: `bash -n` PASS on both modified scripts; repo sway config diff-clean
+  against `~/.config/home-manager/sway-config`; repo boot scripts diff-clean against `~/boot/`.
+  Live dir cleanup blocked by sandbox (will run on next boot when 07-apps.sh executes with
+  `runuser`). Live sway: home-manager source updated; `home-manager switch` deferred to next
+  boot to avoid disrupting running Sway session.
+
+### Agent Team
+- PM: spec authoring (F-0125)
+- SWE-1: boot script cleanup block, sway config edit, boot test updates
+- TPM: backlog + progress updates (this entry)
+
+### Files Changed
+- `docs/specs/F-0125-antigravity-ide-cleanup.md` — new spec
+- `docs/BACKLOG.md` — Milestone 39 added, F-0125 marked done
+- `workstation-image/boot/07-apps.sh` — F-0125 orphaned IDE dir cleanup block added
+- `workstation-image/boot/10-tests.sh` — F-0116 stale test removed; 7 new F-0125 tests added
+- `workstation-image/configs/sway/config` — dead `for_window` rule + comment block removed
+- `~/.config/home-manager/sway-config` — same change (three-places rule)
+- `~/boot/07-apps.sh` — synced live (diff clean)
+- `~/boot/10-tests.sh` — synced live (diff clean)
+
+### Decisions
+- **Do not run `home-manager switch` mid-session**: editing `~/.config/home-manager/sway-config`
+  is sufficient to satisfy the three-places rule. Running `home-manager switch` risks disrupting
+  the active Sway session. The change takes effect on the next reboot (Home Manager runs at boot
+  via `07-apps.sh` → `nix-channel --update && home-manager switch`).
+- **Cleanup runs via `runuser` in `07-apps.sh`**: placement here (not `08-workspaces.sh` or a
+  standalone script) is correct because 07-apps.sh already runs as root with user session ready,
+  runs on every boot, and is deployed by `cloud-build-setup.sh` for fresh setup.
+- **`~/.antigravitycli` kept**: investigation confirmed it contains symlinks into
+  `~/.gemini/config/projects/` — it is live CLI project state, not IDE artifacts. Left untouched.
+
+### Next Steps
+- Merge PR → `git tag -a v1.25.1`
+- On next boot, verify `10-tests.sh` reports PASS for all 7 new F-0125 tests
+
+---
+
 ## Session 41 — 2026-05-29 (F-0124: Remove Hub autostart machinery)
 
 ### Date

@@ -1,5 +1,28 @@
 # Release Notes — Cloud Workstation
 
+## v1.25.1 — Antigravity IDE cleanup: remove orphaned dirs and dead sway rule (2026-05-29)
+
+### Removed
+- **Orphaned Antigravity IDE directories** (F-0125). The four dirs left on the persistent
+  disk after F-0116 removed the IDE are now cleaned idempotently on every boot by
+  `07-apps.sh`, reclaiming ~193 MB:
+  - `~/.config/Antigravity` (~30 MB) — IDE Electron userData
+  - `~/.config/Antigravity.bak.*` (~72 MB) — backup(s) of the above
+  - `~/.antigravity` (~91 MB) — IDE extensions / local state
+  - `~/.cache/antigravity` (~8 KB) — IDE cache
+  Cleanup is guarded to never touch Hub (`~/.config/Antigravity-Hub`) or CLI
+  (`~/.gemini/antigravity-cli`, `~/.antigravitycli`) directories.
+- **Dead sway `for_window` rule** (F-0125). The `for_window [app_id="antigravity"] move
+  container to workspace number 1` rule (and its F-0116 explanatory comment) is removed
+  from `workstation-image/configs/sway/config` and `~/.config/home-manager/sway-config`.
+  The rule was made redundant by F-0124: Hub autostart was removed, and `hub-restart`
+  already calls `swaymsg workspace 1` before launching the Hub.
+
+### Tests
+- 7 new boot tests in `10-tests.sh` assert: each orphaned IDE dir is absent, Hub and
+  CLI dirs are still present (over-deletion guards), and the dead sway rule is absent.
+  The stale F-0116 Hub-placement-rule positive-presence test is removed.
+
 ## v1.25.0 — Remove Hub autostart machinery; boot no longer auto-launches the Hub (2026-05-29)
 
 ### Changed (Breaking: boot behavior)

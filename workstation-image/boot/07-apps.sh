@@ -125,6 +125,71 @@ log "User session confirmed ready — proceeding with app updates"
 # installed — it shared app_id="antigravity" with the Hub and caused sway
 # placement collisions. No apt operations needed here for Antigravity.
 
+# =============================================================================
+# F-0125: Remove orphaned Antigravity IDE dirs left by F-0116.
+#
+# The Antigravity IDE used four dirs on the persistent disk that are now dead.
+# They are distinct from Hub and CLI dirs (see guard assertions below).
+# This block runs idempotently on every boot and on fresh setup, so the dirs
+# are cleaned up regardless of when the workstation was first provisioned.
+#
+# DIRS TO REMOVE (IDE-only, now orphaned):
+#   ~/.config/Antigravity           — IDE Electron userData
+#   ~/.config/Antigravity.bak.*     — backup(s) of the above created at install
+#   ~/.antigravity                  — IDE extensions / local state
+#   ~/.cache/antigravity            — IDE cache
+#
+# DIRS TO KEEP (Hub / CLI / other):
+#   ~/.config/Antigravity-Hub       — Hub Electron userData  (KEEP)
+#   ~/.local/share/antigravity-hub  — Hub binary dir          (KEEP)
+#   ~/.gemini/antigravity-cli       — Antigravity CLI install (KEEP)
+#   ~/.gemini/antigravity           — Antigravity CLI state   (KEEP)
+#   ~/.antigravitycli               — CLI project symlinks    (KEEP)
+#
+# Safety: each rm call targets a specific path that cannot match Hub/CLI dirs
+# (different name segment — "Antigravity" vs "Antigravity-Hub",
+#  ".antigravity" vs ".antigravitycli", ".cache/antigravity" is cache-only).
+# =============================================================================
+log "F-0125: Removing orphaned Antigravity IDE dirs (idempotent)..."
+
+# 1. IDE userData: ~/.config/Antigravity
+#    Guard: must NOT be ~/.config/Antigravity-Hub (Hub dir, different suffix)
+IDE_USERDATA="$HOME_DIR/.config/Antigravity"
+if [ -e "$IDE_USERDATA" ] && [ "$IDE_USERDATA" != "$HOME_DIR/.config/Antigravity-Hub" ]; then
+    runuser -u $USER -- rm -rf "$IDE_USERDATA" && \
+        log "F-0125: Removed $IDE_USERDATA" || \
+        log "F-0125: WARNING — could not remove $IDE_USERDATA (rc=$?)"
+fi
+
+# 2. IDE userData backups: ~/.config/Antigravity.bak.*
+#    These are named Antigravity.bak.<numeric-suffix>, never Antigravity-Hub.*
+for bak_dir in "$HOME_DIR"/.config/Antigravity.bak.*; do
+    [ -e "$bak_dir" ] || continue
+    runuser -u $USER -- rm -rf "$bak_dir" && \
+        log "F-0125: Removed $bak_dir" || \
+        log "F-0125: WARNING — could not remove $bak_dir (rc=$?)"
+done
+
+# 3. IDE extensions / local state: ~/.antigravity
+#    Guard: must NOT be ~/.antigravitycli (CLI project state, different suffix)
+IDE_EXTDIR="$HOME_DIR/.antigravity"
+if [ -e "$IDE_EXTDIR" ] && [ "$IDE_EXTDIR" != "$HOME_DIR/.antigravitycli" ]; then
+    runuser -u $USER -- rm -rf "$IDE_EXTDIR" && \
+        log "F-0125: Removed $IDE_EXTDIR" || \
+        log "F-0125: WARNING — could not remove $IDE_EXTDIR (rc=$?)"
+fi
+
+# 4. IDE cache: ~/.cache/antigravity
+#    Guard: scoped to .cache/ so it cannot touch Hub or CLI dirs
+IDE_CACHE="$HOME_DIR/.cache/antigravity"
+if [ -e "$IDE_CACHE" ]; then
+    runuser -u $USER -- rm -rf "$IDE_CACHE" && \
+        log "F-0125: Removed $IDE_CACHE" || \
+        log "F-0125: WARNING — could not remove $IDE_CACHE (rc=$?)"
+fi
+
+log "F-0125: Orphaned IDE dir cleanup done"
+
 # --- Install/update Antigravity 2.0 Desktop App (Hub) ---
 # NOTE: URL version 2.0.10-5119448496078848 is hardcoded. Update this URL when a
 # new version of antigravity-hub is released.
