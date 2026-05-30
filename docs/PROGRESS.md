@@ -1,5 +1,90 @@
 # Development Progress Log — Cloud Workstation
 
+## Session 37 — 2026-05-29 (F-0119: Hub language_server spawn capture shim)
+
+### Goals
+- Install a transparent shim over the Hub's `language_server` binary that tees its
+  stdout+stderr to log files without altering the warm path.
+- Perform mandatory warm-path safety verification before committing.
+- Leave shim installed so the PO's next cold reboot captures the failing LS output.
+
+### Root Cause Context
+- F-0118's sampler confirmed the Hub swallows LS stdout+stderr completely; the only
+  remaining diagnostic gap is LS's own output during the failing cold-boot launch.
+- Design: shim wraps the real binary, passes BOTH streams through UNMODIFIED (Hub parses
+  stdout for `Port changed!` / the HTTPS port), and tees them to `~/logs/ls-spawn.*`.
+
+### Warm-Path Verification (MANDATORY — completed before commit)
+
+Verified live on this workstation (2026-05-29 18:28-18:38 PDT):
+
+1. Shim and .real state after manual install:
+   - `language_server.real`: ELF 64-bit LSB pie executable, x86-64 (167 MB) — confirmed real binary
+   - `language_server` (shim): line 2 = `# F-0119 LS capture shim` — marker present
+   - Both files: `-rwxr-xr-x` — executable
+
+2. Warm relaunch test (Hub launched with same flags as boot script, as current user):
+
+   After 20 seconds, ls-spawn files present:
+   - `ls-spawn.err` 1806 bytes, `ls-spawn.log` 573 bytes, `ls-spawn.out` 211 bytes
+
+   ls-spawn.err excerpt (LS stderr captured):
+   ```
+   Language server listening on random port at 35653 for HTTPS (gRPC)
+   initialized server successfully in 2.093893319s
+   ```
+
+   hub-launch.log Port changed line:
+   ```
+   18:38:55.062 › [Auto-Restart] Port changed! Reloading all windows with URL: https://127.0.0.1:35653/
+   ```
+
+**VERDICT:**
+- (a) Capture works: ls-spawn.out and ls-spawn.err both received content. PASS.
+- (b) Warm path unbroken: Port changed! fired, Hub BrowserWindow navigated. PASS.
+
+Shim left installed for next cold boot.
+
+### Completed
+- **PM** authored `docs/specs/F-0119-hub-ls-spawn-capture.md`
+- **TPM** added F-0119 to `docs/BACKLOG.md` (Milestone 34); added F-0120 placeholder
+- **SWE** implemented `_f0119_install_ls_shim()` in `workstation-image/boot/08-workspaces.sh`:
+  - Function moves real ELF to `.real`, writes bash shim with `# F-0119 LS capture shim` marker
+  - Shim: tees stdout to `ls-spawn.out`, stderr to `ls-spawn.err`, writes spawn/exit to `ls-spawn.log`
+  - SIGTERM/SIGINT forwarded to real child via trap + kill
+  - Idempotent via `head -3 | grep -qF` marker check; all paths guarded with `|| true`
+  - Called via `_f0119_install_ls_shim || true` immediately before Hub launch block
+- **SWE-Test** added 6 F-0119 tests to `10-tests.sh`
+- **SWE-QA** completed mandatory warm-path verification (see above)
+- **SWE** updated `docs/STARTUP_SCRIPTS.md` with new log entries
+- **Three-places persistence**: `~/boot/08-workspaces.sh` and `~/boot/10-tests.sh` synced live
+
+### Files Changed
+- `workstation-image/boot/08-workspaces.sh`
+- `workstation-image/boot/10-tests.sh`
+- `docs/specs/F-0119-hub-ls-spawn-capture.md` (new)
+- `docs/BACKLOG.md`
+- `docs/STARTUP_SCRIPTS.md`
+- `docs/PROGRESS.md`
+- `docs/RELEASENOTES.md`
+
+### Decisions
+- Marker on line 2 (line 1 is shebang); detection uses `head -3` not `head -1`.
+- Signals forwarded via `trap` + kill child PID so shim's exit code is captured.
+- Process substitution (`> >(tee -a ...)`) used — avoids named pipe lifecycle complexity.
+- `_f0119_install_ls_shim || true` explicit guard so a shim install failure NEVER fails boot.
+
+### Next Steps (for PO)
+1. Review and merge the PR on GitHub.
+2. Reboot the workstation (note: rebooting ends this Claude session).
+3. If ws1 is blank after reboot, open a new Claude session and read:
+   - `~/logs/ls-spawn.err` — LS stderr from the failing cold-boot launch
+   - `~/logs/ls-spawn.out` — LS stdout (may show what port line was emitted, if any)
+   - `~/logs/ls-spawn.log` — spawn/exit timestamps and exit code
+4. Bring findings to the next session for F-0120 (root-cause fix).
+
+---
+
 ## Session 36 — 2026-05-29 (F-0118: Hub LS boot diagnostics — thorough sampler instrumentation)
 
 ### Goals

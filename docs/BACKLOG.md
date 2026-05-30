@@ -1,7 +1,7 @@
 # Project Backlog — Cloud Workstation
 
 **Maintained by:** TPM
-**Last updated:** 2026-05-29 (Milestone 33 — Hub LS boot diagnostics: thorough sampler instrumentation)
+**Last updated:** 2026-05-29 (Milestone 34 — Hub LS spawn capture shim: F-0119)
 
 ---
 
@@ -363,10 +363,21 @@ Tracks fork-only work that pre-dated or accompanied v1.17. All items are documen
 
 ---
 
+## Milestone 34: Hub LS Spawn Capture Shim
+
+**Last updated:** 2026-05-29 (Milestone 34 — Hub LS spawn capture shim)
+
+| ID | Feature | Spec | Priority | Status | Owner | Branch | Dependencies | Feedback |
+|----|---------|------|----------|--------|-------|--------|--------------|----------|
+| F-0119 | Hub language_server spawn capture shim | [F-0119](specs/F-0119-hub-ls-spawn-capture.md) | P0 | done | SWE-1 | feature/hub-ls-spawn-capture | F-0118 | Shim installed between Hub and real LS binary. Tees LS stdout → `~/logs/ls-spawn.out` and stderr → `~/logs/ls-spawn.err`; writes spawn/exit records to `~/logs/ls-spawn.log`. Both streams passed through UNMODIFIED so Hub port-discovery works. Install function `_f0119_install_ls_shim()` added to `08-workspaces.sh`, called before Hub launch. Idempotent (marker-based detection). SIGTERM/SIGINT forwarded to real child. Warm-path verified: `ls-spawn.out` (211 bytes) and `ls-spawn.err` (1806 bytes) received content; `hub-launch.log` showed `Port changed!` confirming Hub launched successfully. `~/boot/08-workspaces.sh` and `~/boot/10-tests.sh` synced live. Diagnostic only — no launch behavior change. F-0120 will use the captured evidence to implement a fix. |
+
+---
+
 ## Future Items
 
 | ID | Feature | Spec | Priority | Status | Owner | Branch | Dependencies | Feedback |
 |----|---------|------|----------|--------|-------|--------|--------------|----------|
+| F-0120 | Hub cold-boot LS root-cause fix — pending F-0119 captured evidence | — | P0 | backlog | — | — | F-0119 | After the next cold boot where ws1 is blank, read `~/logs/ls-spawn.out` and `~/logs/ls-spawn.err` to diagnose why LS exits without binding its HTTPS port. Design and implement a targeted fix. |
 | F-0083 | Build speed: skip AR deletion on teardown | [Research](research/build-speed-optimization.md) | P2 | backlog | — | — | — | Keep Docker image in AR across teardown/setup cycles. Saves ~17min. Image is ~280MB, pennies/month. |
 | F-0084 | Build speed: faster Cloud Build machine (E2_HIGHCPU_32) | [Research](research/build-speed-optimization.md) | P2 | backlog | — | — | — | Docker builds 2-3x faster. Saves ~8min. |
 | F-0085 | Build speed: ws.sh update command (config-only, no rebuild) | [Research](research/build-speed-optimization.md) | P1 | backlog | — | — | — | Push configs + run boot scripts on existing workstation. ~2min vs 50min for config-only changes. |

@@ -347,6 +347,99 @@ _kill_stale_hub() {
 }
 
 # =============================================================================
+# F-0119: Install a capture shim over the Hub's language_server binary.
+#
+# PURPOSE
+#   The Hub swallows language_server's stdout+stderr completely — we have never
+#   seen WHY LS dies at cold boot.  This shim sits between the Hub and the real
+#   ELF binary, passes BOTH streams through to the Hub UNMODIFIED (so the Hub's
+#   port-discovery still works), and ALSO tees them to:
+#     ~/logs/ls-spawn.log  — human-readable spawn/exit records (timestamp, args, rc)
+#     ~/logs/ls-spawn.out  — raw LS stdout (append; may contain the port line)
+#     ~/logs/ls-spawn.err  — raw LS stderr (append; likely contains crash reason)
+#
+# IDEMPOTENCY
+#   The shim starts with the marker line "# F-0119 LS capture shim".
+#   If LS_BIN contains that marker  → shim already installed; verify .real exists.
+#   If LS_BIN is an ELF binary      → first install (or Hub auto-update replaced
+#                                      the shim with a fresh ELF); move to .real.
+#   If LS_BIN does not exist        → Hub not installed yet; skip with WARNING.
+#
+# SAFETY
+#   All failure paths are guarded with || true so boot never fails here.
+#   The warm path is verified in SWE-QA before this is committed.
+# =============================================================================
+_f0119_install_ls_shim() {
+    local LS_BIN="/home/user/.local/share/antigravity-hub/resources/bin/language_server"
+    local LS_REAL="${LS_BIN}.real"
+    local SHIM_MARKER="# F-0119 LS capture shim"
+
+    # Ensure log directory exists
+    mkdir -p /home/user/logs 2>/dev/null || true
+
+    if [ ! -e "$LS_BIN" ]; then
+        log "F-0119 WARNING: $LS_BIN does not exist — Hub not installed yet; skipping shim install"
+        return 0
+    fi
+
+    # Detect whether LS_BIN is already the shim (text) or the real ELF.
+    # The shim's shebang is on line 1; the marker is on line 2.  Check the
+    # first 3 lines to be robust against any future shim edits.
+    if head -3 "$LS_BIN" 2>/dev/null | grep -qF "$SHIM_MARKER"; then
+        # Shim already installed — verify .real exists and is executable
+        if [ -x "$LS_REAL" ]; then
+            log "F-0119: LS capture shim already installed; language_server.real is executable"
+        else
+            log "F-0119 WARNING: shim installed but $LS_REAL is missing or not executable — broken state"
+        fi
+        return 0
+    fi
+
+    # LS_BIN is not the shim (it's the real ELF, possibly from a Hub auto-update).
+    # Move it to .real (overwrite any older .real), then write the shim.
+    log "F-0119: Installing LS capture shim (moving real binary to language_server.real)..."
+    mv -f "$LS_BIN" "$LS_REAL" 2>/dev/null || {
+        log "F-0119 WARNING: failed to move $LS_BIN → $LS_REAL; skipping shim install"
+        return 0
+    }
+    chmod +x "$LS_REAL" 2>/dev/null || true
+
+    # Write the shim.  Use a heredoc so the content is readable in the repo.
+    # CRITICAL: stdout+stderr are tee'd but also passed through to the Hub
+    # UNMODIFIED so port-discovery ("[Auto-Restart] Port changed!") still works.
+    # SIGTERM/SIGINT are forwarded to the real child via a trap so the Hub's
+    # lifecycle management (kill-child-on-exit) continues to work.
+    cat > "$LS_BIN" << 'SHIM_EOF'
+#!/usr/bin/env bash
+# F-0119 LS capture shim — tees language_server stdout/stderr for cold-boot diagnosis.
+# Passes both streams through UNMODIFIED to the Hub (the Hub parses LS output for the
+# dynamic HTTPS port), while also appending to ~/logs/ls-spawn.{out,err}.
+LOG=/home/user/logs/ls-spawn.log
+OUT=/home/user/logs/ls-spawn.out
+ERR=/home/user/logs/ls-spawn.err
+REAL="$(dirname "$0")/language_server.real"
+mkdir -p "$(dirname "$LOG")" 2>/dev/null || true
+{ echo "=== LS spawn: $(date '+%Y-%m-%d %H:%M:%S.%N') pid=$$ ==="; echo "args: $*"; } >>"$LOG" 2>&1 || true
+# Forward SIGTERM/SIGINT to the real child so Hub lifecycle management works.
+_ls_child_pid=""
+_ls_forward_signal() { [ -n "$_ls_child_pid" ] && kill -s "$1" "$_ls_child_pid" 2>/dev/null || true; }
+trap '_ls_forward_signal TERM' TERM
+trap '_ls_forward_signal INT'  INT
+"$REAL" "$@" > >(tee -a "$OUT") 2> >(tee -a "$ERR" >&2) &
+_ls_child_pid=$!
+wait "$_ls_child_pid"
+rc=$?
+{ echo "=== LS exit: $(date '+%Y-%m-%d %H:%M:%S.%N') pid=$$ rc=$rc ==="; } >>"$LOG" 2>&1 || true
+exit $rc
+SHIM_EOF
+
+    chmod +x "$LS_BIN" 2>/dev/null || {
+        log "F-0119 WARNING: failed to chmod +x $LS_BIN — shim may not be executable"
+    }
+    log "F-0119: LS capture shim installed at $LS_BIN (real binary at $LS_REAL)"
+}
+
+# =============================================================================
 # F-0118: Background diagnostic sampler for language_server boot failures.
 #
 # PURPOSE
@@ -680,6 +773,11 @@ fi
 rm -f /home/user/.config/Antigravity-Hub/Singleton*
 
 log "Cleared $HUB_REAPED stale Hub processes and singleton lock before launch (F-0114)"
+
+# --- F-0119: Install LS capture shim BEFORE Hub launches ---
+# Must run after any Hub auto-update step (07-apps.sh) and before the Hub
+# spawns language_server.  Idempotent — safe to call on every boot.
+_f0119_install_ls_shim || true
 
 # --- Resilient Hub launch with readiness-based wait and retry (F-0117) ---
 HUB_OK=0

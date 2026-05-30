@@ -299,6 +299,74 @@ else
     test_fail "08-workspaces.sh not found at $WS_SCRIPT_F0118 (F-0118 check)"
 fi
 
+# F-0119: Hub language_server spawn capture shim.
+# Verifies the shim is installed, the real binary exists and is executable,
+# and that the install function is correctly wired into 08-workspaces.sh.
+log ""
+log "--- F-0119: LS capture shim ---"
+LS_BIN_PATH="$HOME_DIR/.local/share/antigravity-hub/resources/bin/language_server"
+LS_REAL_PATH="${LS_BIN_PATH}.real"
+WS_SCRIPT_F0119="$HOME_DIR/boot/08-workspaces.sh"
+
+# (a) Shim is installed and contains the F-0119 marker
+if [ -f "$LS_BIN_PATH" ]; then
+    if head -3 "$LS_BIN_PATH" 2>/dev/null | grep -qF "# F-0119 LS capture shim"; then
+        test_pass "F-0119: shim installed at LS_BIN with F-0119 marker"
+    else
+        test_fail "F-0119: LS_BIN exists but does NOT contain the F-0119 marker (shim not installed)"
+    fi
+else
+    test_warn "F-0119: LS_BIN does not exist — Hub not installed on this workstation"
+fi
+
+# (b) language_server.real exists and is executable
+if [ -f "$LS_REAL_PATH" ]; then
+    if [ -x "$LS_REAL_PATH" ]; then
+        test_pass "F-0119: language_server.real exists and is executable"
+    else
+        test_fail "F-0119: language_server.real exists but is not executable"
+    fi
+else
+    if [ -f "$LS_BIN_PATH" ]; then
+        test_fail "F-0119: language_server.real missing — shim installed but .real binary absent"
+    else
+        test_warn "F-0119: language_server.real does not exist (Hub not installed)"
+    fi
+fi
+
+# (c) Shim itself is executable
+if [ -f "$LS_BIN_PATH" ]; then
+    if [ -x "$LS_BIN_PATH" ]; then
+        test_pass "F-0119: shim at LS_BIN is executable"
+    else
+        test_fail "F-0119: shim at LS_BIN is not executable"
+    fi
+fi
+
+# (d) ~/logs directory exists and is writable by the user
+if runuser -u $USER -- bash -c "test -d '$HOME_DIR/logs' && test -w '$HOME_DIR/logs'" 2>/dev/null; then
+    test_pass "F-0119: $HOME_DIR/logs exists and is writable"
+else
+    test_fail "F-0119: $HOME_DIR/logs missing or not writable"
+fi
+
+# (e) _f0119_install_ls_shim function defined and called in 08-workspaces.sh
+if [ -f "$WS_SCRIPT_F0119" ]; then
+    check_grep "F-0119: _f0119_install_ls_shim() defined in 08-workspaces.sh" \
+        '_f0119_install_ls_shim' \
+        "$WS_SCRIPT_F0119"
+    # (f) Call site appears BEFORE HUB_OK=0 (Hub launch block)
+    _call_line=$(grep -n '_f0119_install_ls_shim' "$WS_SCRIPT_F0119" 2>/dev/null | grep -v '()' | head -1 | cut -d: -f1)
+    _hub_ok_line=$(grep -n 'HUB_OK=0' "$WS_SCRIPT_F0119" 2>/dev/null | head -1 | cut -d: -f1)
+    if [ -n "$_call_line" ] && [ -n "$_hub_ok_line" ] && [ "$_call_line" -lt "$_hub_ok_line" ]; then
+        test_pass "F-0119: _f0119_install_ls_shim called before Hub launch block (line $_call_line < HUB_OK=0 line $_hub_ok_line)"
+    else
+        test_fail "F-0119: _f0119_install_ls_shim call not found before HUB_OK=0 in 08-workspaces.sh (call=$_call_line hub_ok=$_hub_ok_line)"
+    fi
+else
+    test_fail "F-0119: 08-workspaces.sh not found at $WS_SCRIPT_F0119"
+fi
+
 # =============================================================================
 # AI CLI Tools
 # =============================================================================

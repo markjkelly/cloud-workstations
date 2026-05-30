@@ -90,6 +90,14 @@ systemd (after Sway starts)
   │         port, curl probes, renderer count, DNS/network readiness, LS
   │         log file locations, LS stdout/stderr fd targets. Diagnostic
   │         only — does not change Hub launch behavior.
+  │         F-0119: Before the Hub launch block, `_f0119_install_ls_shim()`
+  │         installs a bash shim over `language_server` (idempotent via
+  │         marker on line 2 of the shim). The shim tees LS stdout →
+  │         ~/logs/ls-spawn.out and stderr → ~/logs/ls-spawn.err while
+  │         passing both streams UNMODIFIED to the Hub (Hub reads stdout
+  │         to discover the dynamic HTTPS port). Spawn/exit records with
+  │         timestamps, args, and exit code go to ~/logs/ls-spawn.log.
+  │         SIGTERM/SIGINT forwarded to real child. Diagnostic only.
   └── ws-boot-tests.service (After=ws-autolaunch, 30s delay)
         └── 10-tests.sh (run ~82 verification tests)
 ```
@@ -101,6 +109,9 @@ systemd (after Sway starts)
 | `~/logs/hub-launch.log` | 08-workspaces.sh Hub launch output — stdout+stderr from the Antigravity Hub process; append mode with `=== Hub launch: YYYY-MM-DD HH:MM:SS ===` header per boot (F-0110) |
 | `~/logs/language_server_boot_diag.log` | 08-workspaces.sh Hub resilience diagnostics (F-0117) — written only when a launch attempt fails. Contains: attempt number/timestamp, `uptime` output, language_server PID and process status headers, Hub Electron PIDs, key environment variables (WAYLAND_DISPLAY, DBUS_ADDR, SWAYSOCK), and `/proc/net/tcp6` + `/proc/net/tcp` LISTEN socket snapshots. Used to diagnose the intermittent cold-boot language_server non-readiness failure. |
 | `~/logs/hub-ls-diag.log` | 08-workspaces.sh Hub LS boot diagnostic sampler (F-0118) — written on every boot, continuously throughout the Hub launch window. Each boot opens with `=== F-0118 LS diag: YYYY-MM-DD HH:MM:SS ===`. Then, every 3 seconds during the 90 s launch window, a timestamped sample is appended with: (a) all `language_server` PIDs + `/proc/<pid>/stat` state + disappearance notifications; (b) LS-owned LISTEN sockets via correct inode→fd matching (NOT the shared-namespace method — fixes the F-0117 false-positive); (c) Hub-reported port from `hub-launch.log`; (d) curl/tcp probe of each LS-owned and Hub-reported port; (e) Hub renderer process count; (f) DNS resolution and curl probe of `daily-cloudcode-pa.googleapis.com` (leading cold-boot failure hypothesis); (g) one-time snapshot of LS log directories and LS stdout/stderr fd targets. This is the primary diagnostic artifact for root-causing the blank ws1 failure; read it after any cold boot where ws1 is blank. |
+| `~/logs/ls-spawn.log` | F-0119 LS capture shim — human-readable spawn/exit log. One record per LS invocation: `=== LS spawn: YYYY-MM-DD HH:MM:SS.NNNNNNNNN pid=<pid> ===` followed by `args: <command line>`, then `=== LS exit: YYYY-MM-DD HH:MM:SS.NNNNNNNNN pid=<pid> rc=<code> ===` when LS exits. Append mode — accumulates across reboots. |
+| `~/logs/ls-spawn.out` | F-0119 LS capture shim — raw LS stdout, append mode. On a successful warm launch contains version/build info and may include the port advertisement line the Hub parses. On a failing cold boot, may be sparse or empty (LS may exit before writing). |
+| `~/logs/ls-spawn.err` | F-0119 LS capture shim — raw LS stderr, append mode. On a successful warm launch contains glog-format server startup lines (port binding, auth, init time). On a failing cold boot this is the primary evidence for WHY LS exits — read this first after a blank ws1 reboot. |
 | `~/logs/sync.log` | 06-sync.sh output (git pull, boot script sync, sway config sync) |
 | `~/logs/app-update.log` | 07-apps.sh output (npm updates, home-manager switch) |
 | `~/logs/language-install.log` | 07b-languages.sh output (Go, Rust, Python, Ruby) |
