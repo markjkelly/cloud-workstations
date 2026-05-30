@@ -1,5 +1,41 @@
 # Development Progress Log — Cloud Workstation
 
+## Session 40 — 2026-05-29 (F-0122: hub-restart manual Hub-relaunch utility)
+
+### Date
+2026-05-29
+
+### Milestone
+F-0122 — hub-restart manual Hub-relaunch utility (repo + setup persistence)
+
+### Completed
+- **Captured `hub-restart` verbatim from live `~/.local/bin/hub-restart` into the repo** at `workstation-image/scripts/hub-restart`. Script was live-tested and confirmed working (Hub came up on ws1, `language_server` listening). `diff` of repo copy vs live file is empty.
+- **Wired into `scripts/cloud-build-setup.sh`**: unconditional `cat … | ws_pipe` block immediately after the `sway-status` deploy, matching the existing pattern for `snippet-picker`, `claude-tmux`, and `tmux-debug`. A fresh-project setup will now install `hub-restart` to `~/.local/bin/hub-restart` with `chmod +x`.
+- **Three-places rule satisfied**: (a) repo has the script at `workstation-image/scripts/hub-restart`, (b) live `~/.local/bin/hub-restart` is byte-identical (diff clean), (c) `cloud-build-setup.sh` installs it for fresh setups.
+- **3 new tests in `workstation-image/boot/10-tests.sh`** (F-0122 block): file-exists check, executable check, PATH check via `check_binary`. `bash -n` clean.
+- **`docs/STARTUP_SCRIPTS.md`** updated: new "User Tools" table listing all `~/.local/bin` scripts with sources and purposes, including `hub-restart`.
+- **`docs/BACKLOG.md`** updated: Milestone 37 added, F-0122 marked done.
+- **`docs/RELEASENOTES.md`** updated: v1.24.15 patch entry added.
+
+### Files Changed
+- `workstation-image/scripts/hub-restart` — new file (verbatim from live `~/.local/bin/hub-restart`)
+- `scripts/cloud-build-setup.sh` — 4 lines added to deploy `hub-restart`
+- `workstation-image/boot/10-tests.sh` — 11 lines added for F-0122 tests
+- `docs/STARTUP_SCRIPTS.md` — new "User Tools" section added
+- `docs/specs/F-0122-hub-restart-utility.md` — new spec
+- `docs/BACKLOG.md` — F-0122 added (Milestone 37)
+- `docs/PROGRESS.md` — this entry
+- `docs/RELEASENOTES.md` — v1.24.15
+
+### Decisions
+- **Unconditional deploy** (not module-gated): `hub-restart` is always useful when the Hub is installed, and the Hub is always installed. No module gate needed — consistent with how `sway-status` is deployed.
+- **`workstation-image/scripts/` placement**: matches the existing convention for user-bin scripts shipped by `cloud-build-setup.sh` (`snippet-picker`, `claude-tmux`, `tmux-debug` all live there). No new mechanism needed.
+- **Script unchanged**: the live script was tested and confirmed working; no redesign or improvements made per spec instructions.
+
+### Next Steps
+- PO approves and merges PR
+- After merge: `git tag -a v1.24.15 -m "hub-restart utility (F-0122)"`
+
 ## Session 39 — 2026-05-29 (F-0121: Gate boot scripts on user-session readiness)
 
 ### Date

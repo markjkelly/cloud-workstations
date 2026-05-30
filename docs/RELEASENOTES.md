@@ -1,5 +1,20 @@
 # Release Notes — Cloud Workstation
 
+## v1.24.15 — hub-restart manual Hub-relaunch utility (2026-05-29)
+
+### Added
+- **`hub-restart` utility** (F-0122): a one-command script to cleanly relaunch the
+  Antigravity Hub when workspace 1 is blank after a cold-boot failure. Run
+  `hub-restart` from any terminal; it kills any stuck Hub, clears the Electron
+  Singleton lock, relaunches from the user's Wayland/D-Bus session (the warm path
+  that always works), focuses workspace 1, and polls for `language_server` readiness
+  (up to 20 s), printing `UP ✓` with the port on success.
+  - Deployed to `~/.local/bin/hub-restart` (executable, on PATH) by
+    `cloud-build-setup.sh` — survives fresh-project setup on a new disk.
+  - Source in repo: `workstation-image/scripts/hub-restart`.
+  - 3 new boot tests in `10-tests.sh` (F-0122): file-exists, executable, on PATH.
+  - Documented in `docs/STARTUP_SCRIPTS.md` under new "User Tools" table.
+
 ## v1.24.14 — Gate boot scripts on user-session readiness (2026-05-29)
 
 ### Fixed

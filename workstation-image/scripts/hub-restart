@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+# hub-restart — cleanly (re)launch the Antigravity Hub on workspace 1.
+#
+# Why this exists: at cold boot the Hub's bundled language_server sometimes
+# never starts, leaving workspace 1 blank. Launching the Hub from your own
+# session (with the Wayland/D-Bus env) always works. Just run:  hub-restart
+set -u
+
+# --- session environment (auto-detect; works in or out of the sway session) ---
+export WAYLAND_DISPLAY="${WAYLAND_DISPLAY:-wayland-1}"
+export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
+export DBUS_SESSION_BUS_ADDRESS="${DBUS_SESSION_BUS_ADDRESS:-unix:path=${XDG_RUNTIME_DIR}/bus}"
+[ -z "${SWAYSOCK:-}" ] && export SWAYSOCK="$(ls -t "$XDG_RUNTIME_DIR"/sway-ipc.*.sock 2>/dev/null | head -1)"
+
+HUB="$HOME/.local/bin/antigravity-hub"
+UDD="$HOME/.config/Antigravity-Hub"
+LOG="$HOME/logs/hub-launch.log"
+MARKER="=== hub-restart: $(date '+%Y-%m-%d %H:%M:%S') ==="
+mkdir -p "$HOME/logs"
+
+[ -x "$HUB" ] || { echo "ERROR: Hub not found at $HUB" >&2; exit 1; }
+
+echo "Stopping any running Hub..."
+pkill -x antigravity 2>/dev/null; sleep 1; pkill -9 -x antigravity 2>/dev/null
+rm -f "$UDD"/Singleton*
+
+echo "Launching Hub..."
+printf '\n%s\n' "$MARKER" >> "$LOG"
+setsid "$HUB" --no-sandbox --ozone-platform=wayland --disable-gpu \
+  --disable-dev-shm-usage --user-data-dir="$UDD" >> "$LOG" 2>&1 &
+disown
+swaymsg workspace number 1 >/dev/null 2>&1
+
+printf "Waiting for Hub"
+for _ in $(seq 1 20); do
+  # only consider "Port changed" lines logged after this launch's marker
+  if awk -v m="$MARKER" 'index($0,m){s=1} s&&/Port changed/{ok=1} END{exit !ok}' "$LOG"; then
+    url=$(grep 'Port changed' "$LOG" | tail -1 | grep -o '127.0.0.1:[0-9]*')
+    win=$(swaymsg -t get_tree 2>/dev/null | grep -c '"app_id": "antigravity"')
+    printf ' — UP \xe2\x9c\x93  (language_server on %s, windows=%s, workspace 1)\n' "$url" "$win"
+    exit 0
+  fi
+  printf "."; sleep 1
+done
+printf '\n!! Hub did not report "Port changed" within 20s — check %s\n' "$LOG"
+exit 1

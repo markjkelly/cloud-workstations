@@ -744,6 +744,11 @@ cat "${REPO_DIR}/workstation-image/configs/swaybar/sway-status" | \
     ws_pipe "mkdir -p ~/.local/bin && cat > ~/.local/bin/sway-status && chmod +x ~/.local/bin/sway-status"
 test_pass "sway-status deployed"
 
+# Deploy hub-restart utility (F-0122) — unconditional; Hub is always installed
+cat "${REPO_DIR}/workstation-image/scripts/hub-restart" | \
+    ws_pipe "mkdir -p ~/.local/bin && cat > ~/.local/bin/hub-restart && chmod +x ~/.local/bin/hub-restart"
+test_pass "hub-restart deployed"
+
 cat "${REPO_DIR}/workstation-image/configs/waybar/config.jsonc" | \
     ws_pipe "mkdir -p ~/.config/waybar && cat > ~/.config/waybar/config.jsonc"
 cat "${REPO_DIR}/workstation-image/configs/waybar/style.css" | \

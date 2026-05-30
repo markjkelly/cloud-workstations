@@ -525,6 +525,19 @@ else
 fi
 # Core configs (always)
 check_file "sway-status" "$HOME_DIR/.local/bin/sway-status"
+# F-0122: hub-restart utility
+HUB_RESTART_BIN="$HOME_DIR/.local/bin/hub-restart"
+if [ -f "$HUB_RESTART_BIN" ]; then
+    test_pass "F-0122: hub-restart present at ~/.local/bin/hub-restart"
+    if [ -x "$HUB_RESTART_BIN" ]; then
+        test_pass "F-0122: hub-restart is executable"
+    else
+        test_fail "F-0122: hub-restart exists but is not executable"
+    fi
+else
+    test_fail "F-0122: hub-restart missing at ~/.local/bin/hub-restart"
+fi
+check_binary "hub-restart (on PATH)" "hub-restart"
 check_file "Sway config" "$HOME_DIR/.config/sway/config"
 check_file "foot.ini" "$HOME_DIR/.config/foot/foot.ini"
 check_grep "foot font (monospace)" "DejaVu Sans Mono" "$HOME_DIR/.config/foot/foot.ini"

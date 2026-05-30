@@ -1,7 +1,7 @@
 # Project Backlog — Cloud Workstation
 
 **Maintained by:** TPM
-**Last updated:** 2026-05-29 (Milestone 36 — Gate boot scripts on user-session readiness: F-0121)
+**Last updated:** 2026-05-29 (Milestone 37 — hub-restart manual Hub-relaunch utility: F-0122)
 
 ---
 
@@ -381,6 +381,16 @@ Tracks fork-only work that pre-dated or accompanied v1.17. All items are documen
 |----|---------|------|----------|--------|-------|--------|--------------|----------|
 | F-0120 | Hub LS shim: capture Hub child-spawn env + repair PATH in shim | [F-0120](specs/F-0120-hub-ls-shim-env-capture-repair.md) | P0 | done | SWE-1 | feature/hub-ls-shim-env-capture-repair | F-0119 | Shim upgraded: (1) shebang `#!/bin/bash` (absolute — runs under empty PATH), (2) env capture to `~/logs/ls-spawn.env` before any repair (timestamp, pid, args, raw PATH, full env dump), (3) PATH repaired to `/usr/bin:/bin:/usr/local/bin${PATH:+:$PATH}` and HOME set if empty. Idempotent upgrade: detects F-0119 shim (no `# F-0120` marker) and rewrites in-place; `.real` untouched. Passthrough unchanged (port-discovery safe). 8 new tests in `10-tests.sh`. Three-places parity verified (diff clean). Live shim installed immediately. Validation-on-reboot pending PO merge + reboot. |
 | F-0121 | Gate boot scripts on user-session readiness (fix silent app-update failures; address Hub cold-boot first-spawn race) | [F-0121](specs/F-0121-user-session-readiness-gate.md) | P0 | done | SWE-1 | feature/user-session-readiness-gate | F-0117, F-0120 | **Implemented, tested, verified (2026-05-29).** Root cause confirmed: `07-apps.sh` runs at boot+32s; `user@1000.service` only comes up at boot+115s — every `runuser` failed silently. Fix Part A: `wait_for_user_session` helper (120s timeout, fail-open) added to `07-apps.sh`; all update steps now check exit status and log real PASS/FAIL. Fix Part B: same helper added to `08-workspaces.sh` after Sway-ready and before gnome-keyring/Hub launch; fail-open with elapsed-time log. 9 static tests added to `10-tests.sh` (all 9 pass). Three-places rule: repo + `~/boot/` synced (diff clean), `cloud-build-setup.sh` unchanged (deploys boot dir via tarball). Part B (blank-ws1 cold-boot fix) validation-on-reboot pending PO merge + reboot. |
+
+---
+
+## Milestone 37: hub-restart manual Hub-relaunch utility
+
+**Last updated:** 2026-05-29 (Milestone 37 — hub-restart manual Hub-relaunch utility)
+
+| ID | Feature | Spec | Priority | Status | Owner | Branch | Dependencies | Feedback |
+|----|---------|------|----------|--------|-------|--------|--------------|----------|
+| F-0122 | hub-restart — manual Hub-relaunch utility (repo + setup persistence) | [F-0122](specs/F-0122-hub-restart-utility.md) | P1 | done | SWE-1 | feature/hub-restart-utility | F-0121 | **Implemented, tested, verified (2026-05-29).** Script captured verbatim from live `~/.local/bin/hub-restart` into `workstation-image/scripts/hub-restart` (diff clean). Wired into `cloud-build-setup.sh` (unconditional, after sway-status deploy). Three-places rule: repo has script, live copy byte-identical, setup installs it. 3 new tests in `10-tests.sh` (file exists, executable, on PATH). `docs/STARTUP_SCRIPTS.md` updated with new User Tools table. |
 
 ---
 
