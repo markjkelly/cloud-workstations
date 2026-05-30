@@ -1,5 +1,34 @@
 # Release Notes — Cloud Workstation
 
+## v1.24.11 — Hub LS boot diagnostics: thorough sampler instrumentation (2026-05-29)
+
+### Added
+- **Hub LS boot diagnostic sampler** (F-0118) — a background sampler runs during every
+  Hub launch window (full 90 s), sampling every 3 s, appending to `~/logs/hub-ls-diag.log`.
+  Per sample: language_server PID + process state (disappearance detected), LS-owned
+  LISTEN sockets via correct inode→fd matching, Hub-reported port from hub-launch.log,
+  curl/tcp connectivity probes, Hub renderer count, DNS resolution + curl probe of
+  `daily-cloudcode-pa.googleapis.com` (leading cold-boot failure hypothesis), one-time
+  snapshot of LS log directories and LS stdout/stderr fd targets. Diagnostic only — no
+  change to Hub launch timing or behavior.
+
+### Changed
+- **`workstation-image/boot/08-workspaces.sh`** — Two additions (no behavior change):
+  - Named constants `HUB_LS_DIAG_LOG=/home/user/logs/hub-ls-diag.log` and
+    `HUB_LS_DIAG_INTERVAL=3`
+  - `_f0118_ls_diag_sampler()` function started in background after Hub launch, killed
+    after the poll loop exits; per-boot header `=== F-0118 LS diag: ... ===` written
+- **`workstation-image/boot/10-tests.sh`** — 9 new F-0118 tests
+- **`docs/STARTUP_SCRIPTS.md`** — new `hub-ls-diag.log` log entry; F-0117 false-positive
+  note and F-0118 sampler description added to ws-autolaunch section
+
+### Notes
+- **Boot-script-only change** — no image rebuild required. Merge PR then reboot.
+- Root-cause finding this session: F-0117's readiness check is a confirmed false positive
+  (reads shared network namespace). The real LS failure is still invisible until the
+  first cold boot with this sampler runs.
+- Read `~/logs/hub-ls-diag.log` after the next cold boot where ws1 is blank.
+
 ## v1.24.10 — Hub boot resilience: readiness-based retry and instrumentation (2026-05-29)
 
 ### Fixed

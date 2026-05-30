@@ -254,6 +254,51 @@ else
     test_fail "08-workspaces.sh not found at $WS_SCRIPT_F0117 (F-0117 check)"
 fi
 
+# F-0118: Hub LS boot diagnostics — thorough sampler instrumentation.
+# Verifies the new diagnostic sampler is present and correctly wired in
+# 08-workspaces.sh:
+#   (a) HUB_LS_DIAG_LOG constant (new dedicated log path) declared
+#   (b) HUB_LS_DIAG_INTERVAL constant (sample interval) declared
+#   (c) _f0118_ls_diag_sampler() function declared
+#   (d) hub-ls-diag.log path referenced (the actual log file the PO reads)
+#   (e) sampler started in background and PID captured (_f0118_sampler_pid=)
+#   (f) sampler stopped after poll loop (kill _f0118_sampler_pid)
+#   (g) per-boot header "F-0118 LS diag:" written to log
+#   (h) inode-based socket matching present (correct method, not shared-namespace)
+#   (i) DNS probe for daily-cloudcode-pa.googleapis.com present (leading hypothesis)
+WS_SCRIPT_F0118="$HOME_DIR/boot/08-workspaces.sh"
+if [ -f "$WS_SCRIPT_F0118" ]; then
+    check_grep "F-0118: HUB_LS_DIAG_LOG constant declared" \
+        'HUB_LS_DIAG_LOG=' \
+        "$WS_SCRIPT_F0118"
+    check_grep "F-0118: HUB_LS_DIAG_INTERVAL constant declared" \
+        'HUB_LS_DIAG_INTERVAL=' \
+        "$WS_SCRIPT_F0118"
+    check_grep "F-0118: _f0118_ls_diag_sampler() function present" \
+        '_f0118_ls_diag_sampler' \
+        "$WS_SCRIPT_F0118"
+    check_grep "F-0118: hub-ls-diag.log path referenced" \
+        'hub-ls-diag.log' \
+        "$WS_SCRIPT_F0118"
+    check_grep "F-0118: sampler started in background (_f0118_sampler_pid captured)" \
+        '_f0118_sampler_pid=' \
+        "$WS_SCRIPT_F0118"
+    check_grep "F-0118: sampler stopped after poll loop (kill _f0118_sampler_pid)" \
+        'kill.*_f0118_sampler_pid' \
+        "$WS_SCRIPT_F0118"
+    check_grep "F-0118: per-boot diag log header (F-0118 LS diag:)" \
+        'F-0118 LS diag:' \
+        "$WS_SCRIPT_F0118"
+    check_grep "F-0118: inode-based socket matching present (correct method)" \
+        'socket:\[' \
+        "$WS_SCRIPT_F0118"
+    check_grep "F-0118: DNS probe for daily-cloudcode-pa.googleapis.com present" \
+        'daily-cloudcode-pa.googleapis.com' \
+        "$WS_SCRIPT_F0118"
+else
+    test_fail "08-workspaces.sh not found at $WS_SCRIPT_F0118 (F-0118 check)"
+fi
+
 # =============================================================================
 # AI CLI Tools
 # =============================================================================

@@ -1,7 +1,7 @@
 # Project Backlog — Cloud Workstation
 
 **Maintained by:** TPM
-**Last updated:** 2026-05-29 (Milestone 32 — Hub boot resilience: readiness-based retry + instrumentation)
+**Last updated:** 2026-05-29 (Milestone 33 — Hub LS boot diagnostics: thorough sampler instrumentation)
 
 ---
 
@@ -352,6 +352,14 @@ Tracks fork-only work that pre-dated or accompanied v1.17. All items are documen
 | ID | Feature | Spec | Priority | Status | Owner | Branch | Dependencies | Feedback |
 |----|---------|------|----------|--------|-------|--------|--------------|----------|
 | F-0117 | Hub boot resilience: readiness-based wait, retry, and instrumentation | [F-0117](specs/F-0117-hub-boot-resilience.md) | P0 | done | SWE-1 | feature/hub-boot-resilience | F-0114, F-0115, F-0116 | Root cause: language_server intermittently fails to reach "listening" at cold boot; `launch_and_wait` waits only for a sway window, so a renderer-less Hub sits alive but invisible and is never retried. Fix: (1) readiness-based wait — poll language_server HTTPS port in LISTEN state (via `/proc/<pid>/net/tcp6`) in addition to sway window; (2) retry loop up to `HUB_MAX_RETRIES=3` — on failure kill stale processes + clear Singleton*, relaunch, log each attempt; (3) named constants `HUB_LAUNCH_TIMEOUT` and `HUB_MAX_RETRIES`; (4) instrumentation log `~/logs/language_server_boot_diag.log` capturing boot environment and retry timeline. Sway `for_window` rule (F-0116) preserved. Boot-script-only fix; PO can test by rebooting. `~/boot/08-workspaces.sh` and `~/boot/10-tests.sh` synced live. `docs/STARTUP_SCRIPTS.md` updated. |
+
+---
+
+## Milestone 33: Hub LS Boot Diagnostics
+
+| ID | Feature | Spec | Priority | Status | Owner | Branch | Dependencies | Feedback |
+|----|---------|------|----------|--------|-------|--------|--------------|----------|
+| F-0118 | Hub language_server boot diagnostics: thorough sampler instrumentation | [F-0118](specs/F-0118-hub-ls-boot-diagnostics.md) | P0 | done | SWE-1 | feature/hub-ls-boot-diagnostics | F-0117 | Root cause of blank ws1 confirmed: F-0117's `hub_language_server_ready()` is a guaranteed false positive (reads shared-namespace `/proc/net/tcp6`, sees host-wide LISTEN sockets, returns "ready" immediately). The real LS bind failure is invisible — LS dies before writing its log and the Hub swallows its stderr. F-0118 adds a background diagnostic sampler that runs during the full Hub launch window, capturing per-sample: LS pid/state/disappearance, LS-owned LISTEN sockets via correct inode→fd matching (not shared-namespace), Hub-reported port, live curl/tcp probes, renderer count, DNS/network readiness, LS log file locations, and LS fd/1+fd/2 targets. Diagnostic only — no launch behavior change. Implemented, tested (9 new boot tests), verified, `~/boot/08-workspaces.sh` synced live. |
 
 ---
 

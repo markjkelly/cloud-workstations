@@ -40,6 +40,24 @@ HUB_LAUNCH_TIMEOUT=90
 HUB_MAX_RETRIES=3
 HUB_LS_LOG="/home/user/logs/language_server_boot_diag.log"
 
+# =============================================================================
+# F-0118: Named constants for the LS boot diagnostic sampler.
+#
+# HUB_LS_DIAG_LOG — new dedicated diagnostic log written by the F-0118
+#   sampler that runs in the background during the Hub launch window.
+#   Unlike HUB_LS_LOG (which only writes on attempt failure), this log
+#   captures detailed per-sample data throughout every launch attempt,
+#   providing a continuous timeline even when F-0117's readiness check
+#   falsely reports success (which it always does — see F-0118 spec for
+#   the false-positive analysis).
+#
+# HUB_LS_DIAG_INTERVAL — seconds between sampler samples.  3 s is fine
+#   enough to catch a short-lived LS startup sequence (which succeeds in
+#   ~0.3 s on warm runs) while keeping the log compact over 90 s windows.
+# =============================================================================
+HUB_LS_DIAG_LOG="/home/user/logs/hub-ls-diag.log"
+HUB_LS_DIAG_INTERVAL=3
+
 log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] [08-workspaces] $1"; }
 
 find_swaysock() {
@@ -328,6 +346,302 @@ _kill_stale_hub() {
     log "Cleared $reaped stale Hub processes and singleton locks"
 }
 
+# =============================================================================
+# F-0118: Background diagnostic sampler for language_server boot failures.
+#
+# PURPOSE
+#   F-0117's hub_language_server_ready() check is a guaranteed false positive:
+#   /proc/<pid>/net/tcp6 is in the SHARED network namespace (same as init),
+#   so it sees the entire host's LISTEN sockets (Chrome, sway, wayvnc, sshd)
+#   and returns "ready" after ~3 s on every boot even when LS has already died.
+#   The retry loop never actually retries.  This sampler provides the ground-
+#   truth visibility we need to root-cause the real failure.
+#
+# HOW IT WORKS
+#   _f0118_ls_diag_sampler() runs as a background subshell during the Hub
+#   launch-window poll loop.  It samples every HUB_LS_DIAG_INTERVAL seconds
+#   and appends timestamped records to HUB_LS_DIAG_LOG.  It is started with
+#   &, its PID captured, and killed when the poll loop exits.
+#
+#   Per sample it captures:
+#     (a) All language_server processes (cmdline matches antigravity-hub/resources):
+#         pid, /proc/<pid>/stat field 3 (process state: R=running, S=sleeping,
+#         Z=zombie, D=uninterruptible, etc.).  Disappearance of a previously
+#         seen PID is reported explicitly with the elapsed time — this pins
+#         exactly when/if LS dies.
+#     (b) LS-OWNED LISTEN sockets — done correctly, NOT via the shared-
+#         namespace approach of F-0117:
+#         1. Collect socket inodes from /proc/<pid>/fd/* (readlink, filter
+#            "socket:[INODE]" to get inode numbers)
+#         2. Match those inodes against the inode column in /proc/net/tcp
+#            and /proc/net/tcp6, filtering to LISTEN state (hex 0A)
+#         3. Decode the hex local_address field (bytes 7-10 as big-endian
+#            IPv4 or bytes 9-10 as port from the TCP6 combined field) to
+#            get the real port number.
+#         This tells us whether LS itself — not some unrelated process — owns
+#         a listening socket, and which port it is on.
+#     (c) Hub-reported port: grep latest "Port changed! Reloading all windows
+#         with URL: https://127.0.0.1:<PORT>/" from hub-launch.log.
+#     (d) Actual connectivity probe on each LS-owned port and the Hub-reported
+#         port: curl -sk (falls back to bash /dev/tcp if curl absent).
+#     (e) Hub renderer process count (--type=renderer processes with antigravity
+#         in their cmdline) — the clearest success signal.
+#     (f) DNS/network readiness: getent + curl HEAD to daily-cloudcode-pa.
+#         googleapis.com (leading cold-boot failure hypothesis).
+#     (g) ONE-TIME per boot: list of LS log files under ~/.config/Antigravity*
+#         and find for language_server*.log — reveals where LS writes its own
+#         log so we can read it after the next cold boot.
+#
+#   Additionally, on first sample with a live LS pid:
+#     - Logs /proc/<pid>/fd/1 and /proc/<pid>/fd/2 targets (stdout/stderr
+#       destination) — tells us where LS output is going without changing
+#       launch behavior.
+#     - Logs any GLOG_log_dir / --log_dir / --logtostderr signals in LS
+#       cmdline or /proc/<pid>/environ.
+#
+# SAFETY CONSTRAINTS
+#   - Every command is guarded with || true — sampler NEVER fails the script.
+#   - Sampler runs as a subshell; any error is silently swallowed.
+#   - No write to any file other than HUB_LS_DIAG_LOG.
+#   - No signals sent to any process other than its own background pid.
+#   - Does NOT change launch timing, flags, or environment of the Hub or LS.
+# =============================================================================
+_f0118_ls_diag_sampler() {
+    local diag_log="$1"    # path to HUB_LS_DIAG_LOG
+    local interval="$2"    # HUB_LS_DIAG_INTERVAL (seconds between samples)
+    local boot_start="$3"  # boot epoch for elapsed-time arithmetic
+
+    # One-time flag: log-file snapshot and LS fd targets done only once per boot
+    local snap_done=0
+    # Track previously seen LS PIDs to detect disappearance
+    local prev_ls_pids=""
+
+    while true; do
+        local now elapsed ts
+        now=$(date '+%s' 2>/dev/null || echo "0") || now=0
+        elapsed=$(( now - boot_start ))
+        ts=$(date '+%Y-%m-%d %H:%M:%S' 2>/dev/null || echo "unknown") || ts="unknown"
+
+        {
+            echo ""
+            echo "--- [+${elapsed}s] ${ts} ---"
+
+            # -----------------------------------------------------------------
+            # (a) language_server process state
+            # -----------------------------------------------------------------
+            echo "  [a] language_server processes:"
+            local cur_ls_pids=""
+            while IFS= read -r pid; do
+                local cmdline
+                cmdline=$(tr '\0' ' ' < /proc/"$pid"/cmdline 2>/dev/null || true)
+                if echo "$cmdline" | grep -q "antigravity-hub/resources" 2>/dev/null; then
+                    local stat_state
+                    # /proc/<pid>/stat field 3 is the process state character
+                    stat_state=$(awk '{print $3}' /proc/"$pid"/stat 2>/dev/null || echo "gone") || stat_state="gone"
+                    echo "      PID=$pid state=$stat_state cmdline=$cmdline"
+                    cur_ls_pids="${cur_ls_pids} ${pid}"
+
+                    # ---------------------------------------------------------
+                    # (b) LS-owned LISTEN sockets via inode matching (correct)
+                    # ---------------------------------------------------------
+                    echo "      [b] LS-owned LISTEN sockets (inode method):"
+                    local ls_inodes=""
+                    local fd
+                    for fd in /proc/"$pid"/fd/*; do
+                        local target
+                        # Use plain readlink (not -f) because socket:[INODE] is
+                        # not a real filesystem path — readlink -f would fail to
+                        # resolve it and return empty.  Plain readlink gives us
+                        # the raw symlink target string: "socket:[12345678]".
+                        target=$(readlink "$fd" 2>/dev/null || true)
+                        case "$target" in
+                            socket:\[*\])
+                                # Extract the numeric inode from "socket:[INODE]"
+                                local inode
+                                inode=$(echo "$target" | sed 's/socket:\[//;s/\]//') || true
+                                ls_inodes="${ls_inodes} ${inode}"
+                                ;;
+                        esac
+                    done 2>/dev/null || true
+
+                    if [ -z "$ls_inodes" ]; then
+                        echo "        no socket fds found for PID $pid"
+                    else
+                        # Match inodes against /proc/net/tcp and /proc/net/tcp6
+                        # Format of /proc/net/tcp6 and /proc/net/tcp:
+                        #   sl local_address rem_address st ... inode
+                        #   Field 2=local_address, field 4=state, last field=inode
+                        # LISTEN state = 0A (hex)
+                        local found_listen=0
+                        local tcp_file
+                        for tcp_file in /proc/net/tcp /proc/net/tcp6; do
+                            [ -f "$tcp_file" ] || continue
+                            while IFS= read -r line; do
+                                local state_hex line_inode
+                                state_hex=$(echo "$line" | awk '{print $4}') || true
+                                line_inode=$(echo "$line" | awk '{print $NF}') || true
+                                if [ "$state_hex" = "0A" ]; then
+                                    local inode
+                                    for inode in $ls_inodes; do
+                                        if [ "$inode" = "$line_inode" ]; then
+                                            # Decode the hex local_address port
+                                            # local_address field format in /proc/net/tcp:
+                                            #   AABBCCDD:PPPP (IPv4 BE hex) — port is PPPP
+                                            # in /proc/net/tcp6:
+                                            #   AABBCCDDAABBCCDDAABBCCDDAABBCCDD:PPPP — port is PPPP
+                                            local hex_port
+                                            hex_port=$(echo "$line" | awk '{print $2}' | cut -d: -f2) || true
+                                            local dec_port
+                                            dec_port=$(printf '%d' "0x${hex_port}" 2>/dev/null || echo "?") || dec_port="?"
+                                            echo "        LISTEN on port $dec_port (inode=$inode, src=$tcp_file)"
+                                            found_listen=1
+
+                                            # (d) Probe: curl or /dev/tcp
+                                            if [ "$dec_port" != "?" ] && [ "$dec_port" -gt 0 ] 2>/dev/null; then
+                                                echo "        [d] probe https://127.0.0.1:${dec_port}/"
+                                                if command -v curl >/dev/null 2>&1; then
+                                                    local probe_result
+                                                    probe_result=$(curl -sk -o /dev/null \
+                                                        -w "%{http_code} %{time_total}s" \
+                                                        --max-time 3 \
+                                                        "https://127.0.0.1:${dec_port}/" 2>/dev/null || echo "curl-fail") || probe_result="curl-fail"
+                                                    echo "          curl result: $probe_result"
+                                                else
+                                                    # bash /dev/tcp fallback
+                                                    if (exec 3<>/dev/tcp/127.0.0.1/"$dec_port") 2>/dev/null; then
+                                                        echo "          /dev/tcp: port $dec_port is open (curl absent)"
+                                                        exec 3>&- 2>/dev/null || true
+                                                    else
+                                                        echo "          /dev/tcp: port $dec_port refused/timeout (curl absent)"
+                                                    fi
+                                                fi
+                                            fi
+                                        fi
+                                    done
+                                fi
+                            done < <(grep ' 0A ' "$tcp_file" 2>/dev/null || true)
+                        done
+                        if [ "$found_listen" -eq 0 ]; then
+                            echo "        no LISTEN sockets owned by PID $pid (inodes:${ls_inodes})"
+                        fi
+                    fi
+
+                    # ---------------------------------------------------------
+                    # LS stdout/stderr fd targets + GLOG signals (first sample
+                    # only, when LS is alive — req 5)
+                    # ---------------------------------------------------------
+                    if [ "$snap_done" -eq 0 ]; then
+                        echo "      [fd-targets] LS stdout/stderr destinations:"
+                        local fd1 fd2
+                        fd1=$(readlink -f /proc/"$pid"/fd/1 2>/dev/null || echo "unreadable") || fd1="unreadable"
+                        fd2=$(readlink -f /proc/"$pid"/fd/2 2>/dev/null || echo "unreadable") || fd2="unreadable"
+                        echo "        fd/1 (stdout) -> $fd1"
+                        echo "        fd/2 (stderr) -> $fd2"
+                        echo "      [glog] LS glog/log_dir signals:"
+                        local ls_env_log
+                        ls_env_log=$(tr '\0' '\n' < /proc/"$pid"/environ 2>/dev/null \
+                            | grep -iE 'GLOG|LOG_DIR|LOGTOSTDERR' || echo "  none") || ls_env_log="unreadable"
+                        echo "        environ: $ls_env_log"
+                        local ls_cmd_log
+                        ls_cmd_log=$(echo "$cmdline" | grep -oE '(--log_dir|--logtostderr|GLOG)[^ ]*' || echo "  none") || ls_cmd_log="none"
+                        echo "        cmdline flags: $ls_cmd_log"
+                    fi
+                fi
+            done < <(pgrep -x language_server 2>/dev/null || true)
+
+            # Detect disappearance of previously seen PIDs
+            if [ -n "$prev_ls_pids" ]; then
+                local ppid
+                for ppid in $prev_ls_pids; do
+                    if ! echo "$cur_ls_pids" | grep -qw "$ppid" 2>/dev/null; then
+                        echo "      *** PID $ppid DISAPPEARED at +${elapsed}s ***"
+                    fi
+                done
+            fi
+            if [ -z "$cur_ls_pids" ]; then
+                echo "      (no language_server process found)"
+            fi
+
+            # (c) Hub-reported port from hub-launch.log
+            echo "  [c] Hub-reported port (from hub-launch.log):"
+            local hub_port
+            hub_port=$(grep -oP 'Port changed! Reloading all windows with URL: https://127\.0\.0\.1:\K[0-9]+' \
+                /home/user/logs/hub-launch.log 2>/dev/null | tail -1 || true) || hub_port=""
+            if [ -n "$hub_port" ]; then
+                echo "      Hub last reported port: $hub_port"
+                # (d) Probe the Hub-reported port
+                echo "      [d] probe https://127.0.0.1:${hub_port}/ (Hub-reported)"
+                if command -v curl >/dev/null 2>&1; then
+                    local hub_probe
+                    hub_probe=$(curl -sk -o /dev/null \
+                        -w "%{http_code} %{time_total}s" \
+                        --max-time 3 \
+                        "https://127.0.0.1:${hub_port}/" 2>/dev/null || echo "curl-fail") || hub_probe="curl-fail"
+                    echo "        curl result: $hub_probe"
+                else
+                    if (exec 3<>/dev/tcp/127.0.0.1/"$hub_port") 2>/dev/null; then
+                        echo "        /dev/tcp: port $hub_port is open (curl absent)"
+                        exec 3>&- 2>/dev/null || true
+                    else
+                        echo "        /dev/tcp: port $hub_port refused/timeout (curl absent)"
+                    fi
+                fi
+            else
+                echo "      (no 'Port changed!' line in hub-launch.log yet)"
+            fi
+
+            # (e) Hub renderer count
+            echo "  [e] Hub renderer processes:"
+            local renderer_count
+            renderer_count=$(pgrep -afc -- '--type=renderer' 2>/dev/null | grep -c 'antigravity' || echo "0") || renderer_count="0"
+            # pgrep -afc may not be available everywhere; fall back
+            if ! pgrep -af -- '--type=renderer' >/dev/null 2>&1; then
+                renderer_count=$(pgrep -f -- '--type=renderer' 2>/dev/null \
+                    | while IFS= read -r rpid; do
+                        tr '\0' ' ' < /proc/"$rpid"/cmdline 2>/dev/null || true
+                    done | grep -c 'antigravity' 2>/dev/null || echo "0") || renderer_count="0"
+            else
+                renderer_count=$(pgrep -af -- '--type=renderer' 2>/dev/null \
+                    | grep -c 'antigravity' || echo "0") || renderer_count="0"
+            fi
+            echo "      antigravity renderer count: $renderer_count"
+
+            # (f) DNS / network readiness (leading failure hypothesis)
+            echo "  [f] DNS / network readiness:"
+            local dns_result
+            dns_result=$(getent hosts daily-cloudcode-pa.googleapis.com 2>/dev/null || echo "NXDOMAIN/fail") || dns_result="getent-fail"
+            echo "      getent daily-cloudcode-pa.googleapis.com: $dns_result"
+            if command -v curl >/dev/null 2>&1; then
+                local net_probe
+                net_probe=$(curl -sk -o /dev/null \
+                    -w "%{http_code} %{time_total}s" \
+                    --max-time 3 \
+                    "https://daily-cloudcode-pa.googleapis.com/" 2>/dev/null || echo "curl-fail") || net_probe="curl-fail"
+                echo "      curl daily-cloudcode-pa.googleapis.com: $net_probe"
+            else
+                echo "      curl absent — skipping net probe"
+            fi
+
+            # (g) ONE-TIME per boot: LS log file snapshot
+            if [ "$snap_done" -eq 0 ]; then
+                echo "  [g] ONE-TIME log file snapshot:"
+                ls -la --time-style=full-iso \
+                    /home/user/.config/Antigravity-Hub/logs/ \
+                    /home/user/.config/Antigravity/logs/ \
+                    2>/dev/null || echo "      (no logs dirs found)"
+                echo "      find language_server*.log:"
+                find /home/user/.config -name 'language_server*.log' 2>/dev/null \
+                    || echo "      (none found)"
+                snap_done=1
+            fi
+
+        } >> "$diag_log" 2>/dev/null || true
+
+        prev_ls_pids="$cur_ls_pids"
+        sleep "$interval" 2>/dev/null || true
+    done
+}
+
 # --- Reap stale Hub processes before first launch (F-0114) ---
 HUB_REAPED=0
 
@@ -377,6 +691,12 @@ if [ -x "$HUB" ]; then
     echo "=== Hub launch: $(date '+%Y-%m-%d %H:%M:%S') ===" >> "$HUB_LOG"
     echo "=== Hub boot diag: $(date '+%Y-%m-%d %H:%M:%S') ===" >> "$HUB_LS_LOG"
 
+    # F-0118: Write the per-boot header to the new dedicated diagnostic log.
+    # The sampler is started once per launch attempt (inside the retry loop
+    # below) and writes timestamped samples throughout the full launch window.
+    mkdir -p "$(dirname "$HUB_LS_DIAG_LOG")"
+    echo "=== F-0118 LS diag: $(date '+%Y-%m-%d %H:%M:%S') ===" >> "$HUB_LS_DIAG_LOG"
+
     hub_attempt=0
     while [ "$hub_attempt" -lt "$HUB_MAX_RETRIES" ]; do
         hub_attempt=$((hub_attempt + 1))
@@ -403,6 +723,20 @@ if [ -x "$HUB" ]; then
             --user-data-dir=/home/user/.config/Antigravity-Hub \
             >> "$HUB_LOG" 2>&1 &
 
+        # F-0118: Start the diagnostic sampler in the background for this
+        # launch attempt.  It runs for the full HUB_LAUNCH_TIMEOUT window,
+        # sampling every HUB_LS_DIAG_INTERVAL seconds.  We record the boot
+        # epoch here for elapsed-time arithmetic inside the sampler.
+        # The sampler is killed (cleanly) once the poll loop below exits,
+        # regardless of success or failure — it never outlives this attempt.
+        _f0118_boot_epoch=$(date '+%s' 2>/dev/null || echo "0") || _f0118_boot_epoch=0
+        {
+            echo "[$(date '+%Y-%m-%d %H:%M:%S')] Attempt $hub_attempt/$HUB_MAX_RETRIES — sampler start" \
+                >> "$HUB_LS_DIAG_LOG" 2>/dev/null || true
+            _f0118_ls_diag_sampler "$HUB_LS_DIAG_LOG" "$HUB_LS_DIAG_INTERVAL" "$_f0118_boot_epoch"
+        } &
+        _f0118_sampler_pid=$!
+
         # Poll for EITHER the language_server HTTPS port in LISTEN state OR
         # a new sway window on ws1, whichever comes first.
         hub_elapsed=0
@@ -426,6 +760,16 @@ if [ -x "$HUB" ]; then
                 break
             fi
         done
+
+        # F-0118: Kill the sampler background process — cleanly, with SIGTERM.
+        # The sampler guards all its operations with || true so it exits cleanly
+        # on SIGTERM.  We suppress errors in case it already exited naturally.
+        kill "$_f0118_sampler_pid" 2>/dev/null || true
+        wait "$_f0118_sampler_pid" 2>/dev/null || true
+        {
+            echo "[$(date '+%Y-%m-%d %H:%M:%S')] Attempt $hub_attempt — sampler stopped (elapsed ${hub_elapsed}s, ok=${hub_attempt_ok})" \
+                >> "$HUB_LS_DIAG_LOG" 2>/dev/null || true
+        }
 
         if [ "$hub_attempt_ok" -eq 1 ]; then
             HUB_OK=0

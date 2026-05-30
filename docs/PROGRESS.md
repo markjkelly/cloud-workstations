@@ -1,5 +1,59 @@
 # Development Progress Log — Cloud Workstation
 
+## Session 36 — 2026-05-29 (F-0118: Hub LS boot diagnostics — thorough sampler instrumentation)
+
+### Goals
+- Add thorough diagnostic instrumentation to the Hub launch window so the next cold boot
+  produces a detailed evidence log for root-causing the blank ws1 failure.
+- No behavior change — diagnostic only.
+
+### Root Cause Finding (confirmed this session)
+- **F-0117's `hub_language_server_ready()` is a guaranteed false positive.** It reads
+  `/proc/<lspid>/net/tcp6`, but that file is in the SHARED network namespace (same as
+  init). Chrome, sway, wayvnc, and sshd always provide 8+ LISTEN sockets on that
+  namespace. The function returns "ready" in ~3 s the instant any `language_server`
+  process exists — the retry loop NEVER fires.
+- **The real LS failure is invisible**: LS dies before writing its own log; the Hub
+  swallows its stderr. Nothing in the current log set reveals when/why LS dies.
+- **Leading hypothesis**: cold-boot DNS/network not ready when LS calls
+  `https://daily-cloudcode-pa.googleapis.com` at startup. Every warm/manual relaunch
+  works in ~0.3 s; every cold-boot launch fails. The F-0118 sampler will confirm or
+  refute this on the next cold boot.
+
+### Completed
+- **PM** authored `docs/specs/F-0118-hub-ls-boot-diagnostics.md`
+- **TPM** added F-0118 to `docs/BACKLOG.md` under Milestone 33
+- **SWE** implemented `_f0118_ls_diag_sampler()` in `08-workspaces.sh`: background
+  sampler running the full 90 s launch window, sampling every 3 s; captures LS
+  pid/state/disappearance, LS-owned LISTEN sockets (correct inode method), Hub-reported
+  port, curl probes, renderer count, DNS/network readiness, LS fd/1+fd/2 targets
+- **SWE** wired sampler into F-0117 retry loop (started after Hub launch, killed after
+  poll loop exits), per-boot header written, no behavior change
+- **SWE-Test** added 9 F-0118 tests to `10-tests.sh`
+- **SWE** updated `docs/STARTUP_SCRIPTS.md` with new `hub-ls-diag.log` entry
+- **Three-places persistence**: `~/boot/08-workspaces.sh` and `~/boot/10-tests.sh`
+  synced live; no Dockerfile/home.nix/cloud-build-setup.sh changes needed
+
+### Files Changed
+- `workstation-image/boot/08-workspaces.sh`, `workstation-image/boot/10-tests.sh`
+- `docs/specs/F-0118-hub-ls-boot-diagnostics.md`, `docs/BACKLOG.md`
+- `docs/STARTUP_SCRIPTS.md`, `docs/PROGRESS.md`, `docs/RELEASENOTES.md`
+- `~/boot/08-workspaces.sh`, `~/boot/10-tests.sh` (live disk)
+
+### Decisions
+- Correct inode→fd method used for LS-owned sockets (avoids F-0117 false-positive).
+- Sampler runs the full 90 s window, not just until readiness check fires.
+- `hub_language_server_ready()` left unchanged per PO instruction (diagnose first).
+- Binary wrapper for LS stderr capture deferred as F-0119 candidate.
+
+### Next Steps
+- Merge PR → reboot (boot-script only, no image rebuild)
+- Read `~/logs/hub-ls-diag.log`: check LS disappearance time, DNS resolve timing,
+  fd/2 (stderr) destination, whether LS ever owns a LISTEN socket
+- Design targeted fix based on findings
+
+---
+
 ## Session 35 — 2026-05-29 (F-0117: Hub boot resilience — readiness-based wait, retry, instrumentation)
 
 ### Goals
