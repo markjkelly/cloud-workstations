@@ -164,6 +164,97 @@ if [ "${WINDOW_COUNT:-0}" -gt 1 ]; then
     exit 0
 fi
 
+# =============================================================================
+# F-0121 Part B: Wait for user session before launching any apps.
+#
+# ROOT CAUSE HYPOTHESIS (confirmed-correlation 2026-05-29): ws-autolaunch.service
+# starts only ~3s after user@1000.service.  At that point the D-Bus session,
+# gnome-keyring, and XDG portals are still activating.  The Hub's first
+# language_server --standalone spawn lands in this half-initialised session and
+# fails — producing the blank-ws1 cold-boot bug.  The F-0117 retry (Attempt 2)
+# succeeds ~116s later when the session is fully ready.
+#
+# FIX: wait here until BOTH conditions hold:
+#   1. runuser -u user -- true  → 0  (PAM/NSS can open a session)
+#   2. dbus-send probe on unix:path=/run/user/1000/bus  → 0  (D-Bus bus is up)
+# Timeout: 120s, fail-open (proceed after timeout with a WARNING log).
+#
+# The F-0117 retry loop and F-0118/F-0119/F-0120 diagnostics are PRESERVED as
+# a backstop.  This gate is intended to make the FIRST Hub launch attempt land
+# in a ready session so the retry is rarely needed.
+#
+# VALIDATE ON REBOOT: after merge + reboot, check:
+#   ~/logs/ls-spawn.log  — should show a --standalone header on Attempt 1
+#   ~/logs/hub-launch.log  — should show "Port changed!" fired by Attempt 1
+#   ~/logs/app-update.log  — should show wait + per-step OK lines (Part A)
+#
+# SHARED HELPER NOTE: wait_for_user_session is also defined in 07-apps.sh
+# (F-0121 Part A).  No shared sourced library exists in this boot script set;
+# the helper is duplicated deliberately so each script is self-contained.
+# =============================================================================
+
+# wait_for_user_session: blocks until the user PAM session and D-Bus user bus
+# are both available, or until WS_WAIT_TIMEOUT seconds elapse.
+# Returns 0 on success, 1 on timeout.  Always fail-open.
+WS_WAIT_TIMEOUT=120
+WS_WAIT_POLL=2
+
+wait_for_user_session() {
+    local elapsed=0
+    log "F-0121: Waiting for user session (user@1000.service + D-Bus) — timeout ${WS_WAIT_TIMEOUT}s ..."
+
+    while [ "$elapsed" -lt "$WS_WAIT_TIMEOUT" ]; do
+        # Condition 1: PAM/NSS can resolve the user entry and open a session
+        local runuser_ok=0
+        if runuser -u "$USER" -- true >/dev/null 2>&1; then
+            runuser_ok=1
+        fi
+
+        # Condition 2: D-Bus session bus socket is reachable.
+        # Only probe once runuser succeeds (no point probing D-Bus if PAM
+        # cannot resolve the user entry yet).
+        local dbus_ok=0
+        if [ "$runuser_ok" -eq 1 ]; then
+            if dbus-send \
+                    --bus="unix:path=/run/user/1000/bus" \
+                    --dest=org.freedesktop.DBus \
+                    --type=method_call \
+                    --print-reply \
+                    /org/freedesktop/DBus \
+                    org.freedesktop.DBus.ListNames \
+                    >/dev/null 2>&1; then
+                dbus_ok=1
+            fi
+        fi
+
+        if [ "$runuser_ok" -eq 1 ] && [ "$dbus_ok" -eq 1 ]; then
+            log "F-0121: User session ready after ${elapsed}s (runuser OK, D-Bus OK)"
+            return 0
+        fi
+
+        # Log progress every 10s to aid diagnosis without flooding the log
+        if [ "$((elapsed % 10))" -eq 0 ] && [ "$elapsed" -gt 0 ]; then
+            log "F-0121: Still waiting for user session at ${elapsed}s (runuser_ok=$runuser_ok, dbus_ok=$dbus_ok)"
+        fi
+
+        sleep "$WS_WAIT_POLL"
+        elapsed=$((elapsed + WS_WAIT_POLL))
+    done
+
+    log "F-0121: WARNING — user session NOT ready after ${WS_WAIT_TIMEOUT}s; proceeding anyway (fail-open)"
+    return 1
+}
+
+# Wait for session readiness before launching any apps.
+# Fail-open: if the session is not ready after 120s, log and continue.
+# The F-0117 retry loop acts as a backstop if the session is not yet fully
+# initialised when the Hub launches.
+_ws_session_wait_start=$(date '+%s' 2>/dev/null || echo 0)
+wait_for_user_session || true
+_ws_session_wait_end=$(date '+%s' 2>/dev/null || echo 0)
+_ws_session_wait_elapsed=$(( _ws_session_wait_end - _ws_session_wait_start ))
+log "F-0121: Session readiness gate elapsed: ${_ws_session_wait_elapsed}s"
+
 # --- Start Xwayland for X11 apps (IntelliJ) ---
 # F-0096: pass -rootless so Xwayland does NOT create a visible root window
 # that Sway would tile onto the active workspace (ws1). In rootless mode

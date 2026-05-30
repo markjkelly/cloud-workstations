@@ -1,5 +1,45 @@
 # Release Notes — Cloud Workstation
 
+## v1.24.14 — Gate boot scripts on user-session readiness (2026-05-29)
+
+### Fixed
+- **07-apps.sh: all app updates now actually run on cold boot** (F-0121 Part A).
+  Root cause: `07-apps.sh` (run by `setup.sh` at boot+32s) was calling
+  `runuser -u user -- …` ~83 seconds before `user@1000.service` came up, causing
+  every `runuser` to fail with "user does not exist". A `wait_for_user_session`
+  helper now polls until both the PAM session (`runuser -u user -- true` returns 0)
+  and the D-Bus session bus (`dbus-send` probe on `/run/user/1000/bus`) are ready,
+  with a 120s timeout. If the session is not ready after 120s the script exits
+  cleanly with a WARNING (fail-open — updates are skipped rather than silently
+  failing into a broken session).
+- **07-apps.sh: silent-failure logging eliminated** (F-0121 Part A). Every update
+  step (`npm update -g`, Antigravity CLI, GitHub Copilot CLI, OpenCode,
+  `home-manager switch`) now wraps its `runuser` command in an `if/else` and logs
+  either `"… OK"` or `"… FAILED (rc=N)"`. No more unconditional `"… complete"` that
+  masked failures.
+
+### Changed
+- **08-workspaces.sh: Hub launch gated on user-session readiness** (F-0121 Part B,
+  hypothesis-driven). The same `wait_for_user_session` helper is inserted after the
+  Sway-ready check and before the gnome-keyring / Hub launch block. `ws-autolaunch`
+  was previously starting only ~3s after `user@1000.service`, while D-Bus portals,
+  keyring, and gvfs were still activating — strongly correlated with the
+  first `--standalone` LS spawn failing and producing blank ws1. Fail-open:
+  if the session is not ready the Hub still launches (existing F-0117 retry as
+  backstop). Logs elapsed wait time for diagnosis.
+
+### Notes
+- **Boot-script-only change** — no image rebuild required. Merge PR then reboot.
+- `scripts/cloud-build-setup.sh` unchanged — boot scripts deployed via tarball.
+- **Post-merge validation steps for PO:**
+  1. `grep -E 'OK|FAILED|SKIPPED|waiting|ready' ~/logs/app-update.log` — expect
+     `"User session ready after Ns"` then `"… OK"` for each update step.
+  2. `~/logs/ls-spawn.log` — check if a `--standalone` header appears on Attempt 1
+     (not just Attempt 2). If yes, Part B fixed the blank-ws1 root cause.
+  3. `~/logs/hub-launch.log` — confirm `Port changed!` fired on Attempt 1.
+- Part B (blank-ws1) validation-on-reboot pending PO merge + reboot.
+  F-0117 retry backstop is preserved regardless of Part B outcome.
+
 ## v1.24.13 — Hub LS shim env-capture + PATH repair (2026-05-29)
 
 ### Changed

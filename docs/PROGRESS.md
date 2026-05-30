@@ -1,5 +1,101 @@
 # Development Progress Log — Cloud Workstation
 
+## Session 39 — 2026-05-29 (F-0121: Gate boot scripts on user-session readiness)
+
+### Date
+2026-05-29
+
+### Milestone
+Milestone 36 — Gate boot scripts on user-session readiness (F-0121)
+
+### Root-cause findings from cold-boot log analysis
+
+A live cold-boot trace (boot at 20:10:10 PDT) provided two key findings:
+
+**Confirmed bug — 07-apps.sh runs ~83s before the user session exists:**
+- Boot+32s: `07-apps.sh` runs. Every `runuser -u user -- …` fails with
+  `"runuser: user user does not exist or the user entry does not contain
+   all the required fields"` — `user@1000.service` (NSS/PAM) is not up yet.
+- Boot+115s: `user@1000.service` starts. Only now can `runuser` succeed.
+- **Impact:** ALL app updates (npm globals, Antigravity CLI, GitHub Copilot,
+  OpenCode, `home-manager switch`) were silent no-ops on every cold boot. The
+  scripts logged `"... complete"` unconditionally after each failing runuser,
+  so the logs falsely reported success.
+
+**F-0120's broken-PATH theory was REFUTED by the reboot logs:**
+- The PATH theory predicted that `--standalone` LS spawns would fail because
+  the Hub passed an empty PATH to its `language_server` child, causing
+  `#!/usr/bin/env bash` to fail.
+- The cold-boot log shows `--standalone` spawn failures began at boot+128s —
+  3s after `user@1000.service`, while D-Bus portals/keyring/gvfs were still
+  activating (20:12:16–17). This is a session-readiness timing issue, not
+  a PATH issue.
+- The PATH repair in F-0120 is still beneficial (harmless fix-forward) but
+  is NOT the root cause of blank-ws1. The real cause is launching the Hub
+  into a half-initialised session.
+
+**Strong hypothesis — Hub launches before D-Bus/session is fully ready:**
+- `ws-autolaunch.service` starts only 3s after `user@1000.service`.
+- The first `--standalone` LS spawn fails while D-Bus session is activating.
+- The F-0117 Attempt 2 succeeds at boot+234s when the session is fully ready.
+- This is a strong correlation with the blank-ws1 cold-boot bug; proof
+  pending on the next reboot (check `~/logs/ls-spawn.log` Attempt 1).
+
+### Completed
+- **PM** created `docs/specs/F-0121-user-session-readiness-gate.md` with the
+  confirmed root-cause timeline, both fix parts, and acceptance criteria
+- **TPM** added Milestone 36 / F-0121 to `docs/BACKLOG.md`
+- **SWE-1 Part A** — `workstation-image/boot/07-apps.sh`:
+  - Added `wait_for_user_session` helper (120s timeout, 2s poll, fail-open)
+  - Polls until `runuser -u user -- true` AND `dbus-send` probe both succeed
+  - If timeout: logs WARNING and exits 0 (skips updates gracefully; no
+    silent failures into a broken session)
+  - Fixed all per-step logging: every update step now uses `if runuser …; then
+    log "… OK"; else log "… FAILED (rc=$?)"; fi` — no more unconditional
+    `"… complete"` after a potentially failing command
+  - `mkdir -p "$LOG_DIR"` changed from `runuser` to root (correct — no user
+    session needed to make a directory as root)
+- **SWE-1 Part B** — `workstation-image/boot/08-workspaces.sh`:
+  - Added identical `wait_for_user_session` helper (120s timeout, fail-open)
+    after the "Sway is ready" / idempotent-check block
+  - Called with `|| true` (fail-open); logs elapsed wait time
+  - Inserted before the F-0115 gnome-keyring block and Hub launch block
+  - All existing F-0117 retry, F-0118 diagnostics, F-0119/F-0120 shim
+    preserved intact as a backstop
+- **SWE-Test** — `workstation-image/boot/10-tests.sh`:
+  - 9 new static (grep-based) F-0121 tests covering: helper defined (both
+    scripts), call site ordering, fail-open paths, per-step FAILED logging,
+    dbus-send probe presence, elapsed time log
+  - All 9 pass against the deployed `~/boot/` scripts
+- **Three-places rule**: repo + `~/boot/` synced (diff clean for all three
+  scripts); `scripts/cloud-build-setup.sh` unchanged (deploys boot dir via
+  tarball — no per-file edit needed, confirmed at lines 705–715)
+
+### Key decisions
+- No shared sourced library: `wait_for_user_session` is duplicated in both
+  `07-apps.sh` and `08-workspaces.sh`. These scripts run in different
+  execution contexts (07-apps early via setup.sh; 08-workspaces via
+  ws-autolaunch.service after Sway). Keeping them self-contained avoids
+  source-order coupling. Documented in both scripts.
+- `dbus-send` chosen as D-Bus probe (all three alternatives — dbus-send,
+  busctl, gdbus — confirmed present on Ubuntu 24.04; dbus-send is most
+  portable and explicit).
+- Timeout 120s: matches the observed gap between `07-apps.sh` start and
+  `user@1000.service` ready (~83s). A 120s bound gives headroom without
+  excessive worst-case boot delay.
+
+### Next steps
+- **PO action:** merge PR, reboot, then check:
+  1. `grep -E 'OK|FAILED|SKIPPED|waiting' ~/logs/app-update.log` — confirm
+     per-step real results; expect `"User session ready after Ns"` then
+     `"… OK"` lines for each update
+  2. `~/logs/ls-spawn.log` — confirm `--standalone` header appears on
+     Attempt 1 (not just Attempt 2), validating the Part B hypothesis
+  3. `~/logs/hub-launch.log` — confirm `Port changed!` fired on Attempt 1
+- If Part B does NOT fix blank-ws1, the next investigation should focus on
+  exactly what fails in the first 3s of the user session (D-Bus activation
+  sequence, gvfs-udisks2-volume-monitor, xdg-desktop-portal timing)
+
 ## Session 38 — 2026-05-29 (F-0120: Hub LS shim env-capture + PATH repair)
 
 ### Date

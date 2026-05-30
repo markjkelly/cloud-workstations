@@ -1106,6 +1106,120 @@ else
 fi
 
 # =============================================================================
+# User-Session Readiness Gate (F-0121)
+# =============================================================================
+# These are STATIC tests (grep-based) — no reboot required.
+# They confirm that the wait_for_user_session helper is present and called
+# correctly in both 07-apps.sh and 08-workspaces.sh, and that per-step
+# success/failure logging is in place (no unconditional "complete" after a
+# runuser command that could fail silently).
+# =============================================================================
+log ""
+log "--- User-Session Readiness Gate (F-0121) ---"
+
+APPS_SCRIPT="$HOME_DIR/boot/07-apps.sh"
+WS_SCRIPT_F0121="$HOME_DIR/boot/08-workspaces.sh"
+
+# (a) 07-apps.sh defines the wait_for_user_session function
+if grep -q 'wait_for_user_session()' "$APPS_SCRIPT" 2>/dev/null; then
+    test_pass "F-0121: 07-apps.sh defines wait_for_user_session helper"
+else
+    test_fail "F-0121: 07-apps.sh is missing wait_for_user_session helper"
+fi
+
+# (b) 07-apps.sh calls wait_for_user_session before the first runuser update
+if grep -q 'wait_for_user_session' "$APPS_SCRIPT" 2>/dev/null; then
+    # Check the call site appears before the first runuser update line
+    # (i.e., call appears before "npm update" or "Antigravity CLI" lines)
+    call_line=$(grep -n 'wait_for_user_session' "$APPS_SCRIPT" 2>/dev/null | grep -v '()' | head -1 | cut -d: -f1)
+    npm_line=$(grep -n 'npm update -g' "$APPS_SCRIPT" 2>/dev/null | head -1 | cut -d: -f1)
+    if [ -n "$call_line" ] && [ -n "$npm_line" ] && [ "$call_line" -lt "$npm_line" ]; then
+        test_pass "F-0121: 07-apps.sh calls wait_for_user_session before npm update (line $call_line < $npm_line)"
+    else
+        test_fail "F-0121: 07-apps.sh does not call wait_for_user_session before npm update (call=$call_line, npm=$npm_line)"
+    fi
+else
+    test_fail "F-0121: 07-apps.sh does not call wait_for_user_session"
+fi
+
+# (c) 07-apps.sh fail-open: exit 0 on timeout (skips updates gracefully)
+if grep -q 'App update SKIPPED' "$APPS_SCRIPT" 2>/dev/null; then
+    test_pass "F-0121: 07-apps.sh has timeout-skip path (fail-open)"
+else
+    test_fail "F-0121: 07-apps.sh is missing timeout-skip path (not fail-open)"
+fi
+
+# (d) 07-apps.sh per-step failure logging: no unconditional "complete" after runuser calls
+# We check that each runuser update step uses if/else with FAILED logging.
+# Pattern: "FAILED" appears alongside each update step keyword.
+if grep -q 'npm global packages: update FAILED' "$APPS_SCRIPT" 2>/dev/null; then
+    test_pass "F-0121: 07-apps.sh logs npm update FAILED on non-zero exit"
+else
+    test_fail "F-0121: 07-apps.sh does not log npm update FAILED (may still swallow errors)"
+fi
+
+if grep -q 'GitHub Copilot CLI: update FAILED\|Copilot.*FAILED' "$APPS_SCRIPT" 2>/dev/null; then
+    test_pass "F-0121: 07-apps.sh logs GitHub Copilot update FAILED on non-zero exit"
+else
+    test_fail "F-0121: 07-apps.sh does not log GitHub Copilot FAILED (may still swallow errors)"
+fi
+
+if grep -q 'OpenCode: update FAILED\|OpenCode.*FAILED' "$APPS_SCRIPT" 2>/dev/null; then
+    test_pass "F-0121: 07-apps.sh logs OpenCode update FAILED on non-zero exit"
+else
+    test_fail "F-0121: 07-apps.sh does not log OpenCode FAILED (may still swallow errors)"
+fi
+
+if grep -q 'Nix/Home Manager: update FAILED\|Home Manager.*FAILED' "$APPS_SCRIPT" 2>/dev/null; then
+    test_pass "F-0121: 07-apps.sh logs Nix/Home Manager FAILED on non-zero exit"
+else
+    test_fail "F-0121: 07-apps.sh does not log Nix/Home Manager FAILED (may still swallow errors)"
+fi
+
+# (e) 07-apps.sh D-Bus probe uses dbus-send (confirmed present on this host)
+if grep -q 'dbus-send' "$APPS_SCRIPT" 2>/dev/null; then
+    test_pass "F-0121: 07-apps.sh uses dbus-send for D-Bus readiness probe"
+else
+    test_fail "F-0121: 07-apps.sh is missing dbus-send probe in wait_for_user_session"
+fi
+
+# (f) 08-workspaces.sh defines wait_for_user_session
+if grep -q 'wait_for_user_session()' "$WS_SCRIPT_F0121" 2>/dev/null; then
+    test_pass "F-0121: 08-workspaces.sh defines wait_for_user_session helper"
+else
+    test_fail "F-0121: 08-workspaces.sh is missing wait_for_user_session helper"
+fi
+
+# (g) 08-workspaces.sh calls wait_for_user_session before the gnome-keyring / Hub launch block
+if grep -q 'wait_for_user_session' "$WS_SCRIPT_F0121" 2>/dev/null; then
+    ws_call_line=$(grep -n 'wait_for_user_session' "$WS_SCRIPT_F0121" 2>/dev/null | grep -v '()' | head -1 | cut -d: -f1)
+    keyring_line=$(grep -n 'gnome-keyring-daemon --unlock' "$WS_SCRIPT_F0121" 2>/dev/null | head -1 | cut -d: -f1)
+    if [ -n "$ws_call_line" ] && [ -n "$keyring_line" ] && [ "$ws_call_line" -lt "$keyring_line" ]; then
+        test_pass "F-0121: 08-workspaces.sh calls wait_for_user_session before gnome-keyring (line $ws_call_line < $keyring_line)"
+    else
+        test_fail "F-0121: 08-workspaces.sh does not call wait_for_user_session before gnome-keyring (call=$ws_call_line, keyring=$keyring_line)"
+    fi
+else
+    test_fail "F-0121: 08-workspaces.sh does not call wait_for_user_session"
+fi
+
+# (h) 08-workspaces.sh is fail-open (|| true on the call site)
+if grep -A1 'wait_for_user_session' "$WS_SCRIPT_F0121" 2>/dev/null | grep -q '|| true\|wait_for_user_session || true'; then
+    test_pass "F-0121: 08-workspaces.sh wait_for_user_session is fail-open (|| true)"
+elif grep -q 'wait_for_user_session || true' "$WS_SCRIPT_F0121" 2>/dev/null; then
+    test_pass "F-0121: 08-workspaces.sh wait_for_user_session is fail-open (|| true inline)"
+else
+    test_fail "F-0121: 08-workspaces.sh wait_for_user_session call is NOT fail-open (missing || true)"
+fi
+
+# (i) 08-workspaces.sh logs elapsed wait time
+if grep -q 'Session readiness gate elapsed' "$WS_SCRIPT_F0121" 2>/dev/null; then
+    test_pass "F-0121: 08-workspaces.sh logs session gate elapsed time"
+else
+    test_fail "F-0121: 08-workspaces.sh does not log session gate elapsed time"
+fi
+
+# =============================================================================
 # Summary
 # =============================================================================
 TOTAL=$((PASS+FAIL+WARN+SKIP))
