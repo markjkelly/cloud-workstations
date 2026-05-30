@@ -1,5 +1,34 @@
 # Release Notes — Cloud Workstation
 
+## v1.24.12 — Hub LS spawn capture shim: capture language_server stdout/stderr (2026-05-29)
+
+### Added
+- **Hub LS spawn capture shim** (F-0119) — a bash shim is installed over the Hub's
+  `language_server` binary before each Hub launch. The shim passes both stdout and
+  stderr through to the Hub UNMODIFIED (preserving the Hub's port-discovery mechanism),
+  while also teeing them to:
+  - `~/logs/ls-spawn.log` — human-readable spawn/exit records with timestamps, args, and exit code
+  - `~/logs/ls-spawn.out` — raw LS stdout (append per spawn; may contain dynamic port line)
+  - `~/logs/ls-spawn.err` — raw LS stderr (append per spawn; expected to show crash reason at cold boot)
+  Install is idempotent (marker-based: `# F-0119 LS capture shim` on line 2 of the shim).
+  SIGTERM/SIGINT forwarded to the real child process. Diagnostic only — no change to Hub
+  launch behavior or timing. The next cold boot where ws1 is blank will leave evidence
+  in `~/logs/ls-spawn.err` for F-0120 root-cause analysis.
+
+### Changed
+- **`workstation-image/boot/08-workspaces.sh`** — new `_f0119_install_ls_shim()` function
+  called before the Hub launch block (no behavior change to Hub launch itself)
+- **`workstation-image/boot/10-tests.sh`** — 6 new F-0119 tests (shim marker, .real ELF,
+  executability, logs dir writable, function defined, call-site ordering)
+- **`docs/STARTUP_SCRIPTS.md`** — new log entries for `ls-spawn.log`, `ls-spawn.out`, `ls-spawn.err`
+
+### Notes
+- **Boot-script-only change** — no image rebuild required. Merge PR then reboot.
+- Shim installed live on this workstation; warm-path verification confirmed capture
+  works AND Hub still fires `Port changed!` correctly.
+- After merge + reboot: read `~/logs/ls-spawn.err` to see why LS exits at cold boot.
+- F-0120 will implement the targeted fix based on the captured evidence.
+
 ## v1.24.11 — Hub LS boot diagnostics: thorough sampler instrumentation (2026-05-29)
 
 ### Added
