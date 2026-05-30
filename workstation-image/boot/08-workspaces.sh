@@ -373,6 +373,7 @@ _f0119_install_ls_shim() {
     local LS_BIN="/home/user/.local/share/antigravity-hub/resources/bin/language_server"
     local LS_REAL="${LS_BIN}.real"
     local SHIM_MARKER="# F-0119 LS capture shim"
+    local SHIM_VERSION="# F-0120"
 
     # Ensure log directory exists
     mkdir -p /home/user/logs 2>/dev/null || true
@@ -386,40 +387,77 @@ _f0119_install_ls_shim() {
     # The shim's shebang is on line 1; the marker is on line 2.  Check the
     # first 3 lines to be robust against any future shim edits.
     if head -3 "$LS_BIN" 2>/dev/null | grep -qF "$SHIM_MARKER"; then
-        # Shim already installed — verify .real exists and is executable
-        if [ -x "$LS_REAL" ]; then
-            log "F-0119: LS capture shim already installed; language_server.real is executable"
+        # Shim is already installed.  Check if it is the current F-0120 version.
+        # If the version marker is absent, the installed shim is stale (F-0119-era)
+        # and must be overwritten in-place.  language_server.real is NOT touched.
+        if grep -qF "$SHIM_VERSION" "$LS_BIN" 2>/dev/null; then
+            # Up-to-date shim — verify .real exists and is executable
+            if [ -x "$LS_REAL" ]; then
+                log "F-0120: LS capture shim (F-0120) already installed; language_server.real is executable"
+            else
+                log "F-0120 WARNING: shim installed but $LS_REAL is missing or not executable — broken state"
+            fi
+            return 0
         else
-            log "F-0119 WARNING: shim installed but $LS_REAL is missing or not executable — broken state"
+            # Stale shim (F-0119 or earlier) — overwrite in-place with F-0120 shim.
+            log "F-0120: Upgrading stale LS shim to F-0120 version (overwriting in-place; .real untouched)..."
+            # Fall through to the heredoc write below.
         fi
-        return 0
+    else
+        # LS_BIN is not the shim (it's the real ELF, possibly from a Hub auto-update).
+        # Move it to .real (overwrite any older .real), then write the shim.
+        log "F-0120: Installing LS capture shim (moving real binary to language_server.real)..."
+        mv -f "$LS_BIN" "$LS_REAL" 2>/dev/null || {
+            log "F-0120 WARNING: failed to move $LS_BIN → $LS_REAL; skipping shim install"
+            return 0
+        }
+        chmod +x "$LS_REAL" 2>/dev/null || true
     fi
 
-    # LS_BIN is not the shim (it's the real ELF, possibly from a Hub auto-update).
-    # Move it to .real (overwrite any older .real), then write the shim.
-    log "F-0119: Installing LS capture shim (moving real binary to language_server.real)..."
-    mv -f "$LS_BIN" "$LS_REAL" 2>/dev/null || {
-        log "F-0119 WARNING: failed to move $LS_BIN → $LS_REAL; skipping shim install"
-        return 0
-    }
-    chmod +x "$LS_REAL" 2>/dev/null || true
-
-    # Write the shim.  Use a heredoc so the content is readable in the repo.
-    # CRITICAL: stdout+stderr are tee'd but also passed through to the Hub
-    # UNMODIFIED so port-discovery ("[Auto-Restart] Port changed!") still works.
-    # SIGTERM/SIGINT are forwarded to the real child via a trap so the Hub's
-    # lifecycle management (kill-child-on-exit) continues to work.
+    # Write (or overwrite) the shim.  Use a single-quoted heredoc ('SHIM_EOF') so all
+    # $VARIABLES, $*, $$, $PATH remain literal in the written file — they are expanded
+    # at LS runtime by bash, NOT at install time by this boot script.
+    #
+    # F-0120 changes vs F-0119:
+    #   1. Shebang: #!/bin/bash (absolute) — runs even when the Hub passes a stripped
+    #      empty PATH to its children, which broke #!/usr/bin/env bash.
+    #   2. Env capture: first action writes Hub's child env to ~/logs/ls-spawn.env
+    #      (timestamp, pid, args, PATH value, full env dump) to confirm/refute the
+    #      broken-PATH theory on the next cold boot.
+    #   3. Env repair: export PATH prepends /usr/bin:/bin:/usr/local/bin before exec;
+    #      HOME is set to /home/user if empty.
+    #   4. Passthrough unchanged: stdout+stderr are tee'd AND passed through to the
+    #      Hub UNMODIFIED so port-discovery ("[Auto-Restart] Port changed!") still works.
+    #   5. SIGTERM/SIGINT forwarding to real child preserved (Hub lifecycle management).
     cat > "$LS_BIN" << 'SHIM_EOF'
-#!/usr/bin/env bash
+#!/bin/bash
 # F-0119 LS capture shim — tees language_server stdout/stderr for cold-boot diagnosis.
+# F-0120
 # Passes both streams through UNMODIFIED to the Hub (the Hub parses LS output for the
-# dynamic HTTPS port), while also appending to ~/logs/ls-spawn.{out,err}.
+# dynamic HTTPS port), while also appending to ~/logs/ls-spawn.{out,err,env}.
 LOG=/home/user/logs/ls-spawn.log
 OUT=/home/user/logs/ls-spawn.out
 ERR=/home/user/logs/ls-spawn.err
+ENV=/home/user/logs/ls-spawn.env
 REAL="$(dirname "$0")/language_server.real"
 mkdir -p "$(dirname "$LOG")" 2>/dev/null || true
-{ echo "=== LS spawn: $(date '+%Y-%m-%d %H:%M:%S.%N') pid=$$ ==="; echo "args: $*"; } >>"$LOG" 2>&1 || true
+# --- F-0120: capture Hub's child-spawn environment BEFORE any repair ---
+# This is the FIRST action so we record the raw environment the Hub supplied.
+# Guards with || true so no write failure can kill the shim.
+{
+  echo "=== LS env capture: $(date '+%Y-%m-%d %H:%M:%S.%3N') pid=$$ ==="
+  echo "args: $*"
+  echo "PATH=$PATH"
+  echo "HOME=$HOME"
+  echo "--- full env ---"
+  env
+  echo "--- end env ---"
+} >>"$ENV" 2>/dev/null || true
+# --- F-0120: repair environment so LS always gets a sane PATH and HOME ---
+export PATH="/usr/bin:/bin:/usr/local/bin${PATH:+:$PATH}"
+[ -z "$HOME" ] && export HOME=/home/user
+# --- spawn/exit record ---
+{ echo "=== LS spawn: $(date '+%Y-%m-%d %H:%M:%S.%3N') pid=$$ ==="; echo "args: $*"; } >>"$LOG" 2>&1 || true
 # Forward SIGTERM/SIGINT to the real child so Hub lifecycle management works.
 _ls_child_pid=""
 _ls_forward_signal() { [ -n "$_ls_child_pid" ] && kill -s "$1" "$_ls_child_pid" 2>/dev/null || true; }
@@ -429,14 +467,14 @@ trap '_ls_forward_signal INT'  INT
 _ls_child_pid=$!
 wait "$_ls_child_pid"
 rc=$?
-{ echo "=== LS exit: $(date '+%Y-%m-%d %H:%M:%S.%N') pid=$$ rc=$rc ==="; } >>"$LOG" 2>&1 || true
+{ echo "=== LS exit: $(date '+%Y-%m-%d %H:%M:%S.%3N') pid=$$ rc=$rc ==="; } >>"$LOG" 2>&1 || true
 exit $rc
 SHIM_EOF
 
     chmod +x "$LS_BIN" 2>/dev/null || {
-        log "F-0119 WARNING: failed to chmod +x $LS_BIN — shim may not be executable"
+        log "F-0120 WARNING: failed to chmod +x $LS_BIN — shim may not be executable"
     }
-    log "F-0119: LS capture shim installed at $LS_BIN (real binary at $LS_REAL)"
+    log "F-0120: LS capture shim (F-0120) installed at $LS_BIN (real binary at $LS_REAL)"
 }
 
 # =============================================================================

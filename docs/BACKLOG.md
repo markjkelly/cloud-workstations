@@ -1,7 +1,7 @@
 # Project Backlog — Cloud Workstation
 
 **Maintained by:** TPM
-**Last updated:** 2026-05-29 (Milestone 34 — Hub LS spawn capture shim: F-0119)
+**Last updated:** 2026-05-29 (Milestone 35 — Hub LS shim env-capture + PATH repair: F-0120)
 
 ---
 
@@ -373,11 +373,20 @@ Tracks fork-only work that pre-dated or accompanied v1.17. All items are documen
 
 ---
 
+## Milestone 35: Hub LS Shim Env-Capture + PATH Repair
+
+**Last updated:** 2026-05-29 (Milestone 35 — Hub LS shim env-capture + PATH repair)
+
+| ID | Feature | Spec | Priority | Status | Owner | Branch | Dependencies | Feedback |
+|----|---------|------|----------|--------|-------|--------|--------------|----------|
+| F-0120 | Hub LS shim: capture Hub child-spawn env + repair PATH in shim | [F-0120](specs/F-0120-hub-ls-shim-env-capture-repair.md) | P0 | done | SWE-1 | feature/hub-ls-shim-env-capture-repair | F-0119 | Shim upgraded: (1) shebang `#!/bin/bash` (absolute — runs under empty PATH), (2) env capture to `~/logs/ls-spawn.env` before any repair (timestamp, pid, args, raw PATH, full env dump), (3) PATH repaired to `/usr/bin:/bin:/usr/local/bin${PATH:+:$PATH}` and HOME set if empty. Idempotent upgrade: detects F-0119 shim (no `# F-0120` marker) and rewrites in-place; `.real` untouched. Passthrough unchanged (port-discovery safe). 8 new tests in `10-tests.sh`. Three-places parity verified (diff clean). Live shim installed immediately. Validation-on-reboot pending PO merge + reboot. |
+
+---
+
 ## Future Items
 
 | ID | Feature | Spec | Priority | Status | Owner | Branch | Dependencies | Feedback |
 |----|---------|------|----------|--------|-------|--------|--------------|----------|
-| F-0120 | Hub cold-boot LS root-cause fix — pending F-0119 captured evidence | — | P0 | backlog | — | — | F-0119 | After the next cold boot where ws1 is blank, read `~/logs/ls-spawn.out` and `~/logs/ls-spawn.err` to diagnose why LS exits without binding its HTTPS port. Design and implement a targeted fix. |
 | F-0083 | Build speed: skip AR deletion on teardown | [Research](research/build-speed-optimization.md) | P2 | backlog | — | — | — | Keep Docker image in AR across teardown/setup cycles. Saves ~17min. Image is ~280MB, pennies/month. |
 | F-0084 | Build speed: faster Cloud Build machine (E2_HIGHCPU_32) | [Research](research/build-speed-optimization.md) | P2 | backlog | — | — | — | Docker builds 2-3x faster. Saves ~8min. |
 | F-0085 | Build speed: ws.sh update command (config-only, no rebuild) | [Research](research/build-speed-optimization.md) | P1 | backlog | — | — | — | Push configs + run boot scripts on existing workstation. ~2min vs 50min for config-only changes. |

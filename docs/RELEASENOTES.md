@@ -1,5 +1,40 @@
 # Release Notes — Cloud Workstation
 
+## v1.24.13 — Hub LS shim env-capture + PATH repair (2026-05-29)
+
+### Changed
+- **Hub LS capture shim upgraded to F-0120** — the shim installed over the Hub's
+  `language_server` binary receives three targeted changes:
+  1. **Absolute shebang** (`#!/bin/bash`) replaces `#!/usr/bin/env bash`. The Hub passes
+     its `--standalone` LS child a stripped environment where `PATH` may be empty or
+     broken; `/usr/bin/env` cannot resolve `bash` in that case, so the shim never ran.
+     `#!/bin/bash` runs unconditionally.
+  2. **Environment capture** — the shim's very first action appends to a new log
+     `~/logs/ls-spawn.env`: timestamp, pid, args, the raw `PATH` value the Hub supplied,
+     and a full `env` dump. This confirms or refutes the broken-PATH theory on the
+     next cold boot regardless of whether the fix works.
+  3. **Environment repair** — before exec-ing the real binary the shim ensures:
+     `export PATH="/usr/bin:/bin:/usr/local/bin${PATH:+:$PATH}"` and sets
+     `HOME=/home/user` if HOME is empty.
+  All pre-existing behaviour preserved: stdout+stderr tee'd UNMODIFIED to Hub
+  (port-discovery safe), SIGTERM/SIGINT forwarding, spawn/exit records in `ls-spawn.log`.
+
+### Added
+- **Idempotent shim upgrade** — `_f0119_install_ls_shim()` now detects a stale F-0119-era
+  shim (missing the `# F-0120` version marker) and rewrites it in-place without touching
+  `language_server.real`. Fresh-install path (ELF present, no shim) continues to work.
+- **8 new F-0120 boot tests** in `10-tests.sh`: static heredoc checks for shebang,
+  version marker, `ls-spawn.env`, PATH repair, upgrade logic; plus installed-shim marker
+  and shebang checks.
+
+### Notes
+- **Boot-script-only change** — no image rebuild required. Merge PR then reboot.
+- F-0120 shim installed live immediately (no reboot needed for the shim upgrade itself).
+- After merge + reboot: read `~/logs/ls-spawn.env` to see the Hub's child PATH for
+  `--standalone`; read `~/logs/ls-spawn.log` for `--standalone` spawn header (confirms
+  shim now executes); read `~/logs/hub-launch.log` for `Port changed!` (confirms fix).
+- `scripts/cloud-build-setup.sh` unchanged — boot scripts deployed via tarball.
+
 ## v1.24.12 — Hub LS spawn capture shim: capture language_server stdout/stderr (2026-05-29)
 
 ### Added
