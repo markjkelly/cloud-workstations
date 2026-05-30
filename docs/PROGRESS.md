@@ -1,5 +1,50 @@
 # Development Progress Log — Cloud Workstation
 
+## Session 41 — 2026-05-29 (F-0124: Remove Hub autostart machinery)
+
+### Date
+2026-05-29
+
+### Milestone
+F-0124 — Remove Hub autostart machinery; hub-restart (F-0122) is the supported path
+
+### Decision
+PO confirmed: Hub autostart attempted across F-0110–F-0121 was never made reliable. Stop trying. Boot no longer launches the Hub (Option A). ws1 starts empty. User runs `hub-restart` after connecting.
+
+### Completed
+- **Stripped all Hub autostart machinery from `workstation-image/boot/08-workspaces.sh`**: removed Hub launch block (runuser antigravity-hub), F-0117 retry loop + readiness check (hub_language_server_ready), F-0118 diagnostic sampler (_f0118_ls_diag_sampler), F-0119/F-0120 LS shim installer (_f0119_install_ls_shim + heredoc), F-0114 stale-Hub reaper, F-0121 Part B (wait_for_user_session + call site + elapsed-time log), dead constants (HUB_LAUNCH_TIMEOUT, HUB_MAX_RETRIES, HUB_LS_LOG, HUB_LS_DIAG_LOG, HUB_LS_DIAG_INTERVAL, HUB variable). **1079 → 181 lines (-898 lines).**
+- **Final focus changed from ws1 to ws3**: end-of-script `sway_cmd "workspace number 3"` so user lands on a terminal prompt ready to type `hub-restart`. Log hint: `"Hub not auto-launched (F-0124) — run 'hub-restart' to start it."`
+- **Live shim restored**: `language_server` was the F-0119/F-0120 bash shim (confirmed via `file` output: "Bourne-Again shell script"). Executed `mv -f language_server.real language_server && chmod +x language_server`. Confirmed after: `file` shows "ELF 64-bit LSB pie executable", no `.real` file remains. Safe to do while Hub is running (inode unchanged for running process).
+- **`workstation-image/boot/10-tests.sh` updated**: removed 30+ tests for dead features (F-0117/F-0118/F-0119/F-0120/F-0121-PartB); updated workspace layout section to reflect F-0124 (ws1 empty, no ws1 launch_and_wait, header comment check updated); added 7 regression tests (F-0124 block: Hub not launched, dead functions absent, dead constants absent, language_server not shim, no .real file, logs writable); added F-0121/F-0124 regression for wait_for_user_session absence in 08-workspaces.sh. **1253 → 1024 lines.**
+- **`~/boot/` synced**: both scripts copied and diff confirmed clean.
+- **`scripts/cloud-build-setup.sh`**: confirmed it deploys boot dir wholesale via `tar czf … workstation-image/boot/ | ws_pipe`. No change needed.
+- **Docs**: BACKLOG.md (F-0124 added, F-0110/F-0114/F-0117/F-0118/F-0119/F-0120/F-0121-PartB annotated as superseded), STARTUP_SCRIPTS.md (F-0124 layout, removed log entries), RELEASENOTES.md (v1.25.0).
+
+### Files Changed
+- `workstation-image/boot/08-workspaces.sh` — 1079 → 181 lines (–898 lines; all Hub autostart removed)
+- `workstation-image/boot/10-tests.sh` — 1253 → 1024 lines; stale tests removed, regression tests added
+- `docs/specs/F-0124-remove-hub-autostart.md` — new spec
+- `docs/BACKLOG.md` — F-0124 added, F-0110/F-0114/F-0117/F-0118/F-0119/F-0120/F-0121 annotated
+- `docs/STARTUP_SCRIPTS.md` — F-0124 layout, removed diagnostic log entries
+- `docs/PROGRESS.md` — this entry
+- `docs/RELEASENOTES.md` — v1.25.0
+- Live: `~/.local/share/antigravity-hub/resources/bin/language_server` restored (shim → ELF)
+
+### Key Before/After (live binary)
+- **Before:** `language_server`: Bourne-Again shell script (F-0119/F-0120 shim); `language_server.real`: ELF 64-bit LSB pie executable
+- **After:** `language_server`: ELF 64-bit LSB pie executable; `language_server.real`: ABSENT
+
+### Decisions
+- **Option A chosen**: stop autostart entirely; ws1 empty; user runs hub-restart. Simpler, more reliable, no retry complexity.
+- **Kept F-0115 gnome-keyring**: still useful — hub-restart launches the Hub from user session, and OAuth token persistence requires the keyring. No reason to remove.
+- **Kept F-0116 for_window rule** in sway config: hub-restart's window still lands on ws1 correctly.
+- **Final focus ws3 not ws1**: landing on an empty ws1 with no prompt visible would be confusing. ws3 has a terminal ready.
+- **Live binary restore done in this session** (not deferred to next reboot): the shim was live and would have been re-installed on next boot by the old installer. Installer is now gone; binary is clean.
+
+### Next Steps
+- PO approves and merges PR
+- After merge: `git tag -a v1.25.0 -m "F-0124: Remove Hub autostart machinery"`
+
 ## Session 40 — 2026-05-29 (F-0122: hub-restart manual Hub-relaunch utility)
 
 ### Date

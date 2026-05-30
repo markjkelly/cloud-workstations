@@ -1,5 +1,39 @@
 # Release Notes — Cloud Workstation
 
+## v1.25.0 — Remove Hub autostart machinery; boot no longer auto-launches the Hub (2026-05-29)
+
+### Changed (Breaking: boot behavior)
+- **Boot no longer auto-launches the Antigravity Hub** (F-0124). After persistent cold-boot
+  failures across F-0110–F-0121 that were never made reliable, the Hub autostart is removed
+  entirely. Workspace 1 now starts empty on every boot. **Run `hub-restart` from any terminal
+  after connecting** — this always works and takes ~5s.
+- **Final focus workspace changed from ws1 to ws3** (terminal). The user lands on a prompt
+  immediately ready to type `hub-restart`, rather than an empty ws1 with no visible action.
+- `08-workspaces.sh` reduced from 1,079 to 181 lines (−898 lines).
+
+### Removed
+- All Hub autostart machinery from `08-workspaces.sh`:
+  - F-0117 readiness-based retry loop (`HUB_MAX_RETRIES=3`, `hub_language_server_ready()`,
+    `HUB_LAUNCH_TIMEOUT`, instrumentation log `~/logs/language_server_boot_diag.log`)
+  - F-0118 background diagnostic sampler (`_f0118_ls_diag_sampler()`, `~/logs/hub-ls-diag.log`)
+  - F-0119/F-0120 LS capture shim installer (`_f0119_install_ls_shim()`, `~/logs/ls-spawn.*`)
+  - F-0114 pre-launch stale-Hub process reaper and singleton lock cleanup
+  - F-0121 Part B user-session readiness gate (`wait_for_user_session()` in 08-workspaces.sh)
+  - Hub launch block (`runuser … antigravity-hub …`, retry/poll loop, `HUB_OK` variable)
+
+### Fixed
+- **Live `language_server` binary restored** from the F-0119/F-0120 bash shim to the real
+  ELF binary. Before: `file language_server` → "Bourne-Again shell script". After: `file
+  language_server` → "ELF 64-bit LSB pie executable, x86-64, stripped". The `.real` backup
+  no longer exists.
+
+### Kept
+- F-0115 gnome-keyring (OAuth token persistence for hub-restart)
+- F-0116 sway `for_window` rule (hub-restart's window still lands on ws1)
+- F-0122 `hub-restart` utility (the supported launch path)
+- F-0121 Part A in `07-apps.sh` (app-update session gate — unaffected)
+- Chrome on ws5, foot terminals on ws3/ws4
+
 ## v1.24.15 — hub-restart manual Hub-relaunch utility (2026-05-29)
 
 ### Added
