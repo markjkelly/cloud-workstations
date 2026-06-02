@@ -1,5 +1,92 @@
 # Development Progress Log — Cloud Workstation
 
+## Session 44 — 2026-06-02 (F-0123: robust app-updates systemd ordering fix)
+
+### Date
+2026-06-02
+
+### Milestone
+Milestone 36: Fix skipped app updates on slow boots (systemd ordering)
+
+### Completed
+- **Investigated the root cause** (confirmed from F-0121 investigation): `07-apps.sh` ran via
+  `setup.sh` at boot+34s, but `user@1000.service` starts at a highly variable time
+  (observed boot+115s and boot+203s). The 120s `wait_for_user_session` poll in F-0121 could
+  expire before the user session was ready, silently skipping all app updates.
+
+- **Created spec** `docs/specs/F-0123-app-updates-systemd-ordering.md` documenting the race,
+  the chosen fix, acceptance criteria, and why timeout-raise was rejected.
+
+- **Updated `docs/BACKLOG.md`**: F-0123 row updated from `backlog` to `done`, spec referenced,
+  fix summary added.
+
+- **Implemented `workstation-image/boot/03-sway.sh`**:
+  - Added `loginctl enable-linger user` (idempotent) so `user@1000.service` starts reliably
+    at boot independent of interactive login. Not previously set anywhere in the repo.
+  - Added `ws-app-updates.service` creation block (After=user@1000.service network-online.target,
+    Wants= not Requires= to avoid logind deadlock, Type=oneshot, ExecStart=07-apps.sh,
+    RemainAfterExit=yes). Enabled via `ln -sf` symlink in `multi-user.target.wants/`. Placed
+    before the existing `systemctl daemon-reload` at the end of the script.
+
+- **Implemented `workstation-image/boot/setup.sh`**:
+  - Added `07-apps.sh` skip guard (same pattern as existing 08-workspaces.sh / 10-tests.sh
+    guards) so the script is no longer run inline.
+
+- **Updated `workstation-image/boot/07-apps.sh`**:
+  - Updated the F-0121 comment block to reflect the new execution context: script is now
+    invoked by `ws-app-updates.service` (After=user@1000.service). `wait_for_user_session`
+    is retained as a defensive backstop, not the primary mechanism.
+
+- **Added F-0123 tests to `workstation-image/boot/10-tests.sh`**:
+  - (a) `ws-app-updates.service` unit file exists at `/etc/systemd/system/`
+  - (b) Service is enabled (symlink in `multi-user.target.wants/`)
+  - (c) Unit file contains `After=user@1000.service`
+  - (d) `setup.sh` has skip guard for `07-apps.sh`
+  - (e) `03-sway.sh` creates `ws-app-updates.service` (grep)
+  - (f) Best-effort runtime: `app-update.log` last line is not SKIPPED (WARN if absent)
+
+- **Synced `~/boot/`**: copied `03-sway.sh`, `setup.sh`, `07-apps.sh`, `10-tests.sh` from
+  repo to `~/boot/`. Verified diff-clean for all four files.
+
+- **Updated `docs/STARTUP_SCRIPTS.md`**: boot table row for 07-apps.sh updated to note the
+  new systemd-managed execution; execution flow diagram updated to show `ws-app-updates.service`
+  and the inline skip; the "Note" sentence updated to include 07-apps.sh.
+
+### Decisions
+- **Timeout-raise rejected**: any fixed timeout can be outlasted on an arbitrarily slow boot.
+  Systemd ordering (`After=user@1000.service`) is a guarantee, not a poll race.
+- **`Wants=` not `Requires=`** for `user@1000.service`: avoids deadlocking the unit if logind
+  behaves unexpectedly. The ordering still holds; `Wants=` is a weaker dependency.
+- **`loginctl enable-linger user`** added to `03-sway.sh`: not previously set in the repo.
+  Without it, `user@1000.service` only starts on interactive login, making the `After=`
+  ordering semantically hollow on a headless boot.
+- **`wait_for_user_session` kept**: retained as a backstop for any edge case where the unit
+  ordering delivers the service before its socket/bus is fully usable. Fail-open behavior
+  (SKIPPED path) kept as a final safety valve.
+- **09-sync.sh dependency confirmed non-issue**: the comment "runs after 07-apps … so the
+  user exists" is misleading — 09-sync.sh uses only `git -C` (as root) and `cp/chown`, no
+  `runuser`. The user directory exists from provisioning, not from 07-apps running. Moving
+  07-apps out of the inline loop has zero impact on 09-sync.
+
+### Files Changed
+- `docs/specs/F-0123-app-updates-systemd-ordering.md` — new spec (created)
+- `docs/BACKLOG.md` — F-0123 row updated (in-progress → done)
+- `docs/PROGRESS.md` — this entry
+- `docs/RELEASENOTES.md` — new patch entry
+- `docs/STARTUP_SCRIPTS.md` — boot table, execution flow, Note sentence updated
+- `workstation-image/boot/03-sway.sh` — loginctl enable-linger + ws-app-updates.service
+- `workstation-image/boot/setup.sh` — 07-apps.sh skip guard added
+- `workstation-image/boot/07-apps.sh` — F-0121/F-0123 comment block updated
+- `workstation-image/boot/10-tests.sh` — F-0123 test section added (6 assertions)
+
+### Next Steps
+- **Deploy**: run `ws.sh setup` (or reboot) for the `ws-app-updates.service` to take effect.
+- **AC1 / AC4 validation**: verify on next reboot that `app-update.log` shows run proceeding
+  (not SKIPPED) on a boot where `user@1000.service` comes up late.
+- No follow-up F-numbers identified.
+
+---
+
 ## Session 43 — 2026-06-02 (TPM bookkeeping: reconcile stale Hub backlog rows)
 
 ### Date

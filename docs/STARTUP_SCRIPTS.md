@@ -15,14 +15,14 @@ Summary of all boot scripts that run on every workstation start. Scripts execute
 | 6 | `06-prompt.sh` | Install Starship prompt; deploy foot terminal config by copying `~/boot/foot.ini` (source of truth: `workstation-image/configs/foot/foot.ini`, deployed by `cloud-build-setup.sh` step 13) into `~/.config/foot/foot.ini`, with an embedded heredoc fallback if `~/boot/foot.ini` is missing (F-0094) | Yes — overwrites configs | ~5s |
 | 6a | `06a-tailscale.sh` | Tailscale VPN (opt-in via `TAILSCALE_AUTHKEY` in `~/.env`). Starts tailscaled, authenticates, enables SSH, configures SSH password auth, adds iptables rule for SSH on tailscale0 | Yes — checks running/connected | ~5s |
 | 6b | `06b-tmux.sh` | Deploy `tmux.conf` (Tokyo Night theme), `claude-tmux`, and `tmux-debug` scripts | Yes — copy overwrite | ~1s |
-| 7 | `07-apps.sh` | Upgrade AI tools (npm: Claude Code, Codex, Cody, Pi; go: OpenCode; pip: Aider; gh: Copilot), run `home-manager switch`; install/update Antigravity Hub and CLI; **F-0125**: remove orphaned IDE dirs (`~/.config/Antigravity`, `~/.config/Antigravity.bak.*`, `~/.antigravity`, `~/.cache/antigravity`) | Yes — update/switch idempotent; dir removal is rm -rf (idempotent) | ~60s |
+| 7 | `07-apps.sh` | **F-0123:** Now runs via `ws-app-updates.service` (After=user@1000.service), NOT via setup.sh. Upgrade AI tools (npm: Claude Code, Codex, Cody, Pi; go: OpenCode; pip: Aider; gh: Copilot), run `home-manager switch`; install/update Antigravity Hub and CLI; **F-0125**: remove orphaned IDE dirs (`~/.config/Antigravity`, `~/.config/Antigravity.bak.*`, `~/.antigravity`, `~/.cache/antigravity`). Logs to `~/logs/app-update.log`. | Yes — update/switch idempotent; dir removal is rm -rf (idempotent) | ~60s |
 | 8 | `07a-lang-deps.sh` | Install apt build dependencies for language compilers (build-essential, libssl-dev, etc.) | Yes — dpkg -s check | ~10s |
 | 9 | `07b-languages.sh` | Install/update Go (tarball), Rust (rustup), Python (pyenv), Ruby (rbenv) | Yes — existence checks | First: ~15min, subsequent: ~30s |
 | 10 | `09-wofi.sh` | Deploy wofi config + Tokyo Night style.css to `~/.config/wofi/` | Yes — copy overwrite | ~1s |
 | 11 | `09-snippets.sh` | Deploy snippet-picker script + default snippets.conf (no-clobber) | Yes — cp -n for user config | ~1s |
 | 12 | `11-custom-tools.sh` | Fork-only (F-0089): installs Terraform + gh CLI to `~/.local/bin` (pinned), Java LTS via SDKMAN, Eclipse, Claude Code to `~/.npm-global` (with `~/.npmrc` pinning `prefix` so auto-update doesn't EACCES on `/usr`), JetBrains Mono font. Also patches noVNC `rfb.js` (QEMU key events) and masks `ws-autolaunch.service` | Yes — version/existence guarded | First: ~5min, subsequent: ~10s |
 
-**Note:** `08-workspaces.sh` and `10-tests.sh` are NOT run by setup.sh — they run via systemd services after Sway starts. See below.
+**Note:** `07-apps.sh`, `08-workspaces.sh`, and `10-tests.sh` are NOT run by setup.sh — they run via systemd services. `07-apps.sh` runs via `ws-app-updates.service` (After=user@1000.service) so the user session is guaranteed ready. `08-workspaces.sh` and `10-tests.sh` run after Sway starts. See below.
 
 ## Execution Flow
 
@@ -32,19 +32,24 @@ Docker entrypoint
         └── ~/boot/setup.sh
               ├── 01-nix.sh
               ├── 02-nvidia.sh
-              ├── 03-sway.sh
+              ├── 03-sway.sh  ← also creates ws-app-updates.service + enables linger
               ├── 04-fonts.sh
               ├── 05-shell.sh
               ├── 06-sync.sh (NEW: F-0108)
               ├── 06-prompt.sh
               ├── 06a-tailscale.sh
               ├── 06b-tmux.sh
-              ├── 07-apps.sh
+              │   (07-apps.sh SKIPPED — runs via ws-app-updates.service below)
               ├── 07a-lang-deps.sh
               ├── 07b-languages.sh
               ├── 09-wofi.sh
               ├── 09-snippets.sh
               └── 11-custom-tools.sh
+
+systemd (F-0123: after user@1000.service is active)
+  └── ws-app-updates.service  (After=user@1000.service network-online.target)
+        └── 07-apps.sh (npm globals, home-manager switch, Hub/CLI install)
+              → logs to ~/logs/app-update.log
 
 systemd (after Sway starts)
   ├── ws-autolaunch.service

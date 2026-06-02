@@ -1,5 +1,35 @@
 # Release Notes — Cloud Workstation
 
+## v1.26.0 — Fix skipped app updates on slow boots: systemd ordering (2026-06-02)
+
+### Changed
+- **`07-apps.sh` now runs via `ws-app-updates.service`** (F-0123). The script is no longer
+  invoked inline by `setup.sh`. A new systemd unit `ws-app-updates.service` is created by
+  `03-sway.sh` on every boot with `After=user@1000.service network-online.target`, so the
+  OS-level ordering guarantee ensures the user session (PAM + D-Bus) is ready before any
+  `runuser` call — regardless of how slowly `user@1000.service` starts.
+- **`loginctl enable-linger user`** added to `03-sway.sh`. Without linger, `user@1000.service`
+  only starts on interactive login and the `After=` ordering is hollow on a headless boot.
+  The call is idempotent and safe to run on every boot.
+- **`setup.sh` skip guard** added for `07-apps.sh`, matching the existing guards for
+  `08-workspaces.sh` and `10-tests.sh`.
+- **`wait_for_user_session` kept** in `07-apps.sh` as a defensive backstop (now succeeds in
+  seconds because unit ordering already guarantees session readiness). Comment block updated
+  to explain the new role.
+
+### Fixed
+- On boots where `user@1000.service` started after the 120-second `wait_for_user_session`
+  timeout (observed at boot+203s), ALL app updates were silently skipped — npm globals,
+  Antigravity CLI, Copilot, OpenCode, and `home-manager switch` never ran. This was a
+  systematic miss introduced by F-0121's stopgap timeout approach; F-0123 removes the race
+  entirely via systemd ordering.
+
+### Tests
+- 6 new boot tests in `10-tests.sh` (F-0123 section): service unit file exists, service is
+  enabled, `After=user@1000.service` present, `setup.sh` skip guard present, `03-sway.sh`
+  creates the service, runtime best-effort check that `app-update.log` does not end in
+  SKIPPED.
+
 ## v1.25.2 — TPM bookkeeping: reconcile stale Hub and CWD backlog rows (2026-06-02)
 
 ### Changed
