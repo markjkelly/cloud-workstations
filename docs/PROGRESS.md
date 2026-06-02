@@ -29,6 +29,15 @@ TPM bookkeeping — no F-number (docs-only correction)
 - `docs/PROGRESS.md` — this entry
 - `docs/RELEASENOTES.md` — patch entry v1.25.2
 
+### Addendum (same session): F-0103 closed as duplicate of F-0095
+- **Investigated F-0103** ("Fix foot terminal CWD regression (third occurrence)", status `in-progress`). Verified it is a stale/duplicate row:
+  - Its spec link already points at `specs/F-0095-foot-cwd-regression.md` (the canonical spec).
+  - `--working-directory=/home/user` is present in all three required sources: `workstation-image/configs/sway/config:94-95`, `~/.config/home-manager/sway-config:94-95` (byte-identical), and `workstation-image/boot/08-workspaces.sh:173,176`.
+  - Commit `0dd33b3` standardized the flag; shipped in v1.18 via PR #9.
+  - The R4a/R4b/R4c drift-guard tests F-0103 asked for already exist at `workstation-image/boot/10-tests.sh:473-515`.
+- **Updated `docs/BACKLOG.md`**: changed F-0103 status `in-progress` → `done`; appended closure note cross-referencing F-0095 (PR #9, v1.18) and confirming all sources and tests are in place.
+- **No boot script or test changes** — the drift guard already exists; this is a docs-only correction.
+
 ### Next Steps
 - No follow-up work required from this session.
 
