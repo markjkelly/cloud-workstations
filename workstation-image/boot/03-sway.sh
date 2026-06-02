@@ -88,8 +88,33 @@ log "Created ws-autolaunch.service (runs 08-workspaces.sh after Sway)"
 # ws-app-updates.service is ordered After=user@1000.service; without linger, that
 # service would block indefinitely (or not start at all) on a non-interactive boot.
 # loginctl enable-linger is idempotent — safe to call on every boot.
-loginctl enable-linger user 2>/dev/null || log "WARNING: loginctl enable-linger failed (non-fatal — may already be set or loginctl unavailable)"
-log "F-0123: loginctl enable-linger user (ensures user@1000.service starts at boot)"
+#
+# F-0123 FOLLOW-UP FIX (linger fallback — 2026-06-02):
+# The original call used "2>/dev/null || log WARNING" which silently swallowed
+# loginctl failures.  Linger must actually stick: if loginctl fails for any reason,
+# we fall back to creating the linger marker file directly.  Both paths are logged
+# loudly so any future failure is immediately visible in the boot log.
+LINGER_FILE="/var/lib/systemd/linger/user"
+LINGER_DIR="/var/lib/systemd/linger"
+LINGER_ERR=$( { loginctl enable-linger user; } 2>&1 )
+LINGER_RC=$?
+if [ "$LINGER_RC" -eq 0 ]; then
+    log "F-0123: loginctl enable-linger user OK (rc=0)"
+else
+    log "F-0123: WARNING — loginctl enable-linger user FAILED (rc=$LINGER_RC, stderr: $LINGER_ERR)"
+    log "F-0123: Falling back to direct marker-file creation at $LINGER_FILE"
+    mkdir -p "$LINGER_DIR" && touch "$LINGER_FILE" && \
+        log "F-0123: Linger marker file created at $LINGER_FILE (fallback OK)" || \
+        log "F-0123: CRITICAL — linger marker file creation FAILED — user@1000.service may not start at boot (check $LINGER_DIR)"
+fi
+# Verify linger actually took effect regardless of which path ran
+if loginctl show-user user 2>/dev/null | grep -q 'Linger=yes'; then
+    log "F-0123: Linger=yes confirmed for user"
+elif [ -f "$LINGER_FILE" ]; then
+    log "F-0123: Linger marker file present at $LINGER_FILE (loginctl show-user may not reflect yet — OK at this stage)"
+else
+    log "F-0123: CRITICAL — Linger not confirmed and marker file absent — app updates will be skipped on headless boots"
+fi
 
 # --- F-0123: Create ws-app-updates.service (runs 07-apps.sh after user session ready) ---
 # This unit replaces the inline run of 07-apps.sh in setup.sh.  By ordering After=user@1000.service

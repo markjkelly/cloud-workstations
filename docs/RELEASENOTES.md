@@ -1,5 +1,32 @@
 # Release Notes — Cloud Workstation
 
+## v1.26.1 — Fix app-updates D-Bus probe uid + boot-test race + linger fallback (2026-06-02)
+
+### Fixed
+
+- **D-Bus probe now runs as uid 1000** (F-0123 follow-up). The `wait_for_user_session` probe in
+  `07-apps.sh` was calling `dbus-send --bus=unix:path=/run/user/1000/bus` as root (uid 0). The
+  session bus uses SO_PEERCRED / EXTERNAL SASL authentication and rejects connections from any
+  UID other than the bus owner. This kept `dbus_ok=0` for the full 120-second wait and caused
+  the SKIPPED path to fire on every boot even after F-0123 delivered correct systemd ordering.
+  Fix: wrapped the probe in `runuser -u user --`. Confirmed on live box: probe succeeds
+  immediately, service completes with `=== App update complete ===`.
+
+- **Boot-test race eliminated** (F-0123 follow-up). The F-0123 runtime test in `10-tests.sh`
+  sampled `app-update.log` mid-run and gave a false PASS on the transient
+  `=== App update started ===` line (72s before `=== App update SKIPPED ===` was written).
+  Fix: test now checks `systemctl show ws-app-updates.service -p SubState` first — only asserts
+  on the final log marker when `SubState=exited`; emits SKIP if service still running.
+
+- **Linger fallback + loud logging** (F-0123 follow-up). `loginctl enable-linger user 2>/dev/null`
+  silently swallowed failures leaving `Linger=no` on the booted system. Fix: captures RC and
+  stderr, logs both; falls back to direct marker-file creation if loginctl fails; verifies
+  result and logs it. New boot test asserts `Linger=yes` or marker file present.
+
+### Tests
+- 7th F-0123 boot test added: linger assertion (Linger=yes or marker file present).
+- F-0123 runtime test (f) rewritten: race-safe, service-state-gated, SKIP on mid-run.
+
 ## v1.26.0 — Fix skipped app updates on slow boots: systemd ordering (2026-06-02)
 
 ### Changed

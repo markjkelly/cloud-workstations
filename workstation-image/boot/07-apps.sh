@@ -48,6 +48,17 @@ log "=== App update started ==="
 # service before its socket/bus is fully usable.  The fail-open path (SKIPPED)
 # remains in place as a last resort.
 #
+# F-0123 FOLLOW-UP FIX (D-Bus probe uid — 2026-06-02):
+# The dbus-send probe MUST run as uid 1000, not as root.  The session bus at
+# unix:path=/run/user/1000/bus authenticates connections via SO_PEERCRED /
+# EXTERNAL SASL mechanism — it checks that the connecting process UID matches
+# the owner of the bus (uid 1000).  When this script runs as root (no User=
+# directive in ws-app-updates.service), a raw "dbus-send --bus=..." call comes
+# from uid 0 and the bus rejects it, so dbus_ok stays 0 for the full 120s
+# and the script hits the SKIPPED path even though the session is ready.
+# Fix: wrap the probe in "runuser -u $USER --" so it runs as uid 1000.
+# Confirmed on the live box: root probe → FAIL, runuser probe → SUCCESS.
+#
 # dbus-send, busctl, and gdbus are all confirmed present on this Ubuntu 24.04
 # base (verified 2026-05-29).  We use dbus-send as the primary probe.
 #
@@ -77,9 +88,13 @@ wait_for_user_session() {
         # Condition 2: D-Bus session bus socket is reachable.
         # Only probe once runuser succeeds (no point probing D-Bus if PAM
         # cannot resolve the user entry yet).
+        # IMPORTANT: the probe MUST run as uid 1000 (via runuser), NOT as root.
+        # The session bus at unix:path=/run/user/1000/bus uses SO_PEERCRED /
+        # EXTERNAL SASL auth and rejects connections from uid 0.  Running
+        # dbus-send directly as root always fails here even when the bus is up.
         local dbus_ok=0
         if [ "$runuser_ok" -eq 1 ]; then
-            if dbus-send \
+            if runuser -u "$USER" -- dbus-send \
                     --bus="unix:path=/run/user/1000/bus" \
                     --dest=org.freedesktop.DBus \
                     --type=method_call \
