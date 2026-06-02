@@ -1,5 +1,14 @@
 # Release Notes — Cloud Workstation
 
+## v1.25.2 — TPM bookkeeping: reconcile stale Hub backlog rows (2026-06-02)
+
+### Changed
+- **F-0106 and F-0107 backlog status corrected** to `superseded`. Both rows were left at
+  `in-review` / `in-progress` after the Hub autostart direction was abandoned in F-0124.
+  No code changes — docs-only correction.
+- **Status legend in `docs/BACKLOG.md`** extended with `superseded` as a formal status term,
+  consistent with the "⚠ SUPERSEDED" language already used in multiple Feedback cells.
+
 ## v1.25.1 — Antigravity IDE cleanup: remove orphaned dirs and dead sway rule (2026-05-29)
 
 ### Removed

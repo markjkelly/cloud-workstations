@@ -1,7 +1,7 @@
 # Project Backlog — Cloud Workstation
 
 **Maintained by:** TPM
-**Last updated:** 2026-05-29 (Milestone 39 — Antigravity IDE cleanup: F-0125)
+**Last updated:** 2026-06-02 (TPM bookkeeping — reconcile stale F-0106/F-0107 Hub rows)
 
 ---
 
@@ -9,7 +9,7 @@
 
 - **ID:** Unique feature identifier (`F-0001`, `F-0002`, etc.) — sequential across all milestones, never reused
 - **Priority:** P0 (critical path), P1 (important), P2 (nice to have)
-- **Status:** `backlog` | `in-progress` | `in-review` | `done` | `blocked`
+- **Status:** `backlog` | `in-progress` | `in-review` | `done` | `blocked` | `superseded`
 - **Owner:** Assigned team member
 - **Branch:** Git feature branch
 - **Dependencies:** Other feature IDs that must complete first
@@ -300,8 +300,8 @@ Tracks fork-only work that pre-dated or accompanied v1.17. All items are documen
 
 | ID | Feature | Spec | Priority | Status | Owner | Branch | Dependencies | Feedback |
 |----|---------|------|----------|--------|-------|--------|--------------|----------|
-| F-0106 | Install Antigravity 2.0 Desktop App (Hub) | [F-0106](specs/F-0106-antigravity-hub-desktop-app.md) | P1 | in-review | SWE-1 | feature/antigravity-hub-desktop-app | F-0087, F-0088 | **Implementation complete.** `07-apps.sh` downloads v2.0.10 from GCS, extracts to `~/.local/share/antigravity-hub/`, creates symlink at `~/.local/bin/antigravity-hub`. Sway config: `$mod+h` launches with Electron flags. Boot tests added for directory, symlink, and keybinding. **Note:** Home Manager sway-config at `~/.config/home-manager/sway-config` must be manually synced when deployed to live workstations (three-places rule). |
-| F-0107 | Add Antigravity Hub as workspace 5 auto-launch | [F-0107](specs/F-0107-antigravity-hub-workspace.md) | P1 | in-progress | SWE-1 | feature/antigravity-hub-workspace | F-0106 | Auto-launch Hub in ws5 on boot, fix `$mod+h` keybinding conflict (was both exec + workspace), fix ws2 Antigravity IDE GPU flag (--use-gl=swiftshader instead of --disable-gpu). Implement in 08-workspaces.sh, sway config, cloud-build-setup.sh. Add test guard for keybinding uniqueness. |
+| F-0106 | Install Antigravity 2.0 Desktop App (Hub) | [F-0106](specs/F-0106-antigravity-hub-desktop-app.md) | P1 | superseded | SWE-1 | feature/antigravity-hub-desktop-app | F-0087, F-0088 | **Implementation complete.** `07-apps.sh` downloads v2.0.10 from GCS, extracts to `~/.local/share/antigravity-hub/`, creates symlink at `~/.local/bin/antigravity-hub`. Sway config: `$mod+h` launches with Electron flags. Boot tests added for directory, symlink, and keybinding. **Note:** Home Manager sway-config at `~/.config/home-manager/sway-config` must be manually synced when deployed to live workstations (three-places rule). **⚠ SUPERSEDED by F-0124 (2026-06-02):** Hub autostart machinery removed across F-0124. The Hub binary install in `07-apps.sh` is retained (Hub is still usable via `hub-restart`), but the goal of boot auto-launching Hub was abandoned after F-0107 through F-0121 never achieved reliable cold-boot startup. See F-0124 for the removal decision. |
+| F-0107 | Add Antigravity Hub as workspace 5 auto-launch | [F-0107](specs/F-0107-antigravity-hub-workspace.md) | P1 | superseded | SWE-1 | feature/antigravity-hub-workspace | F-0106 | Auto-launch Hub in ws5 on boot, fix `$mod+h` keybinding conflict (was both exec + workspace), fix ws2 Antigravity IDE GPU flag (--use-gl=swiftshader instead of --disable-gpu). Implement in 08-workspaces.sh, sway config, cloud-build-setup.sh. Add test guard for keybinding uniqueness. **⚠ SUPERSEDED by F-0124/F-0125 (2026-06-02):** Hub workspace auto-launch (and all subsequent autostart attempts F-0110–F-0121) never achieved reliable cold-boot startup. PO chose to remove all Hub autostart machinery in F-0124. Boot now starts ws1 empty; user runs `hub-restart` after connecting. The workspace-5 assignment was itself swapped by F-0112 (Hub moved to ws1) and later removed by F-0124. |
 
 ---
 

@@ -1,5 +1,39 @@
 # Development Progress Log — Cloud Workstation
 
+## Session 43 — 2026-06-02 (TPM bookkeeping: reconcile stale Hub backlog rows)
+
+### Date
+2026-06-02
+
+### Milestone
+TPM bookkeeping — no F-number (docs-only correction)
+
+### Completed
+- **Investigated Hub commit history** before making any changes. Confirmed:
+  - `ce51b1b` (F-0124) removed all Hub autostart machinery from `08-workspaces.sh` (1079→181 lines).
+  - `b9e2dd5` (F-0125) removed orphaned IDE directories and the dead `for_window` sway rule.
+  - F-0106 (`in-review`) and F-0107 (`in-progress`) were never updated to reflect that the Hub autostart direction was abandoned, leaving them contradicting the actual repo state.
+- **Updated `docs/BACKLOG.md`**:
+  - Added `superseded` to the status legend.
+  - Changed F-0106 status `in-review` → `superseded`; appended supersession note pointing to F-0124.
+  - Changed F-0107 status `in-progress` → `superseded`; appended supersession note pointing to F-0124/F-0125.
+  - Updated header `Last updated` date.
+- **No boot script or test changes** — this is a docs-only correction. No Hub remnants were found in boot scripts that needed fixing; F-0124/F-0125 already cleaned up all autostart code. The Hub binary install in `07-apps.sh` is intentionally kept since `hub-restart` still uses it.
+
+### Decisions
+- Introduced `superseded` as a new status term (alongside `backlog`, `in-progress`, `in-review`, `done`, `blocked`). More informative than `done` for items where the work was abandoned rather than shipped, and consistent with the "⚠ SUPERSEDED" language already present in several Feedback cells.
+- F-0106 is marked `superseded` (not `done`) even though the Hub binary install still runs, because the *goal* of the feature — reliable boot auto-launch — was abandoned.
+
+### Files Changed
+- `docs/BACKLOG.md` — status legend, F-0106 row, F-0107 row, header `Last updated`
+- `docs/PROGRESS.md` — this entry
+- `docs/RELEASENOTES.md` — patch entry v1.25.2
+
+### Next Steps
+- No follow-up work required from this session.
+
+---
+
 ## Session 42 — 2026-05-29 (F-0125: Antigravity IDE cleanup)
 
 ### Date
