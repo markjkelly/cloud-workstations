@@ -82,6 +82,16 @@ check_process() {
     fi
 }
 
+check_version() {
+    local name="$1" cmd="$2"
+    local ver=$(runuser -u $USER -- bash -c ". $NIX_SH && export PATH=$HOME_DIR/.nix-profile/bin:$HOME_DIR/.npm-global/bin:$HOME_DIR/.local/bin:$HOME_DIR/gopath/bin:$HOME_DIR/go/bin:$HOME_DIR/.cargo/bin:$HOME_DIR/.pyenv/bin:$HOME_DIR/.rbenv/bin:/var/lib/nvidia/bin:\$PATH && $cmd" 2>&1 | grep -viE "^[0-9]+/[0-9].*WARN |^WARNING" | head -1)
+    if [ -n "$ver" ] && ! echo "$ver" | grep -qiE "not found|error|command not found"; then
+        test_pass "$name version: $ver"
+    else
+        test_fail "$name version check failed"
+    fi
+}
+
 # Start fresh results
 echo "========================================" > "$RESULTS"
 echo "Cloud Workstation Boot Test Results" >> "$RESULTS"
@@ -95,6 +105,7 @@ echo "" >> "$RESULTS"
 if ws_module_enabled "ides"; then
     log "--- IDEs ---"
     check_binary "VSCode" "code"
+    check_version "VSCode" "code --version"
     check_binary "IntelliJ" "idea-oss"
     check_binary "Cursor" "cursor"
     check_binary "Windsurf" "windsurf"
@@ -752,17 +763,6 @@ check_process "clipman" "clipman store"
 # =============================================================================
 log ""
 log "--- Upgrade Scripts ---"
-
-# Check tool versions (verifies upgrades actually installed something)
-check_version() {
-    local name="$1" cmd="$2"
-    local ver=$(runuser -u $USER -- bash -c ". $NIX_SH && export PATH=$HOME_DIR/.nix-profile/bin:$HOME_DIR/.npm-global/bin:$HOME_DIR/.local/bin:$HOME_DIR/gopath/bin:$HOME_DIR/go/bin:$HOME_DIR/.cargo/bin:$HOME_DIR/.pyenv/bin:$HOME_DIR/.rbenv/bin:/var/lib/nvidia/bin:\$PATH && $cmd" 2>&1 | grep -viE "^[0-9]+/[0-9].*WARN |^WARNING" | head -1)
-    if [ -n "$ver" ] && ! echo "$ver" | grep -qiE "not found|error|command not found"; then
-        test_pass "$name version: $ver"
-    else
-        test_fail "$name version check failed"
-    fi
-}
 
 if ws_module_enabled "ai-tools"; then
     # Check 07-apps.sh ran and completed

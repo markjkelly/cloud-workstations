@@ -1,5 +1,40 @@
 # Release Notes — Cloud Workstation
 
+## v1.27.0 — Install VS Code + reconcile home.nix drift (2026-06-02)
+
+### Added
+- **VS Code 1.119.0 installed via Nix** (`pkgs.vscode`, MS proprietary build). `code` is now
+  on PATH via home-manager. `allowUnfree = true` was already set in home.nix.
+- **`check_version "VSCode"` boot test** added to the IDEs section of `10-tests.sh`, now
+  reporting `PASS: VSCode version: 1.119.0` on each boot.
+- **`check_version` helper moved to shared helpers block** (was defined after first use at line
+  98; moved to line 85 so IDE section and all future callers can invoke it properly).
+
+### Changed
+- **Reconciled live `~/.config/home-manager/home.nix`** from a minimal 30-line stub to the
+  full-profile baseline:
+  - `home.packages` = BASE_PKGS (`neovim tmux tree ffmpeg git gh curl wget htop ripgrep fd jq
+    unzip chromium sway waybar foot wofi thunar grim slurp wl-clipboard clipman mako swaylock
+    swayidle wayvnc nodejs_22 cascadia-code fira-code jetbrains-mono`) + `vscode`. No other IDEs.
+  - `programs.zsh` block with aliases (t1–t10, cc, vim, tdbg, ta, tl, tk, etc.) and initContent
+    sourcing Nix profile, timezone (`America/Los_Angeles`), PATH extensions (npm-global, local,
+    nvidia, go, rust, pyenv, rbenv), pyenv/rbenv init, starship prompt, user customization hooks.
+  - `home.sessionVariables`: `EDITOR=nvim`, `VISUAL=nvim`, `BROWSER=chromium`.
+  - `programs.starship.enable = true`.
+  - `home.file ".config/sway/config"` — sway config now managed as a home-manager symlink
+    (content unchanged; previously a plain file).
+  - `home.file ".config/nvim/init.lua"` — nvim config now managed as a home-manager symlink
+    (source deployed from `workstation-image/configs/nvim/init.lua`).
+  - Waybar `home.file` directives intentionally omitted (box uses swaybar; source files absent).
+- **Boot tests improved**: PASS 134 / FAIL 21 / WARN 1 (was PASS 123 / FAIL 30 / WARN 2).
+  9 fewer FAILs — all Shell Config checks (zshrc.local, timezone, Go PATH, Rust PATH, pyenv,
+  rbenv, starship, tmux aliases, Nix profile) now PASS as a result of the home.nix reconcile.
+
+### Notes
+- The 4 other IDEs (`jetbrains.idea-oss`, `code-cursor`, `windsurf`, `zed-editor`) are NOT
+  installed on the live box. Their stale boot-test FAILs remain and are tracked under F-0126.
+- `~/boot/10-tests.sh` synced to match `workstation-image/boot/10-tests.sh`.
+
 ## v1.26.1 — Fix app-updates D-Bus probe uid + boot-test race + linger fallback (2026-06-02)
 
 ### Fixed

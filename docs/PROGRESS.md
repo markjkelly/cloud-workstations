@@ -1,5 +1,76 @@
 # Development Progress Log — Cloud Workstation
 
+## Session 46 — 2026-06-02 (F-0131: Install VS Code + reconcile home.nix drift)
+
+### Date
+2026-06-02
+
+### Milestone
+F-0131 — Install VS Code via Nix + reconcile live home.nix drift (fold bulk of F-0127)
+
+### Completed
+- **Reconciled live `~/.config/home-manager/home.nix`** from a minimal 30-line stub to the
+  full-profile baseline. Added: `home.packages` = BASE_PKGS + `vscode` (no other IDEs),
+  `programs.zsh` (aliases, initContent with Nix profile sourcing, timezone, PATH, pyenv/rbenv,
+  starship, user customizations), `home.sessionVariables` (EDITOR/VISUAL/BROWSER),
+  `programs.starship.enable = true`.
+- **Installed VS Code 1.119.0** via `pkgs.vscode` (MS proprietary build; `allowUnfree = true`).
+  Confirmed `code --version` = `1.119.0` on PATH after `home-manager switch`.
+- **Adopted sway config via `home.file`**: backed up live `~/.config/sway/config` to
+  `.config/sway/config.pre-f0131.bak`, ran `home-manager switch -b backup`, confirmed the
+  live config is now a symlink with identical content. `swaymsg reload` confirmed clean.
+- **Adopted nvim config via `home.file`**: deployed canonical `workstation-image/configs/nvim/init.lua`
+  as `~/.config/home-manager/nvim-init.lua`, home-manager now manages `~/.config/nvim/init.lua`
+  as a symlink.
+- **Omitted waybar `home.file` directives** (intentional): this box uses swaybar, not waybar;
+  source files don't exist; adding would break `home-manager switch`. Documented under F-0127.
+- **`home-manager switch` succeeded** (exit 0). Used `-b backup` flag to back up conflicting
+  `~/.zshrc` (moved to `.zshrc.backup`; the new zshrc is now managed by `programs.zsh`).
+- **Moved `check_version` helper** to the shared helper-functions block (line 85) so it is
+  defined before the IDEs section invokes it. Removed the duplicate definition from the
+  ai-tools section. Added `check_version "VSCode" "code --version"` to IDEs block.
+- **Boot tests (as root)**: PASS 134 / FAIL 21 / WARN 1 / SKIP 0.
+  - Previous baseline (F-0123): PASS 123 / FAIL 30 / WARN 2 — net +11 PASS, -9 FAIL.
+  - VSCode binary ✓, VSCode version (1.119.0) ✓, VSCode sway-grep ✓.
+  - Shell Config section: all 9 checks now PASS (zshrc.local, timezone, Go, Rust, pyenv, rbenv,
+    starship, tmux aliases, Nix profile) — these were F-0127 FAILs now resolved.
+  - Remaining 21 FAILs: 4 IDE checks (idea-oss/cursor/windsurf/zed → F-0126), 4 AI CLI tools
+    (codex/cody/pi/aider → F-0126), GH Copilot (F-0130), wofi/snippets/tmux.conf/.env (F-0128),
+    06-sync.sh test refs (F-0129). All pre-existing, owned by other backlog items.
+
+### Decisions
+- **PO decision: VS Code ONLY** — Do not install the other 4 IDEs (idea-oss, code-cursor,
+  windsurf, zed-editor). F-0126 owns the stale test checks for those tools.
+- **`home-manager switch -b backup`**: The `programs.zsh` block generates a new `~/.zshrc` that
+  conflicts with the manually managed one from `05-shell.sh`. Used `-b backup` to auto-rename
+  the old file rather than fighting the collision; both approaches produce equivalent shell config.
+- **Omit waybar directives**: This box uses swaybar (confirmed in sway config `# SWAYBAR` comment).
+  Adding waybar home.file directives with nonexistent sources would break every `home-manager switch`.
+- **Move `check_version` to helpers block**: The function was defined at line 758 but called at
+  line 98 — bash sequential execution means it was undefined at call time, causing silent skip.
+  Moving to the helpers block (line 85) fixes this for all future callers.
+
+### Agent Team
+- PM → TPM → SWE → SWE-Test → SWE-QA (single pipeline agent)
+
+### Files Changed
+- `docs/specs/F-0131-install-vscode.md` — new spec
+- `docs/BACKLOG.md` — F-0131 added (done); F-0127 updated to partial with F-0131 cross-ref
+- `~/.config/home-manager/home.nix` — reconciled (live file; not in repo)
+- `~/.config/home-manager/nvim-init.lua` — deployed from repo (live file; not in repo)
+- `~/.config/sway/config.pre-f0131.bak` — backup of pre-switch sway config (live file; not in repo)
+- `workstation-image/boot/10-tests.sh` — moved check_version to helpers block + added VSCode version check
+- `docs/PROGRESS.md` — this entry
+- `docs/RELEASENOTES.md` — v1.27.0 entry
+
+### Next Steps
+- F-0126: prune stale IDE and AI CLI tool checks from boot test suite (4 IDE + 5 AI CLI FAILs)
+- F-0128: triage missing config files (wofi, snippets, tmux.conf, .env)
+- F-0129: fix 06-sync.sh test references (rename → 09-sync.sh)
+- F-0130: review GH Copilot / gh auth WARNs
+- F-0127: remaining home.nix drift (waybar vs swaybar reconciliation in generated setup; the 9
+  F-0127 shell-config FAILs are now resolved by F-0131)
+
 ## Session 45 — 2026-06-02 (F-0123 follow-up: D-Bus probe uid fix + test race fix + linger fallback)
 
 ### Date
