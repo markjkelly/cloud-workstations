@@ -1,7 +1,7 @@
 # Project Backlog — Cloud Workstation
 
 **Maintained by:** TPM
-**Last updated:** 2026-05-29 (Milestone 39 — Antigravity IDE cleanup: F-0125)
+**Last updated:** 2026-06-02 (TPM bookkeeping — reconcile stale F-0106/F-0107 Hub rows)
 
 ---
 
@@ -9,7 +9,7 @@
 
 - **ID:** Unique feature identifier (`F-0001`, `F-0002`, etc.) — sequential across all milestones, never reused
 - **Priority:** P0 (critical path), P1 (important), P2 (nice to have)
-- **Status:** `backlog` | `in-progress` | `in-review` | `done` | `blocked`
+- **Status:** `backlog` | `in-progress` | `in-review` | `done` | `blocked` | `superseded`
 - **Owner:** Assigned team member
 - **Branch:** Git feature branch
 - **Dependencies:** Other feature IDs that must complete first
@@ -260,7 +260,7 @@ Tracks fork-only work that pre-dated or accompanied v1.17. All items are documen
 
 | ID | Feature | Spec | Priority | Status | Owner | Branch | Dependencies | Feedback |
 |----|---------|------|----------|--------|-------|--------|--------------|----------|
-| F-0103 | Fix foot terminal CWD regression (third occurrence) | [F-0103](specs/F-0095-foot-cwd-regression.md) | P0 | in-progress | SWE-1 | fix/foot-font-regression | F-0087, F-0102 | Third regression of the same class: newly spawned foot terminals no longer start in `/home/user` — they inherit the launcher's CWD. Previously fixed in `0dd33b3` (`--working-directory=/home/user`) and `e7236a8` (F-0087, `cd ~ &&` guard + 10-tests.sh assertion). Root cause almost certainly a three-places-rule drift between `workstation-image/configs/sway/config`, `~/.config/home-manager/sway-config`, and `scripts/cloud-build-setup.sh` (possibly also repo vs `~/boot/08-workspaces.sh`). SWE must diff all three sources against `0dd33b3` / `e7236a8` before coding and record which hypothesis (H1–H4 in spec) is the real root cause in the commit body. Spec recommends standardizing on `--working-directory=/home/user` (explicit, no shell expansion, same flag works in `08-workspaces.sh` invocations). Must extend `10-tests.sh` with a drift-guard assertion: repo sway config and Home Manager sway-config byte-identical on foot-launch lines, and every `foot` invocation in `08-workspaces.sh` carries the guard — so a fourth regression fails the boot-test summary instead of shipping silently. Acceptance covers reboot, `ws.sh teardown && ws.sh setup`, and fresh-project setup. |
+| F-0103 | Fix foot terminal CWD regression (third occurrence) | [F-0103](specs/F-0095-foot-cwd-regression.md) | P0 | done | SWE-1 | fix/foot-font-regression | F-0087, F-0102 | **Closed as duplicate of F-0095.** The fix (`--working-directory=/home/user`) is already present in all three required sources: `workstation-image/configs/sway/config:94-95` (keybindings), `~/.config/home-manager/sway-config:94-95` (byte-identical to repo), and `workstation-image/boot/08-workspaces.sh:173,176` (ws3 and ws4 autostart). Verified against commit `0dd33b3` which standardized the flag; shipped in v1.18 via PR #9 (`fix/foot-cwd-regression-f0095`). The drift-guard tests this row asked for already exist: R4a (sway keybinding grep), R4b (every `08-workspaces.sh` foot invocation carries the flag), and R4c (byte-level repo-vs-home-manager diff) at `workstation-image/boot/10-tests.sh:473-515`. A fourth regression will be caught by the boot-test summary rather than shipping silently. No code changes needed. See F-0095 for the canonical fix history. |
 
 ---
 
@@ -300,8 +300,8 @@ Tracks fork-only work that pre-dated or accompanied v1.17. All items are documen
 
 | ID | Feature | Spec | Priority | Status | Owner | Branch | Dependencies | Feedback |
 |----|---------|------|----------|--------|-------|--------|--------------|----------|
-| F-0106 | Install Antigravity 2.0 Desktop App (Hub) | [F-0106](specs/F-0106-antigravity-hub-desktop-app.md) | P1 | in-review | SWE-1 | feature/antigravity-hub-desktop-app | F-0087, F-0088 | **Implementation complete.** `07-apps.sh` downloads v2.0.10 from GCS, extracts to `~/.local/share/antigravity-hub/`, creates symlink at `~/.local/bin/antigravity-hub`. Sway config: `$mod+h` launches with Electron flags. Boot tests added for directory, symlink, and keybinding. **Note:** Home Manager sway-config at `~/.config/home-manager/sway-config` must be manually synced when deployed to live workstations (three-places rule). |
-| F-0107 | Add Antigravity Hub as workspace 5 auto-launch | [F-0107](specs/F-0107-antigravity-hub-workspace.md) | P1 | in-progress | SWE-1 | feature/antigravity-hub-workspace | F-0106 | Auto-launch Hub in ws5 on boot, fix `$mod+h` keybinding conflict (was both exec + workspace), fix ws2 Antigravity IDE GPU flag (--use-gl=swiftshader instead of --disable-gpu). Implement in 08-workspaces.sh, sway config, cloud-build-setup.sh. Add test guard for keybinding uniqueness. |
+| F-0106 | Install Antigravity 2.0 Desktop App (Hub) | [F-0106](specs/F-0106-antigravity-hub-desktop-app.md) | P1 | superseded | SWE-1 | feature/antigravity-hub-desktop-app | F-0087, F-0088 | **Implementation complete.** `07-apps.sh` downloads v2.0.10 from GCS, extracts to `~/.local/share/antigravity-hub/`, creates symlink at `~/.local/bin/antigravity-hub`. Sway config: `$mod+h` launches with Electron flags. Boot tests added for directory, symlink, and keybinding. **Note:** Home Manager sway-config at `~/.config/home-manager/sway-config` must be manually synced when deployed to live workstations (three-places rule). **⚠ SUPERSEDED by F-0124 (2026-06-02):** Hub autostart machinery removed across F-0124. The Hub binary install in `07-apps.sh` is retained (Hub is still usable via `hub-restart`), but the goal of boot auto-launching Hub was abandoned after F-0107 through F-0121 never achieved reliable cold-boot startup. See F-0124 for the removal decision. |
+| F-0107 | Add Antigravity Hub as workspace 5 auto-launch | [F-0107](specs/F-0107-antigravity-hub-workspace.md) | P1 | superseded | SWE-1 | feature/antigravity-hub-workspace | F-0106 | Auto-launch Hub in ws5 on boot, fix `$mod+h` keybinding conflict (was both exec + workspace), fix ws2 Antigravity IDE GPU flag (--use-gl=swiftshader instead of --disable-gpu). Implement in 08-workspaces.sh, sway config, cloud-build-setup.sh. Add test guard for keybinding uniqueness. **⚠ SUPERSEDED by F-0124/F-0125 (2026-06-02):** Hub workspace auto-launch (and all subsequent autostart attempts F-0110–F-0121) never achieved reliable cold-boot startup. PO chose to remove all Hub autostart machinery in F-0124. Boot now starts ws1 empty; user runs `hub-restart` after connecting. The workspace-5 assignment was itself swapped by F-0112 (Hub moved to ws1) and later removed by F-0124. |
 
 ---
 

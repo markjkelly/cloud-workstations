@@ -1,5 +1,20 @@
 # Release Notes — Cloud Workstation
 
+## v1.25.2 — TPM bookkeeping: reconcile stale Hub and CWD backlog rows (2026-06-02)
+
+### Changed
+- **F-0106 and F-0107 backlog status corrected** to `superseded`. Both rows were left at
+  `in-review` / `in-progress` after the Hub autostart direction was abandoned in F-0124.
+  No code changes — docs-only correction.
+- **Status legend in `docs/BACKLOG.md`** extended with `superseded` as a formal status term,
+  consistent with the "⚠ SUPERSEDED" language already used in multiple Feedback cells.
+- **F-0103 backlog status corrected** from `in-progress` to `done`. F-0103 ("Fix foot
+  terminal CWD regression (third occurrence)") was a stale duplicate of F-0095. The fix
+  (`--working-directory=/home/user`) is present in all three required sources (sway config,
+  home-manager sway-config, `08-workspaces.sh`), shipped in v1.18 via PR #9. The R4a/R4b/R4c
+  drift-guard tests it requested already exist at `10-tests.sh:473-515`. No code changes —
+  docs-only correction. See F-0095 for canonical fix history.
+
 ## v1.25.1 — Antigravity IDE cleanup: remove orphaned dirs and dead sway rule (2026-05-29)
 
 ### Removed
