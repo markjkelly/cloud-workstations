@@ -83,6 +83,36 @@ EOF
 ln -sf /etc/systemd/system/ws-autolaunch.service /etc/systemd/system/multi-user.target.wants/
 log "Created ws-autolaunch.service (runs 08-workspaces.sh after Sway)"
 
+# --- F-0123: Enable user linger so user@1000.service starts at boot ---
+# Without linger, user@1000.service only starts when the user logs in interactively.
+# ws-app-updates.service is ordered After=user@1000.service; without linger, that
+# service would block indefinitely (or not start at all) on a non-interactive boot.
+# loginctl enable-linger is idempotent — safe to call on every boot.
+loginctl enable-linger user 2>/dev/null || log "WARNING: loginctl enable-linger failed (non-fatal — may already be set or loginctl unavailable)"
+log "F-0123: loginctl enable-linger user (ensures user@1000.service starts at boot)"
+
+# --- F-0123: Create ws-app-updates.service (runs 07-apps.sh after user session ready) ---
+# This unit replaces the inline run of 07-apps.sh in setup.sh.  By ordering After=user@1000.service
+# the OS guarantees the user session (PAM + D-Bus) is ready before 07-apps.sh runs.
+# The wait_for_user_session helper in 07-apps.sh is kept as a defensive backstop only.
+# Wants= (not Requires=) for user@1000.service avoids deadlocking on logind quirks.
+cat > /etc/systemd/system/ws-app-updates.service << 'EOF'
+[Unit]
+Description=Update dev apps to latest versions on boot
+After=user@1000.service network-online.target
+Wants=user@1000.service network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/bin/bash /home/user/boot/07-apps.sh
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
+EOF
+ln -sf /etc/systemd/system/ws-app-updates.service /etc/systemd/system/multi-user.target.wants/
+log "F-0123: Created ws-app-updates.service (runs 07-apps.sh after user@1000.service ready)"
+
 # --- Create ws-boot-tests.service ---
 cat > /etc/systemd/system/ws-boot-tests.service << 'EOF'
 [Unit]

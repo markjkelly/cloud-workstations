@@ -1033,6 +1033,72 @@ else
 fi
 
 # =============================================================================
+# F-0123: ws-app-updates.service systemd ordering fix
+# Static assertions — no reboot required.
+# Confirms that 07-apps.sh is now managed by a systemd unit ordered
+# After=user@1000.service, replacing the inline setup.sh run.
+# =============================================================================
+log ""
+log "--- F-0123: ws-app-updates.service systemd ordering fix ---"
+
+SERVICE_FILE="/etc/systemd/system/ws-app-updates.service"
+SERVICE_WANTS="/etc/systemd/system/multi-user.target.wants/ws-app-updates.service"
+SWAY_BOOT_SCRIPT="$HOME_DIR/boot/03-sway.sh"
+SETUP_SCRIPT="$HOME_DIR/boot/setup.sh"
+
+# (a) Unit file exists at the standard systemd path
+if [ -f "$SERVICE_FILE" ]; then
+    test_pass "F-0123: ws-app-updates.service unit file exists at $SERVICE_FILE"
+else
+    test_fail "F-0123: ws-app-updates.service unit file missing at $SERVICE_FILE"
+fi
+
+# (b) Unit is enabled — symlink in multi-user.target.wants/
+if [ -L "$SERVICE_WANTS" ] || [ -f "$SERVICE_WANTS" ]; then
+    test_pass "F-0123: ws-app-updates.service is enabled (symlink in multi-user.target.wants/)"
+else
+    test_fail "F-0123: ws-app-updates.service is NOT enabled (symlink missing from multi-user.target.wants/)"
+fi
+
+# (c) Unit file declares After=user@1000.service
+if grep -q 'After=user@1000.service' "$SERVICE_FILE" 2>/dev/null; then
+    test_pass "F-0123: ws-app-updates.service has After=user@1000.service"
+else
+    test_fail "F-0123: ws-app-updates.service is missing After=user@1000.service"
+fi
+
+# (d) setup.sh skip guard for 07-apps.sh is present
+if grep -q '07-apps.sh.*systemd\|systemd.*07-apps.sh\|ws-app-updates' "$SETUP_SCRIPT" 2>/dev/null; then
+    test_pass "F-0123: setup.sh has skip guard for 07-apps.sh (runs via systemd)"
+else
+    test_fail "F-0123: setup.sh is missing skip guard for 07-apps.sh"
+fi
+
+# (e) 03-sway.sh creates ws-app-updates.service (grep for the service name)
+if grep -q 'ws-app-updates.service' "$SWAY_BOOT_SCRIPT" 2>/dev/null; then
+    test_pass "F-0123: 03-sway.sh creates ws-app-updates.service"
+else
+    test_fail "F-0123: 03-sway.sh does NOT create ws-app-updates.service (service creation may have been lost)"
+fi
+
+# (f) Runtime best-effort: app-update.log last "App update" line is not SKIPPED
+# This passes on a normal boot; may be absent on first boot or when the log is
+# too old to reflect the current session.  Non-fatal (WARN) if log is absent.
+APP_UPDATE_LOG="$HOME_DIR/logs/app-update.log"
+if [ -f "$APP_UPDATE_LOG" ]; then
+    LAST_APP_LINE=$(grep 'App update' "$APP_UPDATE_LOG" 2>/dev/null | tail -1)
+    if echo "$LAST_APP_LINE" | grep -q 'SKIPPED'; then
+        test_warn "F-0123: last 'App update' log line shows SKIPPED — user session may not have been ready (check $APP_UPDATE_LOG)"
+    elif echo "$LAST_APP_LINE" | grep -q 'complete\|started'; then
+        test_pass "F-0123: last 'App update' log line is not SKIPPED ($LAST_APP_LINE)"
+    else
+        test_warn "F-0123: app-update.log present but no 'App update started/complete' line found (may still be running or log rotated)"
+    fi
+else
+    test_warn "F-0123: $APP_UPDATE_LOG not found — ws-app-updates.service has not run yet on this boot"
+fi
+
+# =============================================================================
 # Summary
 # =============================================================================
 TOTAL=$((PASS+FAIL+WARN+SKIP))

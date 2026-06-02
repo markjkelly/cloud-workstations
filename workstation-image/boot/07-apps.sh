@@ -25,37 +25,35 @@ mkdir -p "$LOG_DIR"
 log "=== App update started ==="
 
 # =============================================================================
-# F-0121: Wait for the user session to be fully ready before running any
-# runuser commands.
+# F-0121 / F-0123: Wait for the user session to be fully ready before running
+# any runuser commands.
 #
-# ROOT CAUSE (confirmed 2026-05-29): 07-apps.sh runs at boot+32s via setup.sh.
-# user@1000.service (the systemd user manager, which brings up NSS/PAM
-# infrastructure) only starts at boot+115s.  Until then, getent passwd user
-# cannot resolve the "user" entry and every "runuser -u user -- ..." call
-# fails with:
-#   runuser: user user does not exist or the user entry does not contain
-#            all the required fields
-# The scripts previously logged "... complete" unconditionally after each
-# failing runuser, so all app updates appeared to succeed when they never ran.
+# F-0121 ROOT CAUSE (confirmed 2026-05-29): 07-apps.sh used to run at boot+32s
+# via setup.sh inline.  user@1000.service (the systemd user manager, which
+# brings up NSS/PAM infrastructure) only starts at boot+115s–203s.  Until then,
+# getent passwd user cannot resolve the "user" entry and every
+# "runuser -u user -- ..." call fails silently.
 #
-# STRATEGY: poll until BOTH conditions hold or 120s elapses (fail-open).
+# F-0121 FIX: poll until BOTH conditions hold or WAIT_TIMEOUT seconds elapse
+# (fail-open):
 #   1. runuser -u user -- true  → 0 (PAM can open a user session)
 #   2. dbus-send probe on unix:path=/run/user/1000/bus  → 0 (D-Bus bus is up)
+#
+# F-0123 IMPROVEMENT (2026-06-02): This script is now invoked by
+# ws-app-updates.service (After=user@1000.service network-online.target)
+# instead of by setup.sh.  Systemd ordering guarantees user@1000.service is
+# active before this script runs, so wait_for_user_session should succeed in
+# seconds on any boot speed.  The helper is retained as a DEFENSIVE BACKSTOP
+# only — it catches any timing edge case where the unit ordering delivers the
+# service before its socket/bus is fully usable.  The fail-open path (SKIPPED)
+# remains in place as a last resort.
 #
 # dbus-send, busctl, and gdbus are all confirmed present on this Ubuntu 24.04
 # base (verified 2026-05-29).  We use dbus-send as the primary probe.
 #
-# If the wait times out, we log a WARNING and SKIP all update steps — never
-# attempt runuser into a broken session (that was the old behavior and caused
-# every update to silently fail).
-#
-# SHARED HELPER NOTE: wait_for_user_session is also defined in
-# 08-workspaces.sh (F-0121 Part B).  There is no shared sourced library in
-# this boot script set, so the helper is duplicated in both scripts.  Both
-# scripts run in different execution contexts (07-apps via setup.sh early in
-# boot; 08-workspaces via ws-autolaunch.service after Sway is ready), and
-# keeping them self-contained avoids source-order coupling.  The
-# implementations are intentionally identical.
+# SHARED HELPER NOTE: After F-0124 removed Hub autostart, wait_for_user_session
+# exists only in this file (07-apps.sh).  The duplicate in 08-workspaces.sh
+# (F-0121 Part B) was removed by F-0124.
 # =============================================================================
 
 # wait_for_user_session: blocks until the user PAM session and D-Bus user bus

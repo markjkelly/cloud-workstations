@@ -42,6 +42,7 @@ for script in "$BOOT_DIR"/[0-9][0-9]*.sh; do
     [ -f "$script" ] || continue
     script_name="$(basename "$script")"
     # Skip scripts that run via systemd
+    [ "$script_name" = "07-apps.sh" ] && { log "Skipping $script_name (runs via systemd after user session ready — ws-app-updates.service)"; continue; }
     [ "$script_name" = "08-workspaces.sh" ] && { log "Skipping $script_name (runs via systemd after Sway)"; continue; }
     [ "$script_name" = "10-tests.sh" ] && { log "Skipping $script_name (runs via systemd after all services)"; continue; }
 
