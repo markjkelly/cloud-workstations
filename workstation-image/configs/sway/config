@@ -77,6 +77,11 @@ for_window [title="(?:Open|Save) (?:File|Folder|As)"] floating enable
 for_window [app_id="pavucontrol"] floating enable
 for_window [app_id="thunar" title="File Operation Progress"] floating enable
 
+# VS Code placement — always land on workspace 2 regardless of focused workspace
+# app_id is empirically "code" (lowercase) for the Wayland Electron build.
+# "move container" is more reliable than "assign" for Electron app_id timing.
+for_window [app_id="code"] move container to workspace number 2
+
 # =============================================================================
 # KEY BINDINGS
 # =============================================================================
@@ -230,3 +235,9 @@ exec /usr/bin/Xwayland -rootless :0 &
 # Use full path since sway's shell doesn't have Nix profile in PATH
 # Clear LD_LIBRARY_PATH to prevent nvidia GL conflicts with Nix binaries
 exec env -u LD_LIBRARY_PATH /home/user/.nix-profile/bin/wl-paste -t text --watch /home/user/.nix-profile/bin/clipman store
+
+# VS Code — auto-start on workspace 2 at every sway session boot.
+# Uses exec (not exec_always) so swaymsg reload does NOT spawn a duplicate instance.
+# The for_window placement rule above moves it to ws2 immediately after the window appears.
+# Invocation is identical to the $mod+y keybinding (line ~110).
+exec env -u LD_LIBRARY_PATH $nix/code --no-sandbox --ozone-platform=wayland --disable-gpu --disable-dev-shm-usage

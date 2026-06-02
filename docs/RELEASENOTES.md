@@ -1,5 +1,53 @@
 # Release Notes — Cloud Workstation
 
+## v1.27.0 — Install VS Code + reconcile home.nix drift + autostart on workspace 2 (2026-06-02)
+
+### Added
+- **VS Code 1.119.0 installed via Nix** (`pkgs.vscode`, MS proprietary build). `code` is now
+  on PATH via home-manager. `allowUnfree = true` was already set in home.nix.
+- **VS Code auto-starts on workspace 2** at every sway session boot. Implemented as two
+  sway-native directives in `workstation-image/configs/sway/config`:
+  - `for_window [app_id="code"] move container to workspace number 2` — placement rule
+    (reliable for Electron app_id timing; uses `move container` not `assign`)
+  - `exec env -u LD_LIBRARY_PATH $nix/code --no-sandbox --ozone-platform=wayland --disable-gpu --disable-dev-shm-usage`
+    — autostart exec in the AUTOSTART section (uses `exec` not `exec_always` — no duplicate on `swaymsg reload`)
+  - Deliberately does NOT use `ws-autolaunch.service` / `08-workspaces.sh` — that service is
+    masked every boot by `11-custom-tools.sh` (intentional end-state of F-0106→F-0124 saga).
+  - Runtime validated: VS Code window confirmed on workspace 2 via `swaymsg -t get_tree`.
+  - Cold-boot confirmation deferred to next reboot (exec directive cannot be triggered by reload).
+- **`check_version "VSCode"` boot test** added to the IDEs section of `10-tests.sh`, now
+  reporting `PASS: VSCode version: 1.119.0` on each boot.
+- **`check_version` helper moved to shared helpers block** (was defined after first use at line
+  98; moved to line 85 so IDE section and all future callers can invoke it properly).
+- **Three new F-0131 autostart boot tests**: placement rule grep, autostart exec grep, and
+  full-file parity guard (repo sway config vs `~/.config/home-manager/sway-config`).
+
+### Changed
+- **Reconciled live `~/.config/home-manager/home.nix`** from a minimal 30-line stub to the
+  full-profile baseline:
+  - `home.packages` = BASE_PKGS (`neovim tmux tree ffmpeg git gh curl wget htop ripgrep fd jq
+    unzip chromium sway waybar foot wofi thunar grim slurp wl-clipboard clipman mako swaylock
+    swayidle wayvnc nodejs_22 cascadia-code fira-code jetbrains-mono`) + `vscode`. No other IDEs.
+  - `programs.zsh` block with aliases (t1–t10, cc, vim, tdbg, ta, tl, tk, etc.) and initContent
+    sourcing Nix profile, timezone (`America/Los_Angeles`), PATH extensions (npm-global, local,
+    nvidia, go, rust, pyenv, rbenv), pyenv/rbenv init, starship prompt, user customization hooks.
+  - `home.sessionVariables`: `EDITOR=nvim`, `VISUAL=nvim`, `BROWSER=chromium`.
+  - `programs.starship.enable = true`.
+  - `home.file ".config/sway/config"` — sway config now managed as a home-manager symlink
+    (content unchanged; previously a plain file).
+  - `home.file ".config/nvim/init.lua"` — nvim config now managed as a home-manager symlink
+    (source deployed from `workstation-image/configs/nvim/init.lua`).
+  - Waybar `home.file` directives intentionally omitted (box uses swaybar; source files absent).
+- **Boot tests improved**: PASS 137 / FAIL 21 / WARN 1 (was PASS 123 / FAIL 30 / WARN 2).
+  12 fewer FAILs vs F-0123 baseline — all Shell Config checks (zshrc.local, timezone, Go PATH,
+  Rust PATH, pyenv, rbenv, starship, tmux aliases, Nix profile) now PASS; 3 new F-0131
+  autostart assertions added and PASS.
+
+### Notes
+- The 4 other IDEs (`jetbrains.idea-oss`, `code-cursor`, `windsurf`, `zed-editor`) are NOT
+  installed on the live box. Their stale boot-test FAILs remain and are tracked under F-0126.
+- `~/boot/10-tests.sh` synced to match `workstation-image/boot/10-tests.sh`.
+
 ## v1.26.1 — Fix app-updates D-Bus probe uid + boot-test race + linger fallback (2026-06-02)
 
 ### Fixed

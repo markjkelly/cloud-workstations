@@ -82,6 +82,16 @@ check_process() {
     fi
 }
 
+check_version() {
+    local name="$1" cmd="$2"
+    local ver=$(runuser -u $USER -- bash -c ". $NIX_SH && export PATH=$HOME_DIR/.nix-profile/bin:$HOME_DIR/.npm-global/bin:$HOME_DIR/.local/bin:$HOME_DIR/gopath/bin:$HOME_DIR/go/bin:$HOME_DIR/.cargo/bin:$HOME_DIR/.pyenv/bin:$HOME_DIR/.rbenv/bin:/var/lib/nvidia/bin:\$PATH && $cmd" 2>&1 | grep -viE "^[0-9]+/[0-9].*WARN |^WARNING" | head -1)
+    if [ -n "$ver" ] && ! echo "$ver" | grep -qiE "not found|error|command not found"; then
+        test_pass "$name version: $ver"
+    else
+        test_fail "$name version check failed"
+    fi
+}
+
 # Start fresh results
 echo "========================================" > "$RESULTS"
 echo "Cloud Workstation Boot Test Results" >> "$RESULTS"
@@ -95,6 +105,7 @@ echo "" >> "$RESULTS"
 if ws_module_enabled "ides"; then
     log "--- IDEs ---"
     check_binary "VSCode" "code"
+    check_version "VSCode" "code --version"
     check_binary "IntelliJ" "idea-oss"
     check_binary "Cursor" "cursor"
     check_binary "Windsurf" "windsurf"
@@ -518,6 +529,34 @@ else
     test_skip "home-manager sway-config not present (config deployed directly by setup)"
 fi
 
+# F-0131 autostart: VS Code placement rule — for_window [app_id="code"] move container to workspace number 2
+# Static grep: confirms the rule is present in the sway config at boot.
+if grep -qF 'for_window [app_id="code"] move container to workspace number 2' "$SWAY_CFG"; then
+    test_pass "F-0131: sway config has VSCode placement rule (app_id=code → workspace 2)"
+else
+    test_fail "F-0131: sway config missing VSCode placement rule (for_window [app_id=\"code\"] move container to workspace number 2)"
+fi
+
+# F-0131 autostart: VS Code autostart exec directive present in AUTOSTART section
+# Static grep: confirms exec (not exec_always) invocation is present.
+if grep -qE '^exec env -u LD_LIBRARY_PATH \$nix/code --no-sandbox' "$SWAY_CFG"; then
+    test_pass "F-0131: sway config has VSCode autostart exec (exec, not exec_always)"
+else
+    test_fail "F-0131: sway config missing VSCode autostart exec directive"
+fi
+
+# F-0131 parity guard: repo sway config and home-manager sway-config must be byte-identical.
+# Extends R4c to cover the full file, not just foot-launch lines.
+if [ -f "$HM_SWAY" ]; then
+    if diff -q "$SWAY_CFG" "$HM_SWAY" >/dev/null 2>&1; then
+        test_pass "F-0131: repo sway config and home-manager sway-config are byte-identical (full file parity)"
+    else
+        test_fail "F-0131: repo sway config and home-manager sway-config differ — three-places parity violation"
+    fi
+else
+    test_skip "home-manager sway-config not present — skipping full-file parity check (F-0131)"
+fi
+
 # =============================================================================
 # Shell Config
 # =============================================================================
@@ -752,17 +791,6 @@ check_process "clipman" "clipman store"
 # =============================================================================
 log ""
 log "--- Upgrade Scripts ---"
-
-# Check tool versions (verifies upgrades actually installed something)
-check_version() {
-    local name="$1" cmd="$2"
-    local ver=$(runuser -u $USER -- bash -c ". $NIX_SH && export PATH=$HOME_DIR/.nix-profile/bin:$HOME_DIR/.npm-global/bin:$HOME_DIR/.local/bin:$HOME_DIR/gopath/bin:$HOME_DIR/go/bin:$HOME_DIR/.cargo/bin:$HOME_DIR/.pyenv/bin:$HOME_DIR/.rbenv/bin:/var/lib/nvidia/bin:\$PATH && $cmd" 2>&1 | grep -viE "^[0-9]+/[0-9].*WARN |^WARNING" | head -1)
-    if [ -n "$ver" ] && ! echo "$ver" | grep -qiE "not found|error|command not found"; then
-        test_pass "$name version: $ver"
-    else
-        test_fail "$name version check failed"
-    fi
-}
 
 if ws_module_enabled "ai-tools"; then
     # Check 07-apps.sh ran and completed
