@@ -105,6 +105,58 @@ diverges significantly from the generated full-profile home.nix emitted by
 - F-0126 — owns stale IDE test cleanup (not a blocker; those tests remain as FAILs)
 - F-0127 — owns remaining home.nix drift patterns (not a blocker)
 
+## Autostart on Workspace 2
+
+**Scope extension (2026-06-02):** After VS Code is installed, the PO requests it auto-start on
+workspace 2 at every sway session boot.
+
+### Decision: sway-native autostart (exec + for_window)
+
+`ws-autolaunch.service` → `08-workspaces.sh` (the per-workspace app launcher) is **deliberately
+masked** every boot by `11-custom-tools.sh` (`mask_autolaunch()`, commit 11fe006, F-0094).
+That masking is the resolved end-state of the long Hub-autostart saga (F-0106 → F-0124), which
+abandoned boot auto-launch. Unmasking it or editing `08-workspaces.sh` would reverse a
+deliberate decision and risk regressions.
+
+Instead, VS Code autostart is added directly in the sway config, following the same pattern
+F-0105 used to move Xwayland startup into sway autostart:
+
+1. **Placement rule** (near other `for_window` rules, ~lines 71–78):
+   ```
+   for_window [app_id="code"] move container to workspace number 2
+   ```
+   VS Code's Wayland `app_id` is empirically `code` (lowercase). `move container` is used
+   over `assign` for more reliable Electron app_id timing.
+
+2. **Autostart exec** (in the AUTOSTART section, after Xwayland and clipman):
+   ```
+   exec env -u LD_LIBRARY_PATH $nix/code --no-sandbox --ozone-platform=wayland --disable-gpu --disable-dev-shm-usage
+   ```
+   `exec` (not `exec_always`) ensures `swaymsg reload` does not spawn duplicate instances.
+   The invocation is identical to the existing `$mod+y` keybinding. `$nix` is already defined
+   as `/home/user/.nix-profile/bin` in the sway config.
+
+### Three-places persistence rule
+
+After F-0131, `~/.config/sway/config` is a symlink into the Nix store, sourced from
+`~/.config/home-manager/sway-config`. All three places are updated:
+1. `workstation-image/configs/sway/config` (repo source of truth)
+2. `~/.config/home-manager/sway-config` (home-manager source — byte-identical to repo)
+3. `scripts/cloud-build-setup.sh` deploys the sway config from the repo at setup time
+   (existing behaviour; no edit needed)
+
+### Acceptance Criteria
+
+- [x] `for_window [app_id="code"] move container to workspace number 2` present in sway config
+- [x] `exec env -u LD_LIBRARY_PATH $nix/code ...` autostart present in sway config (AUTOSTART section)
+- [x] `home-manager switch` succeeds (exit 0) after the change
+- [x] `swaymsg reload` succeeds (`{"success": true}`) after the change
+- [x] At runtime: manually launched VS Code lands on workspace 2 (verified via `swaymsg -t get_tree`)
+- [x] `exec` (not `exec_always`) — no duplicate instance spawned on `swaymsg reload`
+- [x] Repo sway config and `~/.config/home-manager/sway-config` are byte-identical (`diff` clean)
+- [x] New tests in `10-tests.sh` PASS; no regressions vs PASS 134 / FAIL 21 / WARN 1 baseline
+- [ ] Cold-boot confirmation (deferred to next reboot — same deferred-AC pattern used elsewhere)
+
 ## Open Questions
 
 - None. All PO decisions have been made and implemented.

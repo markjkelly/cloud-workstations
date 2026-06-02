@@ -57,12 +57,15 @@ systemd (after Sway starts)
   │         by the sway config's `exec /usr/bin/Xwayland -rootless :0`
   │         autostart — 08-workspaces.sh only re-launches if that
   │         is somehow absent — see F-0097)
-  │         F-0124 workspace layout: ws1 = empty (Hub NOT auto-launched),
-  │         ws2 = empty, ws3 = foot terminal, ws4 = foot terminal,
-  │         ws5 = Chrome.
+  │         F-0124/F-0131 workspace layout: ws1 = empty (Hub NOT auto-launched),
+  │         ws2 = VS Code (auto-started via sway exec + for_window placement rule — F-0131),
+  │         ws3 = foot terminal, ws4 = foot terminal, ws5 = Chrome.
   │         Boot no longer launches the Hub (F-0124). Workspace 1 starts
   │         empty. The user runs hub-restart (F-0122) after connecting to
   │         launch the Hub — this always works reliably.
+  │         VS Code autostart is implemented in the sway config (exec directive
+  │         in the AUTOSTART section + for_window placement rule), NOT via
+  │         ws-autolaunch.service (which is masked by 11-custom-tools.sh).
   │         Launch order: Chrome (ws5) first, foot (ws3, ws4) last.
   │         Final focus: ws3 (terminal — ready to run hub-restart).
   │         Chrome uses --disable-gpu (no GPU on this host — F-0111).

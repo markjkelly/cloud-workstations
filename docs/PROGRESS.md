@@ -1,5 +1,77 @@
 # Development Progress Log — Cloud Workstation
 
+## Session 47 — 2026-06-02 (F-0131 extension: VS Code autostart on workspace 2)
+
+### Date
+2026-06-02
+
+### Milestone
+F-0131 — VS Code autostart on workspace 2 (scope extension; same branch/PR as F-0131 install)
+
+### Completed
+- **Added sway-native VS Code autostart** — two directives in `workstation-image/configs/sway/config`
+  and `~/.config/home-manager/sway-config` (kept byte-identical per three-places rule):
+  1. `for_window [app_id="code"] move container to workspace number 2` — placement rule
+     near the other `for_window` rules (~line 84). Uses `move container` (more reliable than
+     `assign` for Electron app_id timing). VS Code's Wayland `app_id` is `code` (lowercase).
+  2. `exec env -u LD_LIBRARY_PATH $nix/code --no-sandbox --ozone-platform=wayland --disable-gpu --disable-dev-shm-usage`
+     — autostart exec in the AUTOSTART section (after clipman). Uses `exec` not `exec_always`
+     so `swaymsg reload` does NOT spawn a duplicate instance.
+- **Deliberately did NOT use `ws-autolaunch.service` / `08-workspaces.sh`**: that service is
+  masked every boot by `11-custom-tools.sh` (`mask_autolaunch()`, commit 11fe006). That masking
+  is the intentional end-state of the F-0106→F-0124 Hub-autostart saga. Touching it would
+  reverse a deliberate decision and risk regressions.
+- **Three-places parity maintained**: repo config + `~/.config/home-manager/sway-config` are
+  byte-identical (`diff` clean). `scripts/cloud-build-setup.sh` deploys from the repo at setup
+  time — no edit needed there.
+- **`home-manager switch` succeeded** (exit 0) after the change.
+- **`swaymsg reload` succeeded** (`{"success": true}`) — desktop session undisturbed.
+- **Runtime validation**: launched VS Code manually with the same invocation as `$mod+y`,
+  waited 12s, ran `swaymsg -t get_tree` — confirmed `app_id=code` window appeared on
+  workspace 2 (not the focused workspace). Killed test instance cleanly.
+- **Added three new assertions to `10-tests.sh`**:
+  - Static grep: placement rule `for_window [app_id="code"] move container to workspace number 2`
+  - Static grep: autostart exec `exec env -u LD_LIBRARY_PATH $nix/code --no-sandbox` present
+  - Full-file parity guard: repo sway config vs `~/.config/home-manager/sway-config` byte-identical
+- **All three new tests PASS**. Boot test results: **PASS 137 / FAIL 21 / WARN 1 / SKIP 0**
+  (was PASS 134; +3 new PASSes, zero regressions).
+- **Synced `~/boot/10-tests.sh`** from repo.
+
+### Decisions
+- **sway-native exec + for_window** over ws-autolaunch: ws-autolaunch.service is deliberately
+  masked — this is a firm decision from F-0094/F-0124. Using sway's own exec+for_window follows
+  the exact same pattern as the Xwayland autostart (F-0105) and is the correct architectural layer.
+- **`exec` not `exec_always`**: `exec_always` would spawn a second VS Code instance on every
+  `swaymsg reload`. `exec` fires only at session start.
+- **`move container` not `assign`**: `assign` can miss the window if the app_id is set after the
+  initial map event. `move container` in a `for_window` rule fires reliably on the map event.
+- **Cold-boot confirmation deferred**: the `exec` autostart line cannot be triggered by
+  `swaymsg reload` — it requires an actual sway session restart. Deferred to next reboot,
+  consistent with other AC items in this repo that defer cold-boot confirmation.
+
+### Agent Team
+- PM → TPM → SWE → SWE-Test → SWE-QA (single pipeline agent)
+
+### Files Changed
+- `docs/specs/F-0131-install-vscode.md` — added "Autostart on Workspace 2" section with
+  decision rationale, approach, three-places rule, and acceptance criteria
+- `docs/BACKLOG.md` — F-0131 row updated to include autostart scope + extended completion note
+- `workstation-image/configs/sway/config` — added placement rule + autostart exec
+- `~/.config/home-manager/sway-config` — identical changes (three-places parity)
+- `workstation-image/boot/10-tests.sh` — three new F-0131 autostart assertions
+- `~/boot/10-tests.sh` — synced from repo
+- `docs/PROGRESS.md` — this entry
+- `docs/RELEASENOTES.md` — v1.27.0 entry amended
+
+### Next Steps
+- Cold-boot confirmation of the VS Code autostart exec: verify VS Code appears on workspace 2
+  at next sway session restart/reboot (deferred per repo convention for exec-only directives)
+- F-0126: prune stale IDE and AI CLI tool checks from boot test suite
+- F-0128: triage missing config files (wofi, snippets, tmux.conf, .env)
+- F-0129: fix 06-sync.sh test references (rename → 09-sync.sh)
+
+---
+
 ## Session 46 — 2026-06-02 (F-0131: Install VS Code + reconcile home.nix drift)
 
 ### Date

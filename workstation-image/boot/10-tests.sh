@@ -529,6 +529,34 @@ else
     test_skip "home-manager sway-config not present (config deployed directly by setup)"
 fi
 
+# F-0131 autostart: VS Code placement rule — for_window [app_id="code"] move container to workspace number 2
+# Static grep: confirms the rule is present in the sway config at boot.
+if grep -qF 'for_window [app_id="code"] move container to workspace number 2' "$SWAY_CFG"; then
+    test_pass "F-0131: sway config has VSCode placement rule (app_id=code → workspace 2)"
+else
+    test_fail "F-0131: sway config missing VSCode placement rule (for_window [app_id=\"code\"] move container to workspace number 2)"
+fi
+
+# F-0131 autostart: VS Code autostart exec directive present in AUTOSTART section
+# Static grep: confirms exec (not exec_always) invocation is present.
+if grep -qE '^exec env -u LD_LIBRARY_PATH \$nix/code --no-sandbox' "$SWAY_CFG"; then
+    test_pass "F-0131: sway config has VSCode autostart exec (exec, not exec_always)"
+else
+    test_fail "F-0131: sway config missing VSCode autostart exec directive"
+fi
+
+# F-0131 parity guard: repo sway config and home-manager sway-config must be byte-identical.
+# Extends R4c to cover the full file, not just foot-launch lines.
+if [ -f "$HM_SWAY" ]; then
+    if diff -q "$SWAY_CFG" "$HM_SWAY" >/dev/null 2>&1; then
+        test_pass "F-0131: repo sway config and home-manager sway-config are byte-identical (full file parity)"
+    else
+        test_fail "F-0131: repo sway config and home-manager sway-config differ — three-places parity violation"
+    fi
+else
+    test_skip "home-manager sway-config not present — skipping full-file parity check (F-0131)"
+fi
+
 # =============================================================================
 # Shell Config
 # =============================================================================
