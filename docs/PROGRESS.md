@@ -1,5 +1,76 @@
 # Development Progress Log — Cloud Workstation
 
+## Session 45 — 2026-06-02 (F-0123 follow-up: D-Bus probe uid fix + test race fix + linger fallback)
+
+### Date
+2026-06-02
+
+### Milestone
+F-0123 follow-up — fold remaining three bugs into F-0123 (no new F-number)
+
+### Completed
+
+- **Diagnosed root cause with evidence** (confirmed on live system before touching code):
+  - `runuser_ok=1` but `dbus_ok=0` for the full 120s — D-Bus probe running as root rejected by
+    session bus (SO_PEERCRED / EXTERNAL SASL auth, uid 0 vs owner uid 1000).
+  - Boot log confirmed: `runuser_ok=1, dbus_ok=0` from 10s to 120s → SKIPPED every boot.
+  - Root probe: FAIL. `runuser -u user -- dbus-send ...` probe: SUCCESS.
+
+- **Fix 1 (PRIMARY): wrapped D-Bus probe in `runuser -u "$USER" --`** in
+  `workstation-image/boot/07-apps.sh` `wait_for_user_session`. Updated comment block to explain
+  SO_PEERCRED / EXTERNAL SASL rejection of root connections. Fail-open behavior preserved.
+
+- **Fix 2: eliminated boot-test race** in `workstation-image/boot/10-tests.sh` F-0123 section (f).
+  New logic: query `systemctl show ws-app-updates.service -p SubState` first. Only assert
+  outcome when `SubState=exited` (service done). Emit SKIP if still running. Assert on
+  `=== App update ...` markers (not bare `App update`). Old code read transient `started` line
+  and gave false PASS 72s before the real `SKIPPED` was written.
+
+- **Fix 3: linger with fallback + loud logging** in `workstation-image/boot/03-sway.sh`. Old
+  `loginctl enable-linger user 2>/dev/null || log WARNING` silently swallowed failures.
+  New code: captures RC and stderr, logs both. Falls back to direct marker-file creation if
+  loginctl fails. Verifies linger actually took effect and logs result. Added boot test
+  assertion (g) in `10-tests.sh` to check `Linger=yes` or marker file.
+
+- **Synced `~/boot/`**: copied `07-apps.sh`, `03-sway.sh`, `10-tests.sh` to `~/boot/`.
+  `diff` confirmed clean for all three.
+
+- **Gold-standard test** (ran service directly via systemd without reboot):
+  `sudo systemctl restart ws-app-updates.service` → `status=0/SUCCESS`
+  Log: `F-0121: User session ready after 0s (runuser OK, D-Bus OK)`
+  Log: `=== App update complete ===`
+
+- **Full boot test suite**: `PASS: 123 | FAIL: 30 | WARN: 2 | SKIP: 0`
+  - All 7 F-0123 assertions PASS (including new (g) linger + race-fixed (f))
+  - FAIL count identical to pre-fix (30 pre-existing unrelated failures, no regression)
+
+### Decisions
+
+- **`User=` directive rejected**: Adding `User=user` to the service unit would change the
+  execution context and affect other operations in `07-apps.sh`. The minimal fix (runuser-wrap
+  the single probe) is lower-risk and preserves the existing architecture.
+- **Fallback marker file is correct**: `systemctl enable user@1000.service` is NOT a substitute
+  for linger. The marker file at `/var/lib/systemd/linger/user` is the official mechanism.
+- **No new F-number**: This is a follow-up fix to F-0123 (post-merge verification failed).
+  Folded into F-0123 per PO instruction.
+
+### Files Changed
+- `docs/specs/F-0123-app-updates-systemd-ordering.md` — follow-up section appended
+- `docs/BACKLOG.md` — F-0123 row updated (branch + feedback updated)
+- `docs/PROGRESS.md` — this entry
+- `docs/RELEASENOTES.md` — new patch entry (see below)
+- `workstation-image/boot/07-apps.sh` — D-Bus probe wrapped in runuser + comment block updated
+- `workstation-image/boot/03-sway.sh` — linger block rewritten with fallback + verification
+- `workstation-image/boot/10-tests.sh` — race fix (f) + new linger assertion (g)
+
+### Next Steps
+- **Next reboot**: validate AC1 (app-update.log shows `complete`, not `SKIPPED`, after a cold
+  boot) and AC4 (03-sway.sh linger block fires at boot, ws-app-updates.service proceeds past
+  dbus probe immediately).
+- No further follow-up F-numbers anticipated for this issue.
+
+---
+
 ## Session 44 — 2026-06-02 (F-0123: robust app-updates systemd ordering fix)
 
 ### Date

@@ -1081,21 +1081,51 @@ else
     test_fail "F-0123: 03-sway.sh does NOT create ws-app-updates.service (service creation may have been lost)"
 fi
 
-# (f) Runtime best-effort: app-update.log last "App update" line is not SKIPPED
-# This passes on a normal boot; may be absent on first boot or when the log is
-# too old to reflect the current session.  Non-fatal (WARN) if log is absent.
+# (f) Runtime best-effort: app-update.log last "App update" completion line is not SKIPPED.
+# RACE FIX (F-0123 follow-up): Only assert the outcome AFTER ws-app-updates.service has
+# finished (SubState=exited for Type=oneshot RemainAfterExit).  If the service is still
+# active/running when this test executes, we WARN/SKIP rather than assert — sampling the
+# log mid-run produces a false PASS on the transient "=== App update started ===" line,
+# masking a later SKIPPED outcome.
 APP_UPDATE_LOG="$HOME_DIR/logs/app-update.log"
-if [ -f "$APP_UPDATE_LOG" ]; then
-    LAST_APP_LINE=$(grep 'App update' "$APP_UPDATE_LOG" 2>/dev/null | tail -1)
-    if echo "$LAST_APP_LINE" | grep -q 'SKIPPED'; then
-        test_warn "F-0123: last 'App update' log line shows SKIPPED — user session may not have been ready (check $APP_UPDATE_LOG)"
-    elif echo "$LAST_APP_LINE" | grep -q 'complete\|started'; then
-        test_pass "F-0123: last 'App update' log line is not SKIPPED ($LAST_APP_LINE)"
+SVC_SUBSTATE=$(systemctl show ws-app-updates.service -p SubState --value 2>/dev/null)
+SVC_ACTIVE=$(systemctl show ws-app-updates.service -p ActiveState --value 2>/dev/null)
+if [ "$SVC_SUBSTATE" = "exited" ] && [ "$SVC_ACTIVE" = "active" ]; then
+    # Service has completed — it is now safe to read the final outcome from the log
+    if [ -f "$APP_UPDATE_LOG" ]; then
+        # Check the last completion-marker line (started / complete / SKIPPED)
+        LAST_APP_LINE=$(grep '=== App update' "$APP_UPDATE_LOG" 2>/dev/null | tail -1)
+        if echo "$LAST_APP_LINE" | grep -q 'SKIPPED'; then
+            test_fail "F-0123: ws-app-updates.service completed but last outcome is SKIPPED — D-Bus probe still failing (check $APP_UPDATE_LOG)"
+        elif echo "$LAST_APP_LINE" | grep -q 'complete'; then
+            test_pass "F-0123: ws-app-updates.service completed successfully (last line: $LAST_APP_LINE)"
+        elif echo "$LAST_APP_LINE" | grep -q 'started'; then
+            test_warn "F-0123: ws-app-updates.service exited but log only shows 'started' — update may have failed mid-run (check $APP_UPDATE_LOG)"
+        else
+            test_warn "F-0123: ws-app-updates.service exited but no '=== App update' completion marker in log (check $APP_UPDATE_LOG)"
+        fi
     else
-        test_warn "F-0123: app-update.log present but no 'App update started/complete' line found (may still be running or log rotated)"
+        test_fail "F-0123: ws-app-updates.service exited but $APP_UPDATE_LOG is missing"
     fi
+elif [ "$SVC_ACTIVE" = "activating" ] || [ "$SVC_SUBSTATE" = "start" ]; then
+    # Service is still running — do not sample mid-run (race condition)
+    test_skip "F-0123: ws-app-updates.service still running (SubState=$SVC_SUBSTATE) — outcome check deferred to avoid race"
+elif [ -z "$SVC_ACTIVE" ]; then
+    test_warn "F-0123: ws-app-updates.service not found — unit may not have been created yet this boot"
 else
-    test_warn "F-0123: $APP_UPDATE_LOG not found — ws-app-updates.service has not run yet on this boot"
+    # Unexpected state (failed, dead, etc.)
+    test_warn "F-0123: ws-app-updates.service in unexpected state (Active=$SVC_ACTIVE SubState=$SVC_SUBSTATE) — check systemctl status ws-app-updates.service"
+fi
+
+# (g) Linger must be enabled for user so user@1000.service starts at headless boot.
+# Without linger, ws-app-updates.service ordering is hollow (After=user@1000.service
+# never fires on a non-interactive boot).  Check loginctl and the marker file.
+if loginctl show-user user 2>/dev/null | grep -q 'Linger=yes'; then
+    test_pass "F-0123: Linger=yes for user (loginctl show-user confirmed)"
+elif [ -f "/var/lib/systemd/linger/user" ]; then
+    test_pass "F-0123: Linger marker file present at /var/lib/systemd/linger/user (loginctl may not reflect yet)"
+else
+    test_fail "F-0123: Linger not enabled for user — loginctl Linger=no and /var/lib/systemd/linger/user absent (03-sway.sh linger setup failed)"
 fi
 
 # =============================================================================
