@@ -1,7 +1,7 @@
 # Project Backlog — Cloud Workstation
 
 **Maintained by:** TPM
-**Last updated:** 2026-06-02 (TPM bookkeeping — reconcile stale F-0106/F-0107 Hub rows)
+**Last updated:** 2026-06-02 (TPM grooming — add F-0126–F-0130 boot test failure clusters from F-0123 cold-boot validation)
 
 ---
 
@@ -401,6 +401,23 @@ Tracks fork-only work that pre-dated or accompanied v1.17. All items are documen
 | ID | Feature | Spec | Priority | Status | Owner | Branch | Dependencies | Feedback |
 |----|---------|------|----------|--------|-------|--------|--------------|----------|
 | F-0125 | Clean up orphaned Antigravity IDE remnants (~/.config/Antigravity, ~/.antigravity, etc.) and remove dead sway for_window rule | [F-0125](specs/F-0125-antigravity-ide-cleanup.md) | P2 | done | SWE-1 | feature/antigravity-ide-cleanup | F-0116, F-0124 | **Implemented, tested, verified (2026-05-29).** Added idempotent F-0125 cleanup block to `07-apps.sh` (removes `~/.config/Antigravity`, `~/.config/Antigravity.bak.*`, `~/.antigravity`, `~/.cache/antigravity` via `runuser`; explicit guards prevent touching Hub/CLI dirs). Removed dead `for_window [app_id="antigravity"]` rule + F-0116 comment block from all three sway config locations: repo `workstation-image/configs/sway/config`, `~/.config/home-manager/sway-config` (diff clean), and `scripts/cloud-build-setup.sh` deploys from repo so no separate change needed. `10-tests.sh`: removed stale F-0116 Hub-placement-rule positive-presence test; added 7 new tests (4 orphaned-dir absent, 2 over-deletion guards, 1 dead-rule absent). bash -n PASS both scripts. `~/boot/07-apps.sh` and `~/boot/10-tests.sh` synced live (diff clean). Live dir cleanup will run on next boot. Live sway config: home-manager source updated; `home-manager switch` not run mid-session to avoid disrupting running Sway — takes effect on next boot. |
+
+---
+
+## Milestone 40: Boot Test Suite Remediation (surfaced 2026-06-02)
+
+These five items were identified during F-0123 cold-boot validation on 2026-06-02.
+The boot test suite reported 30 FAILs and 2 WARNs — all pre-existing and unrelated to F-0123.
+The workstation functions correctly despite them; the FAILs reflect stale tests or known
+config drift, not active regressions. Each item below addresses one root-cause cluster.
+
+| ID | Feature | Spec | Priority | Status | Owner | Branch | Dependencies | Feedback |
+|----|---------|------|----------|--------|-------|--------|--------------|----------|
+| F-0126 | Prune stale IDE / AI-CLI tool checks from boot test suite (13 FAILs) | — | P2 | backlog | SWE-Test | — | — | Surfaced 2026-06-02 during F-0123 cold-boot validation. 13 failing checks for tools never installed after project pivoted to Antigravity. Failing: `code` (VSCode) not found; `idea-oss` (IntelliJ) not found; `cursor` not found; `windsurf` not found; `zeditor` (Zed) not found; `codex` not found + version check failed; `cody` not found + version check failed; `pi` not found + version check failed; `aider` not found + version check failed. Remediation direction: either delete the dead tool checks from `10-tests.sh` entirely, or gate them behind a runtime presence check (`command -v <tool> \|\| skip`). Do not implement now — record and triage. |
+| F-0127 | Reconcile home.nix pattern checks vs actual config locations (9 FAILs) | — | P2 | backlog | SWE-1 | — | F-0074 | Surfaced 2026-06-02 during F-0123 cold-boot validation. Live `~/.config/home-manager/home.nix` is a minimal ~30-line file; all toolchains work on PATH but are configured outside home.nix. 9 failing pattern checks (all "pattern X not found in home.nix"): zshrc.local sourcing; Timezone `America/Los_Angeles`; Go GOROOT; Rust `cargo/bin`; pyenv init; rbenv init; Starship prompt (`starship init`); tmux aliases (`tmux new-session`); Nix profile sourced. Remediation direction: either update `10-tests.sh` to check where config actually lives (zshrc, 05-shell.sh, etc.) or fix the home.nix drift so the declared patterns are present. Related to the known home.nix drift noted in memory. |
+| F-0128 | Triage and fix missing config files detected by boot tests (6 FAILs) | — | P2 | backlog | SWE-1 | — | F-0059, F-0061 | Surfaced 2026-06-02 during F-0123 cold-boot validation. 6 failing file-existence checks: `~/.config/wofi/config` missing; `~/.config/wofi/style.css` missing; `~/.local/bin/snippet-picker` missing; `~/.config/snippets/snippets.conf` missing; `~/.tmux.conf` missing; `~/.env` missing. Note: `~/.env` absent is EXPECTED on this host (no secrets file) — that check should be downgraded to WARN or dropped from `10-tests.sh`. The wofi, snippet-picker, and snippets.conf files were deployed by F-0059/F-0061 and should be present — triage whether they are genuinely missing on this workstation or whether the deploy step failed. `~/.tmux.conf` was installed by F-0077; verify live copy and boot script. |
+| F-0129 | Fix sync script rename not reflected in boot tests — test references 06-sync.sh, file is 09-sync.sh (2 FAILs) | — | P1 | backlog | SWE-Test | — | F-0108 | Surfaced 2026-06-02 during F-0123 cold-boot validation. Clear test bug: `10-tests.sh` (~line 875) hardcodes `06-sync.sh` but the script was renamed to `09-sync.sh` (present and identical in both `workstation-image/boot/09-sync.sh` and `~/boot/09-sync.sh`). Failing checks: "06-sync.sh not found at /home/user/boot/06-sync.sh"; "06-sync.sh REPO_DIR constant mismatch". Fix: update the two test assertions in `10-tests.sh` to reference `09-sync.sh`. Quick-win — one-file change, no logic change. |
+| F-0130 | Review and resolve boot test WARNs: GH Copilot extension + gh auth (2 WARNs) | — | P2 | backlog | SWE-1 | — | F-0067 | Surfaced 2026-06-02 during F-0123 cold-boot validation. 2 WARNs: (1) GH Copilot CLI extension may not be installed (gh copilot extension check); (2) gh not authenticated (no active gh auth token). These are benign — the workstation functions without them. Remediation direction: verify whether `gh copilot` extension is being installed by `07-apps.sh` on current builds; verify whether `gh auth` is expected to be populated on this host. If neither can be reliably asserted at boot, downgrade the checks to informational (no WARN/FAIL). |
 
 ---
 
