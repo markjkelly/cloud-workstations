@@ -147,7 +147,6 @@ bindsym $super+q kill
 # Toggle fullscreen
 bindsym $mod+f fullscreen toggle
 bindsym $super+f fullscreen toggle
-bindsym Mod4+f fullscreen toggle
 
 # Toggle floating window
 bindsym $mod+d floating toggle
