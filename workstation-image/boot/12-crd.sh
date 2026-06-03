@@ -174,4 +174,66 @@ chown "$USER:$USER" "$SETUP_SCRIPT"
 chmod 0755 "$SETUP_SCRIPT"
 log "Deployed setup helper script successfully"
 
+# =============================================================================
+# 4. Create resolution resize helper script
+# =============================================================================
+RESIZE_SCRIPT="$BIN_DIR/crd-resize"
+log "Deploying resolution resize helper script to $RESIZE_SCRIPT..."
+
+cat > "$RESIZE_SCRIPT" << 'EOF'
+#!/bin/bash
+# =============================================================================
+# crd-resize — Quick utility to resize virtual display and Sway output
+# =============================================================================
+
+set -e
+
+WIDTH="${1:-}"
+HEIGHT="${2:-}"
+
+if [[ -z "$WIDTH" || -z "$HEIGHT" ]]; then
+    echo "Usage: crd-resize <width> <height>"
+    echo "Example: crd-resize 2560 1440"
+    exit 1
+fi
+
+MODE_NAME="${WIDTH}x${HEIGHT}_60.00"
+
+echo "Calculating modeline for ${WIDTH}x${HEIGHT}..."
+MODELINE=$(cvt "$WIDTH" "$HEIGHT" | grep -v '^#' | cut -d' ' -f3-)
+
+if [[ -z "$MODELINE" ]]; then
+    echo "Error: Failed to calculate modeline using cvt."
+    exit 1
+fi
+
+echo "Adding custom mode: $MODE_NAME"
+# Attempt to remove if already exists, to avoid errors
+DISPLAY=:20 xrandr --delmode DUMMY0 "$MODE_NAME" 2>/dev/null || true
+DISPLAY=:20 xrandr --rmmode "$MODE_NAME" 2>/dev/null || true
+
+# Apply newmode and addmode
+eval "DISPLAY=:20 xrandr --newmode \"$MODE_NAME\" $MODELINE"
+DISPLAY=:20 xrandr --addmode DUMMY0 "$MODE_NAME"
+
+echo "Applying X11 resolution..."
+DISPLAY=:20 xrandr --output DUMMY0 --mode "$MODE_NAME"
+
+# Find active Sway IPC socket for nested session
+SWAYSOCK_NESTED=$(find /run/user/1000/ -name "sway-ipc.1000.*.sock" | grep -v "2520" | head -n 1 || true)
+
+if [[ -n "$SWAYSOCK_NESTED" ]]; then
+    echo "Applying Sway nested X11-1 output mode..."
+    SWAYSOCK="$SWAYSOCK_NESTED" swaymsg "output X11-1 mode ${WIDTH}x${HEIGHT}"
+else
+    echo "Warning: Active nested Sway IPC socket not found."
+fi
+
+echo "Done! Resolution set to ${WIDTH}x${HEIGHT}."
+EOF
+
+chown "$USER:$USER" "$RESIZE_SCRIPT"
+chmod 0755 "$RESIZE_SCRIPT"
+log "Deployed resolution resize helper script successfully"
+
 log "=== Chrome Remote Desktop setup complete ==="
