@@ -55,7 +55,7 @@ mkdir -p "${LOG_DIR}"
   for script in "${BOOT_SRC}"/*.sh; do
     script_name=$(basename "${script}")
     dest="${BOOT_DST}/${script_name}"
-    if cp "${script}" "${dest}" && chown 1000:1000 "${dest}"; then
+    if rm -f "${dest}" && cp "${script}" "${dest}" && chown 1000:1000 "${dest}"; then
       echo "  ✓ Copied ${script_name}"
     else
       echo "  ✗ Failed to copy ${script_name} (continuing)"
