@@ -104,8 +104,8 @@ bindsym $mod+t exec $nix/foot --working-directory=/home/user
 bindsym $super+t exec $nix/foot --working-directory=/home/user
 
 # Application Launcher (wofi)
-bindsym $mod+r exec env -u LD_LIBRARY_PATH XDG_DATA_DIRS=/home/user/.nix-profile/share:/usr/share:/usr/local/share $nix/wofi --show drun --allow-images
-bindsym $super+r exec env -u LD_LIBRARY_PATH XDG_DATA_DIRS=/home/user/.nix-profile/share:/usr/share:/usr/local/share $nix/wofi --show drun --allow-images
+bindsym $mod+r exec env -u LD_LIBRARY_PATH GDK_BACKEND=wayland XDG_DATA_DIRS=/home/user/.nix-profile/share:/usr/share:/usr/local/share $nix/wofi --show drun --allow-images
+bindsym $super+r exec env -u LD_LIBRARY_PATH GDK_BACKEND=wayland XDG_DATA_DIRS=/home/user/.nix-profile/share:/usr/share:/usr/local/share $nix/wofi --show drun --allow-images
 
 # File Manager (Thunar)
 bindsym $mod+e exec $nix/thunar
@@ -129,8 +129,8 @@ bindsym $mod+w exec env -u LD_LIBRARY_PATH $nix/windsurf --no-sandbox --ozone-pl
 bindsym $super+w exec env -u LD_LIBRARY_PATH $nix/windsurf --no-sandbox --ozone-platform=wayland --disable-gpu --disable-dev-shm-usage
 
 # Clipboard history picker (clipman — needs wofi in PATH and clear LD_LIBRARY_PATH)
-bindsym $mod+a exec env -u LD_LIBRARY_PATH PATH=/home/user/.nix-profile/bin:$PATH $nix/clipman pick --tool wofi
-bindsym $super+a exec env -u LD_LIBRARY_PATH PATH=/home/user/.nix-profile/bin:$PATH $nix/clipman pick --tool wofi
+bindsym $mod+a exec env -u LD_LIBRARY_PATH GDK_BACKEND=wayland PATH=/home/user/.nix-profile/bin:$PATH $nix/clipman pick --tool wofi
+bindsym $super+a exec env -u LD_LIBRARY_PATH GDK_BACKEND=wayland PATH=/home/user/.nix-profile/bin:$PATH $nix/clipman pick --tool wofi
 
 # Snippet picker (text expansion)
 bindsym $mod+s exec /home/user/.local/bin/snippet-picker
@@ -243,7 +243,7 @@ bar {
     status_command /home/user/.local/bin/sway-status
 
     # Click on status area opens app launcher (◆ Apps button)
-    bindsym button1 exec env -u LD_LIBRARY_PATH XDG_DATA_DIRS=/home/user/.nix-profile/share:/usr/share:/usr/local/share /home/user/.nix-profile/bin/wofi --show drun --allow-images
+    bindsym button1 exec env -u LD_LIBRARY_PATH GDK_BACKEND=wayland XDG_DATA_DIRS=/home/user/.nix-profile/share:/usr/share:/usr/local/share /home/user/.nix-profile/bin/wofi --show drun --allow-images
 
     colors {
         background #1a1b26
