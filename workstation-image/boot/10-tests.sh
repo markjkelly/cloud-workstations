@@ -1320,8 +1320,9 @@ log ""
 log "--- F-0133: Autolaunch Idempotent Check ---"
 WS_SCRIPT_F0133="$HOME_DIR/boot/08-workspaces.sh"
 if [ -f "$WS_SCRIPT_F0133" ]; then
-    # (a) The idempotent check uses python3 to parse sway tree JSON (not grep for "pid")
-    if grep -q "python3.*app_id" "$WS_SCRIPT_F0133" 2>/dev/null; then
+    # (a) The idempotent check uses python3 to parse sway tree JSON and counts app_id
+    # python3 and app_id are on different lines (multi-line heredoc), so check separately
+    if grep -q 'python3' "$WS_SCRIPT_F0133" 2>/dev/null && grep -q 'app_id' "$WS_SCRIPT_F0133" 2>/dev/null; then
         test_pass "F-0133: idempotent check uses python3 with app_id counting"
     else
         test_fail "F-0133: idempotent check does NOT use python3 with app_id counting"
@@ -1335,10 +1336,10 @@ if [ -f "$WS_SCRIPT_F0133" ]; then
     fi
 
     # (c) The old PID-counting check (grep -o '"pid"' | wc -l) is ABSENT
-    if grep -q 'grep.*"pid".*wc' "$WS_SCRIPT_F0133" 2>/dev/null; then
-        test_fail "F-0133: old PID-counting check (grep '\"pid\"' | wc) still present (regression)"
+    if grep -q 'WINDOW_COUNT.*grep.*pid' "$WS_SCRIPT_F0133" 2>/dev/null; then
+        test_fail "F-0133: old PID-counting check (WINDOW_COUNT grep pid) still present (regression)"
     else
-        test_pass "F-0133: old PID-counting check removed (no grep '\"pid\"' | wc)"
+        test_pass "F-0133: old PID-counting check removed (no WINDOW_COUNT grep pid)"
     fi
 
     # (d) The check uses type == 'con' to filter only container nodes
