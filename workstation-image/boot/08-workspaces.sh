@@ -148,7 +148,9 @@ launch_and_wait() {
     before=$(count_windows_on_ws "$ws")
 
     # Launch the app
-    runuser -u $USER -- env WAYLAND_DISPLAY="$DETECTED_DISPLAY" XDG_RUNTIME_DIR=/run/user/1000 SWAYSOCK="$DETECTED_SOCK" DBUS_SESSION_BUS_ADDRESS="$DBUS_ADDR" "$@" &
+    # -u LD_LIBRARY_PATH: prevent NVIDIA host driver libs from crashing Electron's
+    # EGL initialization on hosts without a physical GPU.
+    runuser -u $USER -- env -u LD_LIBRARY_PATH WAYLAND_DISPLAY="$DETECTED_DISPLAY" XDG_RUNTIME_DIR=/run/user/1000 SWAYSOCK="$DETECTED_SOCK" DBUS_SESSION_BUS_ADDRESS="$DBUS_ADDR" "$@" &
     local app_pid=$!
 
     # Wait for a new window to appear on this workspace
@@ -260,6 +262,9 @@ log "Hub not auto-launched (F-0124) — run 'hub-restart' to start it."
 # Launched FIRST so Chrome is available before Hub attempts its OAuth flow.
 # F-0111: --disable-gpu — no GPU on this host.
 launch_and_wait 5 15 google-chrome-stable --ozone-platform=wayland --disable-dev-shm-usage --disable-gpu
+
+# Workspace 2: VS Code (Electron — 15s timeout)
+launch_and_wait 2 15 "$NIX/code" --no-sandbox --ozone-platform=wayland --disable-gpu --disable-dev-shm-usage
 
 # Workspace 3: foot terminal (fast — 5s timeout)
 launch_and_wait 3 5 "$FOOT" --working-directory=/home/user
