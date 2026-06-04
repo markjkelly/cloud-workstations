@@ -447,8 +447,6 @@ if grep -q 'for_window \[app_id="antigravity"\]' "$SWAY_CFG"; then
 else
     test_fail "Antigravity/Hub placement rule missing from sway config"
 fi
-check_grep "Workspace 1 layout tabbed" "workspace 1 layout tabbed" "$SWAY_CFG"
-check_grep "Workspace 5 layout tabbed" "workspace 5 layout tabbed" "$SWAY_CFG"
 check_grep "Snippet picker keybinding" "snippet-picker" "$SWAY_CFG"
 # Assert that the Chrome placement and no_focus rules are present (both Wayland and X11)
 if grep -q 'for_window \[app_id="google-chrome"\]' "$SWAY_CFG" && \
@@ -1217,6 +1215,43 @@ if grep -q 'env -u LD_LIBRARY_PATH.*code' "$SWAY_CONFIG" 2>/dev/null; then
     test_pass "CRD-autolaunch: sway config uses 'env -u LD_LIBRARY_PATH' for VS Code launch"
 else
     test_fail "CRD-autolaunch: sway config missing 'env -u LD_LIBRARY_PATH' for VS Code (will crash on GPU-less hosts)"
+fi
+
+# =============================================================================
+# CRD Clipboard Bridge — verify script and sway exec directive
+# =============================================================================
+log ""
+log "--- CRD Clipboard Bridge ---"
+
+CRD_BRIDGE="$HOME_DIR/.local/bin/crd-clipboard-bridge"
+
+# (a) Clipboard bridge script exists and is executable.
+if [ -x "$CRD_BRIDGE" ]; then
+    test_pass "CRD-clipboard: bridge script exists and is executable at $CRD_BRIDGE"
+else
+    test_fail "CRD-clipboard: bridge script missing or not executable at $CRD_BRIDGE"
+fi
+
+# (b) Bridge script is Python and uses class-based approach.
+if head -1 "$CRD_BRIDGE" 2>/dev/null | grep -q 'python3'; then
+    test_pass "CRD-clipboard: bridge script uses python3 shebang"
+else
+    test_fail "CRD-clipboard: bridge script missing python3 shebang"
+fi
+
+# (c) Sway config launches bridge conditionally on CRD (WLR_BACKENDS=x11).
+if grep -q 'crd-clipboard-bridge' "$SWAY_CONFIG" 2>/dev/null; then
+    test_pass "CRD-clipboard: sway config exec directive for clipboard bridge present"
+else
+    test_fail "CRD-clipboard: sway config missing exec directive for crd-clipboard-bridge"
+fi
+
+# (d) 12-crd.sh deploys the clipboard bridge script.
+CRD_BOOT="$HOME_DIR/boot/12-crd.sh"
+if grep -q 'crd-clipboard-bridge' "$CRD_BOOT" 2>/dev/null; then
+    test_pass "CRD-clipboard: 12-crd.sh references clipboard bridge deployment"
+else
+    test_fail "CRD-clipboard: 12-crd.sh missing clipboard bridge deployment"
 fi
 
 # =============================================================================

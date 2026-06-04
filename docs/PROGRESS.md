@@ -1,5 +1,34 @@
 # Development Progress Log — Cloud Workstation
 
+## Session 49 — 2026-06-04 (workspace pinning + keyring fix)
+
+### Date
+2026-06-04
+
+### Milestone
+Sway Workspace Pinning — Hub ws1, Chrome ws5, keyring unlock for CRD
+
+### Completed
+- **Antigravity/Hub pinned to ws1**: Added `for_window [app_id="antigravity"] move container to workspace number 1` in sway config so Hub always opens on workspace 1.
+- **Chrome pinned to ws5**: Added `for_window` rules for both Wayland (`app_id="google-chrome"`) and X11 (`class="Google-chrome"`) to move Chrome to workspace 5. Added `no_focus` rules so Chrome doesn't steal focus on launch.
+- **VS Code pinned to ws2**: Added `for_window [app_id="code"] move container to workspace number 2` in sway config.
+- **Keyring unlock fix (F-0115)**: Fixed `gnome-keyring-daemon --unlock` in `08-workspaces.sh` to handle the case where CRD pre-starts the keyring daemon. Added D-Bus lock-state check, daemon restart logic, and empty-password unlock for the login collection.
+- **Workspace 5 tabbed layout**: Added `workspace 5 layout tabbed` directive (later removed in Session 50 — Sway misinterpreted it as a workspace name).
+
+### Files Changed
+- `workstation-image/configs/sway/config` — workspace pinning rules, no_focus, layout directives
+- `workstation-image/boot/08-workspaces.sh` — keyring unlock robustness
+- `workstation-image/boot/10-tests.sh` — tests for all new features
+- `docs/PROGRESS.md` — this entry
+
+### Decisions
+- Dual `for_window` rules for Chrome (Wayland `app_id` + X11 `class`) to cover both headless and CRD sessions
+- `no_focus` on Chrome prevents it from stealing focus during boot autolaunch
+- Empty-password keyring unlock (`printf '\n' | gnome-keyring-daemon --unlock`) is necessary because CRD may pre-start the daemon
+
+---
+
+
 ## Session 48 — 2026-06-04 (crd-clipboard-bridge refactor & alignment)
 
 ### Date
@@ -2588,7 +2617,7 @@ F-0110 — Hub WS5 Auth-Friendly Launch (validation fix)
 
 ---
 
-## Session 23 — 2026-06-04 (CRD autolaunch fixes)
+## Session 50 — 2026-06-04 (CRD autolaunch fixes)
 
 ### Date
 2026-06-04
