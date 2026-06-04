@@ -17,7 +17,7 @@ This project manages the lifecycle and configuration of a GPU-powered Cloud Work
 
 -   `workstation-image/`: Contains the definition of the workstation environment.
     -   `Dockerfile`: Defines the base system (Ubuntu-based).
-    -   `boot/`: Numbered shell scripts (`00-11`) that run sequentially during the workstation's bootstrap process. These handle Nix restoration, service setup, app installation, and tests.
+    -   `boot/`: Numbered shell scripts (`00-12`) that run sequentially during the workstation's bootstrap process. These handle Nix restoration, service setup, app installation, synchronization, verification tests, and Chrome Remote Desktop setup.
     -   `configs/`: Configuration files for Sway, waybar, tmux, nvim, etc.
     -   `scripts/`: Internal scripts like `claude-tmux` and `snippet-picker`.
 -   `scripts/`: Management scripts for the GCP infrastructure.
@@ -45,7 +45,9 @@ When the workstation container starts, it executes `/google/scripts/entrypoint.s
 2.  **Service Setup (`03-sway.sh`):** Configures and starts `sway-desktop` and `wayvnc` as systemd services.
 3.  **App Installation (`07-apps.sh`):** Installs AI tools and other applications based on the selected profile.
 4.  **Auto-Launch (`08-workspaces.sh`):** Automatically opens default apps (Terminal, Chrome, Antigravity) on specific Sway workspaces.
-5.  **Verification (`10-tests.sh`):** Runs 80+ automated tests to ensure the environment is healthy. Results are at `~/logs/boot-test-results.txt`.
+5.  **Sync (`09-sync.sh`):** Synchronizes boot scripts and Sway config from the git repo on every boot.
+6.  **Verification (`10-tests.sh`):** Runs 160+ automated tests to ensure the environment is healthy. Results are at `~/logs/boot-test-results.txt`.
+7.  **Chrome Remote Desktop (`12-crd.sh`):** Launch Sway under CRD's virtual X11 server and start the `chrome-remote-desktop` service.
 
 ## Development Conventions
 
