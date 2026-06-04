@@ -1,7 +1,7 @@
 # Project Backlog — Cloud Workstation
 
 **Maintained by:** TPM
-**Last updated:** 2026-06-02 (F-0131 extended with VS Code autostart on workspace 2 — sway-native exec + for_window)
+**Last updated:** 2026-06-04 (F-0132 change timezone from Pacific to US Central)
 
 ---
 
@@ -419,6 +419,14 @@ config drift, not active regressions. Each item below addresses one root-cause c
 | F-0128 | Triage and fix missing config files detected by boot tests (6 FAILs) | — | P2 | backlog | SWE-1 | — | F-0059, F-0061 | Surfaced 2026-06-02 during F-0123 cold-boot validation. 6 failing file-existence checks: `~/.config/wofi/config` missing; `~/.config/wofi/style.css` missing; `~/.local/bin/snippet-picker` missing; `~/.config/snippets/snippets.conf` missing; `~/.tmux.conf` missing; `~/.env` missing. Note: `~/.env` absent is EXPECTED on this host (no secrets file) — that check should be downgraded to WARN or dropped from `10-tests.sh`. The wofi, snippet-picker, and snippets.conf files were deployed by F-0059/F-0061 and should be present — triage whether they are genuinely missing on this workstation or whether the deploy step failed. `~/.tmux.conf` was installed by F-0077; verify live copy and boot script. |
 | F-0129 | Fix sync script rename not reflected in boot tests — test references 06-sync.sh, file is 09-sync.sh (2 FAILs) | — | P1 | backlog | SWE-Test | — | F-0108 | Surfaced 2026-06-02 during F-0123 cold-boot validation. Clear test bug: `10-tests.sh` (~line 875) hardcodes `06-sync.sh` but the script was renamed to `09-sync.sh` (present and identical in both `workstation-image/boot/09-sync.sh` and `~/boot/09-sync.sh`). Failing checks: "06-sync.sh not found at /home/user/boot/06-sync.sh"; "06-sync.sh REPO_DIR constant mismatch". Fix: update the two test assertions in `10-tests.sh` to reference `09-sync.sh`. Quick-win — one-file change, no logic change. |
 | F-0130 | Review and resolve boot test WARNs: GH Copilot extension + gh auth (2 WARNs) | — | P2 | backlog | SWE-1 | — | F-0067 | Surfaced 2026-06-02 during F-0123 cold-boot validation. 2 WARNs: (1) GH Copilot CLI extension may not be installed (gh copilot extension check); (2) gh not authenticated (no active gh auth token). These are benign — the workstation functions without them. Remediation direction: verify whether `gh copilot` extension is being installed by `07-apps.sh` on current builds; verify whether `gh auth` is expected to be populated on this host. If neither can be reliably asserted at boot, downgrade the checks to informational (no WARN/FAIL). |
+
+---
+
+## Milestone 41: Timezone Change to US Central
+
+| ID | Feature | Spec | Priority | Status | Owner | Branch | Dependencies | Feedback |
+|----|---------|------|----------|--------|-------|--------|--------------|----------|
+| F-0132 | Change timezone from Pacific to US Central (America/Chicago) | [F-0132](specs/F-0132-timezone-central.md) | P1 | done | SWE-1 | feature/timezone-central | F-0069 | Changed TZ=America/Los_Angeles → TZ=America/Chicago in all 6 locations: 03-sway.sh (sway-desktop.service), 05-shell.sh (.zshrc template), sway-status script, cloud-build-setup.sh (home.nix initContent), 10-tests.sh (date header, timezone check, summary line). Zero stale refs remain. |
 
 ---
 
