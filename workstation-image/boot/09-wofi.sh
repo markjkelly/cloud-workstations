@@ -7,7 +7,10 @@
 
 USER="user"
 HOME_DIR="/home/user"
-REPO_DIR="$HOME_DIR/Apps/cloud-workstations/workstation-image/configs/wofi"
+REPO_DIR="/home/user/dev/git/cloud-workstations/workstation-image/configs/wofi"
+if [ ! -d "$REPO_DIR" ]; then
+    REPO_DIR="$HOME_DIR/Apps/cloud-workstations/workstation-image/configs/wofi"
+fi
 WOFI_DIR="$HOME_DIR/.config/wofi"
 
 log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] [09-wofi] $1"; }

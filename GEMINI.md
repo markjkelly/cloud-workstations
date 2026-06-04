@@ -1,13 +1,13 @@
 # GEMINI.md — Cloud Workstation Project Context
 
-This project manages the lifecycle and configuration of a GPU-powered Cloud Workstation on Google Cloud Platform (GCP). It provides a high-performance development environment with a Sway (Wayland) desktop, accessible via a browser using noVNC.
+This project manages the lifecycle and configuration of a GPU-powered Cloud Workstation on Google Cloud Platform (GCP). It provides a high-performance development environment with a Sway (Wayland) desktop, accessible via a browser using noVNC or remotely via Chrome Remote Desktop.
 
 ## Project Overview
 
 -   **Purpose:** To provide a consistent, high-performance, GPU-enabled development environment in the cloud.
 -   **Core Technologies:**
     -   **GCP Services:** Cloud Workstations, Cloud Build, Cloud Scheduler, Artifact Registry, Cloud Functions.
-    -   **Desktop Environment:** Sway (Wayland), wayvnc, noVNC (browser access).
+    -   **Desktop Environment:** Sway (Wayland) accessible via browser using noVNC, or nested inside a virtual X11 server on display `:20` using Chrome Remote Desktop.
     -   **Package Management:** Nix (Home Manager) for persistent tool installation on the home directory.
     -   **Shell:** ZSH + Starship, tmux.
     -   **Containerization:** Docker for the base workstation image.
@@ -17,7 +17,7 @@ This project manages the lifecycle and configuration of a GPU-powered Cloud Work
 
 -   `workstation-image/`: Contains the definition of the workstation environment.
     -   `Dockerfile`: Defines the base system (Ubuntu-based).
-    -   `boot/`: Numbered shell scripts (`00-11`) that run sequentially during the workstation's bootstrap process. These handle Nix restoration, service setup, app installation, and tests.
+    -   `boot/`: Numbered shell scripts (`00-12`) that run sequentially during the workstation's bootstrap process. These handle Nix restoration, service setup, app installation, synchronization, verification tests, and Chrome Remote Desktop setup.
     -   `configs/`: Configuration files for Sway, waybar, tmux, nvim, etc.
     -   `scripts/`: Internal scripts like `claude-tmux` and `snippet-picker`.
 -   `scripts/`: Management scripts for the GCP infrastructure.
@@ -41,11 +41,24 @@ This project manages the lifecycle and configuration of a GPU-powered Cloud Work
 
 When the workstation container starts, it executes `/google/scripts/entrypoint.sh` (from the base image), which eventually triggers the bootstrap process in `workstation-image/boot/setup.sh`.
 
-1.  **Nix Restoration (`01-nix.sh`):** Bind-mounts the persistent Nix store from `/home/user/nix` to `/nix`.
-2.  **Service Setup (`03-sway.sh`):** Configures and starts `sway-desktop` and `wayvnc` as systemd services.
-3.  **App Installation (`07-apps.sh`):** Installs AI tools and other applications based on the selected profile.
-4.  **Auto-Launch (`08-workspaces.sh`):** Automatically opens default apps (Terminal, Chrome, Antigravity) on specific Sway workspaces.
-5.  **Verification (`10-tests.sh`):** Runs 80+ automated tests to ensure the environment is healthy. Results are at `~/logs/boot-test-results.txt`.
+1.  **Nix Restoration (`01-nix.sh`):** Bind-mounts the persistent Nix store from `/home/user/nix` to `/nix` to ensure package persistence.
+2.  **NVIDIA GPU Setup (`02-nvidia.sh`):** Configures library paths for host GPU driver compatibility when a GPU is attached.
+3.  **Service Setup (`03-sway.sh`):** Configures and starts `sway-desktop` (headless) and `wayvnc` as systemd user services.
+4.  **Font Deployment (`04-fonts.sh`):** Deploys custom developer fonts to the persistent home directory.
+5.  **Shell Configuration (`05-shell.sh`):** Configures ZSH shell preferences, plugins, and custom aliases.
+6.  **Terminal Prompt (`06-prompt.sh`):** Configures the Starship prompt and the `foot` terminal emulator styling.
+7.  **Tailscale VPN (`06a-tailscale.sh`):** Sets up Tailscale client for secure networking if a Tailscale authentication key is present.
+8.  **Tmux Multiplexer (`06b-tmux.sh`):** Sets up tmux with a Tokyo Night aesthetic, custom mappings, and helper utilities.
+9.  **App Installation (`07-apps.sh`):** Installs AI tools and application updates (runs asynchronously as a systemd service).
+10. **Language dependencies (`07a-lang-deps.sh`):** Sets up development libraries for language runtimes.
+11. **Language runtimes (`07b-languages.sh`):** Installs runtimes (Go, Rust, Python, Ruby) using direct binaries or local managers (pyenv, rbenv, rustup).
+12. **Auto-Launch (`08-workspaces.sh`):** Opens default apps across Sway workspaces (VS Code on ws2, Terminal on ws3/ws4, Chrome on ws5).
+13. **Snippet Picker (`09-snippets.sh`):** Configures the lightweight snippet picker utility and custom configuration.
+14. **Sway Sync (`09-sync.sh`):** Synchronizes boot scripts and Sway config from the git repo on every boot to apply changes.
+15. **Application Launcher (`09-wofi.sh`):** Deploys wofi menu with Tokyo Night colors.
+16. **Environment Verification (`10-tests.sh`):** Runs 160+ automated integration tests to ensure workspace health (results at `~/logs/boot-test-results.txt`).
+17. **Custom Tools (`11-custom-tools.sh`):** Deploys custom CLI binaries (Terraform, gh, etc.) and sets up the `gh` wrapper to prevent dummy GITHUB_TOKEN overrides.
+18. **Chrome Remote Desktop (`12-crd.sh`):** Provisions Chrome Remote Desktop, configures a nested Sway display session on `:20`, and deploys the `crd-resize` utility.
 
 ## Development Conventions
 
@@ -61,6 +74,7 @@ When the workstation container starts, it executes `/google/scripts/entrypoint.s
 -   **Tailscale SSH:** If configured, SSH via `ssh user@<tailscale-hostname>`.
 -   **Debug Bootstrap:** Logs are visible via `journalctl` or by checking the output of the bootstrap scripts during start-up.
 -   **Run Boot Tests Manually:** `bash /home/user/boot/10-tests.sh`.
+-   **Resize CRD Session Resolution:** Run `crd-resize <width> <height>` (e.g., `crd-resize 2560 1440`) within a Chrome Remote Desktop session to adjust both X11 resolution and nested Sway output.
 
 ## Maintenance
 
