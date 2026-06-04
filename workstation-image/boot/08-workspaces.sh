@@ -109,12 +109,38 @@ for i in $(seq 1 120); do
     sleep 2
 done
 
-# --- Idempotent check ---
-WINDOW_COUNT=$(sway_cmd -t get_tree 2>/dev/null | grep -o '"pid"' | wc -l)
-if [ "${WINDOW_COUNT:-0}" -gt 1 ]; then
-    log "Windows already open ($WINDOW_COUNT found) — skipping"
+# --- Idempotent check (F-0133) ---
+# Count only actual application windows — containers with app_id (Wayland) or
+# window_properties.class (X11) and type == "con".  Background processes like
+# swaybar, Xwayland server, etc. do NOT have app_id/class set and are excluded.
+# The old check (grep -o '"pid"' | wc -l) was too aggressive — it counted all
+# PID entries in the sway tree, including non-window processes, causing autolaunch
+# to skip even when no user apps were open.
+APP_COUNT=$(sway_cmd -t get_tree 2>/dev/null | python3 -c "
+import json, sys
+tree = json.load(sys.stdin)
+def count(n):
+    c = 0
+    if n.get('type') == 'con' and (n.get('app_id') or n.get('window_properties', {}).get('class')):
+        c = 1
+    for child in n.get('nodes', []) + n.get('floating_nodes', []):
+        c += count(child)
+    return c
+print(count(tree))
+" 2>/dev/null)
+if [ "${APP_COUNT:-0}" -gt 0 ]; then
+    log "App windows already open ($APP_COUNT found) — skipping"
     exit 0
 fi
+
+# --- Clean up stale SingletonLock files from previous boots ---
+# Electron apps (Chrome, VS Code) create SingletonLock to prevent duplicate
+# instances. After a reboot the lock file persists on the persistent disk,
+# blocking new instances from launching. Safe to remove at boot since no
+# Electron apps are running yet (the idempotent check above confirmed this).
+log "Cleaning up stale SingletonLock files..."
+rm -f "$HOME_DIR/.config/google-chrome/SingletonLock" 2>/dev/null
+rm -f "$HOME_DIR/.config/Code/SingletonLock" 2>/dev/null
 
 # --- Start Xwayland for X11 apps (IntelliJ) ---
 # F-0096: pass -rootless so Xwayland does NOT create a visible root window

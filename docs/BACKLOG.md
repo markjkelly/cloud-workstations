@@ -1,7 +1,7 @@
 # Project Backlog — Cloud Workstation
 
 **Maintained by:** TPM
-**Last updated:** 2026-06-04 (F-0132 change timezone from Pacific to US Central)
+**Last updated:** 2026-06-04 (F-0133 fix autolaunch skip logic)
 
 ---
 
@@ -427,6 +427,14 @@ config drift, not active regressions. Each item below addresses one root-cause c
 | ID | Feature | Spec | Priority | Status | Owner | Branch | Dependencies | Feedback |
 |----|---------|------|----------|--------|-------|--------|--------------|----------|
 | F-0132 | Change timezone from Pacific to US Central (America/Chicago) | [F-0132](specs/F-0132-timezone-central.md) | P1 | done | SWE-1 | feature/timezone-central | F-0069 | Changed TZ=America/Los_Angeles → TZ=America/Chicago in all 6 locations: 03-sway.sh (sway-desktop.service), 05-shell.sh (.zshrc template), sway-status script, cloud-build-setup.sh (home.nix initContent), 10-tests.sh (date header, timezone check, summary line). Zero stale refs remain. |
+
+---
+
+## Milestone 42: Autolaunch Skip Logic Fix
+
+| ID | Feature | Spec | Priority | Status | Owner | Branch | Dependencies | Feedback |
+|----|---------|------|----------|--------|-------|--------|--------------|----------|
+| F-0133 | Fix autolaunch idempotent check: count app windows, not raw PIDs | [F-0133](specs/F-0133-autolaunch-skip-fix.md) | P0 | done | SWE-1 | fix/autolaunch-skip-logic | F-0029, F-0124 | Idempotent check in 08-workspaces.sh was counting all PIDs in sway tree (grep -o '"pid"') and skipping at > 1. Background processes (swaybar, Xwayland) already produce PID entries, so autolaunch always skipped after reboot. Fix: use python3 to parse sway tree JSON, count only containers with app_id or window_properties.class set (actual application windows). 5 new tests in 10-tests.sh. bash -n PASS both files. |
 
 ---
 

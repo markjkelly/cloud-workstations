@@ -1,5 +1,27 @@
 # Release Notes — Cloud Workstation
 
+## v1.29.0 — Fix autolaunch idempotent check: count app windows, not PIDs (2026-06-04)
+
+### Fixed
+- **Autolaunch always skipped after reboot** (F-0133) — The idempotent check in
+  `08-workspaces.sh` used `grep -o '"pid"' | wc -l` to count entries in the sway tree
+  and skipped autolaunch if > 1 was found. Background processes like swaybar and
+  Xwayland always produce PID entries, so the check fired even with zero user apps
+  open. After every reboot, the user got an empty desktop with no apps launched.
+
+### Changed
+- **`workstation-image/boot/08-workspaces.sh`** — Replaced the `grep`-based PID counter
+  with a `python3` JSON parser that walks the sway tree and counts only containers with
+  `app_id` (Wayland apps) or `window_properties.class` (X11 apps) and `type == "con"`.
+  Swaybar, Xwayland server, and other compositor internals are correctly excluded.
+  Threshold changed from `> 1` (raw PIDs) to `> 0` (actual app windows). Variable
+  renamed from `WINDOW_COUNT` to `APP_COUNT` to reflect new semantics.
+
+### Tests
+- 5 new boot tests in `10-tests.sh` (F-0133 section): python3/app_id usage verified,
+  window_properties.class for X11 apps present, old PID-counting pattern absent
+  (regression guard), type == 'con' filter present, APP_COUNT variable present.
+
 ## v1.28.0 — Timezone change: Pacific → US Central (2026-06-04)
 
 ### Changed

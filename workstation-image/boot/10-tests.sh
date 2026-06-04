@@ -1256,6 +1256,65 @@ else
 fi
 
 # =============================================================================
+# F-0133: Autolaunch idempotent check uses app window counting, not PID counting
+# =============================================================================
+# The idempotent check in 08-workspaces.sh must count actual application windows
+# (containers with app_id or window_properties.class), not raw PIDs.  The old
+# check (grep -o '"pid"' | wc -l) counted background processes like swaybar and
+# Xwayland, causing autolaunch to always skip after reboot.
+# =============================================================================
+log ""
+log "--- F-0133: Autolaunch Idempotent Check ---"
+WS_SCRIPT_F0133="$HOME_DIR/boot/08-workspaces.sh"
+if [ -f "$WS_SCRIPT_F0133" ]; then
+    # (a) The idempotent check uses python3 to parse sway tree JSON (not grep for "pid")
+    if grep -q "python3.*app_id" "$WS_SCRIPT_F0133" 2>/dev/null; then
+        test_pass "F-0133: idempotent check uses python3 with app_id counting"
+    else
+        test_fail "F-0133: idempotent check does NOT use python3 with app_id counting"
+    fi
+
+    # (b) The idempotent check also considers X11 apps via window_properties.class
+    if grep -q "window_properties" "$WS_SCRIPT_F0133" 2>/dev/null; then
+        test_pass "F-0133: idempotent check considers X11 window_properties.class"
+    else
+        test_fail "F-0133: idempotent check missing window_properties.class for X11 apps"
+    fi
+
+    # (c) The old PID-counting check (grep -o '"pid"' | wc -l) is ABSENT
+    if grep -q 'grep.*"pid".*wc' "$WS_SCRIPT_F0133" 2>/dev/null; then
+        test_fail "F-0133: old PID-counting check (grep '\"pid\"' | wc) still present (regression)"
+    else
+        test_pass "F-0133: old PID-counting check removed (no grep '\"pid\"' | wc)"
+    fi
+
+    # (d) The check uses type == 'con' to filter only container nodes
+    if grep -q "type.*con" "$WS_SCRIPT_F0133" 2>/dev/null; then
+        test_pass "F-0133: idempotent check filters on type == 'con'"
+    else
+        test_fail "F-0133: idempotent check missing type == 'con' filter"
+    fi
+
+    # (e) The variable is named APP_COUNT (not WINDOW_COUNT with old semantics)
+    if grep -q 'APP_COUNT=' "$WS_SCRIPT_F0133" 2>/dev/null; then
+        test_pass "F-0133: idempotent check uses APP_COUNT variable"
+    else
+        test_fail "F-0133: idempotent check missing APP_COUNT variable"
+    fi
+else
+    test_fail "F-0133: 08-workspaces.sh not found at $WS_SCRIPT_F0133"
+fi
+
+# (f) SingletonLock cleanup — stale locks from previous boots must be removed
+if [ -f "$WS_SCRIPT_F0133" ]; then
+    if grep -q 'SingletonLock' "$WS_SCRIPT_F0133" 2>/dev/null; then
+        test_pass "F-0133: 08-workspaces.sh cleans up stale SingletonLock files"
+    else
+        test_fail "F-0133: 08-workspaces.sh missing SingletonLock cleanup (Chrome/VS Code will fail after reboot)"
+    fi
+fi
+
+# =============================================================================
 # Summary
 # =============================================================================
 TOTAL=$((PASS+FAIL+WARN+SKIP))
