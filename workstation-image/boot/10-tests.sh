@@ -1305,6 +1305,15 @@ else
     test_fail "F-0133: 08-workspaces.sh not found at $WS_SCRIPT_F0133"
 fi
 
+# (f) SingletonLock cleanup — stale locks from previous boots must be removed
+if [ -f "$WS_SCRIPT_F0133" ]; then
+    if grep -q 'SingletonLock' "$WS_SCRIPT_F0133" 2>/dev/null; then
+        test_pass "F-0133: 08-workspaces.sh cleans up stale SingletonLock files"
+    else
+        test_fail "F-0133: 08-workspaces.sh missing SingletonLock cleanup (Chrome/VS Code will fail after reboot)"
+    fi
+fi
+
 # =============================================================================
 # Summary
 # =============================================================================

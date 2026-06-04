@@ -133,6 +133,15 @@ if [ "${APP_COUNT:-0}" -gt 0 ]; then
     exit 0
 fi
 
+# --- Clean up stale SingletonLock files from previous boots ---
+# Electron apps (Chrome, VS Code) create SingletonLock to prevent duplicate
+# instances. After a reboot the lock file persists on the persistent disk,
+# blocking new instances from launching. Safe to remove at boot since no
+# Electron apps are running yet (the idempotent check above confirmed this).
+log "Cleaning up stale SingletonLock files..."
+rm -f "$HOME_DIR/.config/google-chrome/SingletonLock" 2>/dev/null
+rm -f "$HOME_DIR/.config/Code/SingletonLock" 2>/dev/null
+
 # --- Start Xwayland for X11 apps (IntelliJ) ---
 # F-0096: pass -rootless so Xwayland does NOT create a visible root window
 # that Sway would tile onto the active workspace. In rootless mode Xwayland
