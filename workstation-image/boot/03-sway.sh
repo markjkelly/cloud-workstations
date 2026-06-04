@@ -69,11 +69,13 @@ log "Enabled sway-desktop and wayvnc services"
 cat > /etc/systemd/system/ws-autolaunch.service << 'EOF'
 [Unit]
 Description=Auto-launch apps on Sway workspaces
-After=wayvnc.service
+After=wayvnc.service chrome-remote-desktop@user.service
+Wants=chrome-remote-desktop@user.service
 Requires=sway-desktop.service
 
 [Service]
 Type=oneshot
+ExecStartPre=/bin/sleep 5
 ExecStart=/bin/bash /home/user/boot/08-workspaces.sh
 RemainAfterExit=yes
 

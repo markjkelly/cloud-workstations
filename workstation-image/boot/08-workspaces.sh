@@ -49,13 +49,14 @@ detect_active_session() {
         fi
     done
 
-    # If CRD is enabled, we wait for it. But after 15 attempts (~30 seconds),
-    # we fall back to headless if available.
-    if [ "$crd_enabled" -eq 1 ] && [ "$attempt" -lt 15 ]; then
+    # If CRD is enabled, NEVER fall back to headless — keep waiting for CRD.
+    # ws-autolaunch is ordered After=chrome-remote-desktop@user.service, so CRD
+    # should be starting. Wait up to 60 attempts (~120s) for its Sway to appear.
+    if [ "$crd_enabled" -eq 1 ]; then
         return 1
     fi
 
-    # Fall back to headless if available
+    # CRD is not configured — fall back to headless if available
     local fallback_sock
     fallback_sock=$(ls /run/user/1000/sway-ipc.1000.*.sock 2>/dev/null | head -n1 || true)
     if [ -n "$fallback_sock" ]; then
@@ -99,12 +100,12 @@ print(count(tree, $ws))
 
 # --- Wait for Sway ---
 log "Waiting for Sway to be ready..."
-for i in $(seq 1 60); do
+for i in $(seq 1 120); do
     if detect_active_session "$i" && sway_cmd -t get_tree >/dev/null 2>&1; then
         log "Sway is ready (attempt $i). Socket: $DETECTED_SOCK, Display: $DETECTED_DISPLAY"
         break
     fi
-    [ "$i" -eq 60 ] && { log "ERROR: Sway not ready after 60s — aborting"; exit 1; }
+    [ "$i" -eq 120 ] && { log "ERROR: Sway not ready after 240s — aborting"; exit 1; }
     sleep 2
 done
 
@@ -147,7 +148,9 @@ launch_and_wait() {
     before=$(count_windows_on_ws "$ws")
 
     # Launch the app
-    runuser -u $USER -- env WAYLAND_DISPLAY="$DETECTED_DISPLAY" XDG_RUNTIME_DIR=/run/user/1000 SWAYSOCK="$DETECTED_SOCK" DBUS_SESSION_BUS_ADDRESS="$DBUS_ADDR" "$@" &
+    # -u LD_LIBRARY_PATH: prevent NVIDIA host driver libs from crashing Electron's
+    # EGL initialization on hosts without a physical GPU.
+    runuser -u $USER -- env -u LD_LIBRARY_PATH WAYLAND_DISPLAY="$DETECTED_DISPLAY" XDG_RUNTIME_DIR=/run/user/1000 SWAYSOCK="$DETECTED_SOCK" DBUS_SESSION_BUS_ADDRESS="$DBUS_ADDR" "$@" &
     local app_pid=$!
 
     # Wait for a new window to appear on this workspace
@@ -259,6 +262,9 @@ log "Hub not auto-launched (F-0124) — run 'hub-restart' to start it."
 # Launched FIRST so Chrome is available before Hub attempts its OAuth flow.
 # F-0111: --disable-gpu — no GPU on this host.
 launch_and_wait 5 15 google-chrome-stable --ozone-platform=wayland --disable-dev-shm-usage --disable-gpu
+
+# Workspace 2: VS Code (Electron — 15s timeout)
+launch_and_wait 2 15 "$NIX/code" --no-sandbox --ozone-platform=wayland --disable-gpu --disable-dev-shm-usage
 
 # Workspace 3: foot terminal (fast — 5s timeout)
 launch_and_wait 3 5 "$FOOT" --working-directory=/home/user

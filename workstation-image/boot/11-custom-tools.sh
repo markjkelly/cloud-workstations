@@ -286,19 +286,6 @@ patch_novnc() {
     log "[novnc] Patched rfb.js line $line — QEMU extended key events disabled"
 }
 
-# =============================================================================
-# Mask ws-autolaunch.service — disable workspace auto-launch
-# =============================================================================
-# 03-sway.sh creates ws-autolaunch.service and enables it via a symlink into
-# multi-user.target.wants/ on every boot. Running this script after 03-sway.sh
-# (guaranteed by the 11- numbering) overwrites it with a /dev/null mask,
-# preventing 08-workspaces.sh from auto-launching apps into Sway workspaces.
-mask_autolaunch() {
-    ln -sf /dev/null /etc/systemd/system/ws-autolaunch.service
-    rm -f /etc/systemd/system/multi-user.target.wants/ws-autolaunch.service
-    log "[autolaunch] ws-autolaunch.service masked"
-}
-
 # --- Run ---
 install_terraform
 install_gh
@@ -307,6 +294,5 @@ install_eclipse
 install_claude_code
 install_jetbrains_mono
 patch_novnc
-mask_autolaunch
 
 log "=== Custom tools install complete ==="
