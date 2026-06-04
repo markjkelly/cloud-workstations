@@ -77,6 +77,9 @@ fi
 # Connect to the systemd user D-Bus session bus to share services (like gnome-keyring)
 export DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/1000/bus"
 
+# Start clipboard bridge between CRD virtual X11 display :20 and Wayland
+/home/user/.local/bin/crd-clipboard-bridge &
+
 echo "Launching Sway with path: $SWAY_BIN"
 exec "$SWAY_BIN"
 EOF
@@ -243,6 +246,99 @@ EOF
 chown "$USER:$USER" "$RESIZE_SCRIPT"
 chmod 0755 "$RESIZE_SCRIPT"
 log "Deployed resolution resize helper script successfully"
+
+# =============================================================================
+# 4b. Create clipboard bridge helper script
+# =============================================================================
+CLIPBOARD_SCRIPT="$BIN_DIR/crd-clipboard-bridge"
+log "Deploying clipboard bridge helper script to $CLIPBOARD_SCRIPT..."
+
+cat > "$CLIPBOARD_SCRIPT" << 'EOF'
+#!/usr/bin/env python3
+import sys
+import os
+import subprocess
+import time
+import tkinter
+
+# Force display name to display :20 (CRD session)
+os.environ["DISPLAY"] = ":20"
+
+def get_x11_clipboard():
+    try:
+        root = tkinter.Tk()
+        root.withdraw()
+        clip = root.clipboard_get()
+        root.destroy()
+        return clip
+    except Exception:
+        return ""
+
+def set_x11_clipboard(text):
+    try:
+        root = tkinter.Tk()
+        root.withdraw()
+        root.clipboard_clear()
+        root.clipboard_append(text)
+        root.update()
+        root.destroy()
+    except Exception:
+        pass
+
+def get_wayland_clipboard():
+    try:
+        return subprocess.check_output(["wl-paste", "-n", "-t", "text"], stderr=subprocess.DEVNULL).decode("utf-8")
+    except Exception:
+        return ""
+
+def set_wayland_clipboard(text):
+    try:
+        p = subprocess.Popen(["wl-copy"], stdin=subprocess.PIPE, stderr=subprocess.DEVNULL)
+        p.communicate(input=text.encode("utf-8"))
+    except Exception:
+        pass
+
+def main():
+    # Wait for display :20 to be ready
+    for _ in range(30):
+        try:
+            root = tkinter.Tk()
+            root.destroy()
+            break
+        except Exception:
+            time.sleep(1)
+            
+    last_x11 = get_x11_clipboard()
+    last_wl = get_wayland_clipboard()
+    
+    while True:
+        try:
+            # Sync X11 -> Wayland
+            current_x11 = get_x11_clipboard()
+            if current_x11 != last_x11 and current_x11 != last_wl:
+                if current_x11:
+                    set_wayland_clipboard(current_x11)
+                    last_wl = current_x11
+                last_x11 = current_x11
+            
+            # Sync Wayland -> X11
+            current_wl = get_wayland_clipboard()
+            if current_wl != last_wl and current_wl != last_x11:
+                if current_wl:
+                    set_x11_clipboard(current_wl)
+                    last_x11 = current_wl
+                last_wl = current_wl
+        except Exception:
+            pass
+        time.sleep(1.0)
+
+if __name__ == "__main__":
+    main()
+EOF
+
+chown "$USER:$USER" "$CLIPBOARD_SCRIPT"
+chmod 0755 "$CLIPBOARD_SCRIPT"
+log "Deployed clipboard bridge helper script successfully"
 
 # =============================================================================
 # 5. Enable and start the systemd service if CRD is configured
