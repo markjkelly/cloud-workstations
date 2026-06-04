@@ -28,7 +28,7 @@ The master script must:
 
 ### R2: Minimal bootstrap script in Docker image
 
-Create `000_bootstrap.sh` in the Docker image at `/etc/workstation-startup.d/`. This is the ONLY custom startup script in the Docker image. It must be approximately 5 lines:
+Create `250_bootstrap.sh` in the Docker image at `/etc/workstation-startup.d/`. This is the ONLY custom startup script in the Docker image. It must be approximately 5 lines:
 1. Check if `~/boot/setup.sh` exists on the persistent disk
 2. If it exists, execute it with `bash ~/boot/setup.sh`
 3. If it does not exist, log a warning and exit gracefully
@@ -41,7 +41,7 @@ Rebuild the Docker image ONE FINAL TIME containing only:
 - Base Cloud Workstation image (`us-central1-docker.pkg.dev/cloud-workstations-images/predefined/base`)
 - systemd (required for service management)
 - TigerVNC + noVNC (required for VNC pipeline -- noVNC proxies port 80 to 5901)
-- `000_bootstrap.sh` (from R2)
+- `250_bootstrap.sh` (from R2)
 - Existing assets: `100_persist-machine-id.sh`, `100_add-xstartup.sh`, systemd service files for TigerVNC/noVNC, entrypoint script
 
 Remove from Docker image:

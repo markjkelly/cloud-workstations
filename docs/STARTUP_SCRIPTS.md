@@ -1,6 +1,6 @@
 # Cloud Workstation — Startup Scripts
 
-Summary of all boot scripts that run on every workstation start. Scripts execute in numerical order via `~/boot/setup.sh`, which is called by the Docker entrypoint's `000_bootstrap.sh`.
+Summary of all boot scripts that run on every workstation start. Scripts execute in numerical order via `~/boot/setup.sh`, which is called by the Docker entrypoint's `250_bootstrap.sh`.
 
 ## Boot Sequence
 
@@ -28,7 +28,7 @@ Summary of all boot scripts that run on every workstation start. Scripts execute
 
 ```
 Docker entrypoint
-  └── /etc/workstation-startup.d/000_bootstrap.sh
+  └── /etc/workstation-startup.d/250_bootstrap.sh
         └── ~/boot/setup.sh
               ├── 01-nix.sh
               ├── 02-nvidia.sh
