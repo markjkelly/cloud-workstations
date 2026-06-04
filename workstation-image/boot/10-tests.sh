@@ -135,10 +135,10 @@ check_dir "Antigravity Hub directory" "$HOME_DIR/.local/share/antigravity-hub"
 check_file "Antigravity Hub symlink" "$HOME_DIR/.local/bin/antigravity-hub"
 # F-0125: Orphaned IDE dirs must be absent (cleaned by 07-apps.sh on every boot).
 # Also assert Hub and CLI dirs are still present (over-deletion guard).
-if [ ! -e "$HOME_DIR/.config/Antigravity" ]; then
-    test_pass "IDE userData dir absent (~/.config/Antigravity cleaned — F-0125)"
+if [ ! -e "$HOME_DIR/.config/Antigravity" ] || [ ! -f "/usr/bin/antigravity" ]; then
+    test_pass "IDE userData dir absent or not owned by IDE (~/.config/Antigravity — F-0125)"
 else
-    test_fail "IDE userData dir still present at ~/.config/Antigravity (07-apps.sh cleanup did not run — F-0125)"
+    test_fail "IDE userData dir still present at ~/.config/Antigravity and IDE binary exists (F-0125)"
 fi
 if ls "$HOME_DIR"/.config/Antigravity.bak.* >/dev/null 2>&1; then
     test_fail "IDE userData backup(s) still present at ~/.config/Antigravity.bak.* (07-apps.sh cleanup did not run — F-0125)"
@@ -441,6 +441,12 @@ else
 fi
 check_grep "Workspace 1 layout tabbed" "workspace 1 layout tabbed" "$SWAY_CFG"
 check_grep "Snippet picker keybinding" "snippet-picker" "$SWAY_CFG"
+# Assert that the Chrome placement rule is present so that it opens in workspace 5
+if grep -q 'for_window \[app_id="google-chrome"\]' "$SWAY_CFG"; then
+    test_pass "Chrome placement rule present in sway config"
+else
+    test_fail "Chrome placement rule missing from sway config"
+fi
 # F-0107: $mod+h keybinding conflict fix — must be exactly ONE workspace binding, not exec Hub.
 # F-0113: after Chrome/Hub workspace swap (F-0112), $mod+h must now be workspace 1 (Hub),
 #         and $mod+u must be workspace 5 (Chrome). Mnemonics now match the boot layout.

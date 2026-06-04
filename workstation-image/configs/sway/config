@@ -87,6 +87,9 @@ for_window [app_id="code"] move container to workspace number 2
 # Antigravity/Hub placement — land on workspace 1 in tabbed mode
 for_window [app_id="antigravity"] move container to workspace number 1
 
+# Chrome placement — always land on workspace 5
+for_window [app_id="google-chrome"] move container to workspace number 5
+
 # =============================================================================
 # KEY BINDINGS
 # =============================================================================
