@@ -244,4 +244,15 @@ chown "$USER:$USER" "$RESIZE_SCRIPT"
 chmod 0755 "$RESIZE_SCRIPT"
 log "Deployed resolution resize helper script successfully"
 
+# =============================================================================
+# 5. Enable and start the systemd service if CRD is configured
+# =============================================================================
+if ls "$HOME_DIR/.config/chrome-remote-desktop"/host#*.json &>/dev/null; then
+    log "CRD configuration found. Enabling and starting systemd service..."
+    systemctl enable chrome-remote-desktop@user.service --now >> "$LOG_FILE" 2>&1 || log "WARNING: Failed to start chrome-remote-desktop service"
+else
+    log "CRD configuration not found. Skipping service start (run setup-crd.sh first)."
+fi
+
 log "=== Chrome Remote Desktop setup complete ==="
+

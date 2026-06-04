@@ -789,6 +789,10 @@ check_process "swaybar" "swaybar"
 check_process "wayvnc" "wayvnc"
 check_process "Xwayland" "Xwayland"
 check_process "clipman" "clipman store"
+if ls "$HOME_DIR/.config/chrome-remote-desktop"/host#*.json &>/dev/null; then
+    check_process "chrome-remote-desktop" "chrome-remote-desktop"
+fi
+
 
 # =============================================================================
 # Upgrade Scripts
