@@ -1,5 +1,47 @@
 # Development Progress Log — Cloud Workstation
 
+## Session 56 — 2026-06-04 (F-0136: Install Antigravity IDE v2)
+
+### Date
+2026-06-04
+
+### Milestone
+Milestone 45 — Antigravity IDE v2 Installation (F-0136)
+
+### Completed
+- **F-0136** (Install Antigravity IDE v2): Installed the new standalone Electron IDE v2.
+  - **Tarball download**: Downloaded from official release URL, extracted to `~/.local/share/antigravity-ide/`.
+  - **Symlink & Launcher**: Symlinked `~/.local/bin/antigravity-ide` and created `~/.local/share/applications/antigravity-ide.desktop` for integration with Wofi.
+  - **Workspace & Placement Rework**:
+    - ws1: Antigravity IDE v2 (auto-launched at boot, focused after boot).
+    - ws2: VS Code.
+    - ws3: foot terminal.
+    - ws4: Chrome.
+    - ws5: Hub (manual start, rule moved to ws5).
+  - **F-0125 Cleanup Removal**: Removed the old IDE v1 directory cleanup from `07-apps.sh`.
+- **9 new boot tests added** to `workstation-image/boot/10-tests.sh` to verify installation, paths, .desktop, sway configs, F-0125 absence, and launch order.
+- **Spec created**: `docs/specs/F-0136-antigravity-ide-v2.md`
+
+### Files Changed
+- `workstation-image/boot/07-apps.sh` — removed F-0125, added IDE v2 install
+- `workstation-image/configs/sway/config` — sway rules and workspace layouts updated
+- `workstation-image/boot/08-workspaces.sh` — autolaunch order and focus updated
+- `workstation-image/boot/10-tests.sh` — added 9 F-0136 assertions
+- `docs/specs/F-0136-antigravity-ide-v2.md` — new spec
+- `docs/BACKLOG.md` — added Milestone 45, F-0136 marked done
+- `docs/PROGRESS.md` — this entry
+- `docs/RELEASENOTES.md` — v1.32.0 entry
+
+### Decisions
+- Installed to `~/.local/share/antigravity-ide/` to mirror the Hub's directory structure conventions.
+- Kept the installation one-time only to optimize boot speed.
+- Positioned the IDE v2 on ws1 as the primary coding tool, focusing it on start.
+
+### Next Steps
+- PO approves PR → merge → tag v1.32.0
+
+---
+
 ## Session 54 — 2026-06-04 (F-0134: sync sway-status on boot)
 
 ## Session 55 — 2026-06-04 (F-0135: hub-start minimal Hub launcher)

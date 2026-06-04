@@ -452,6 +452,15 @@ config drift, not active regressions. Each item below addresses one root-cause c
 |----|---------|------|----------|--------|-------|--------|--------------|----------|
 | F-0135 | hub-start — minimal fire-and-forget Hub launcher | [F-0135](specs/F-0135-hub-start.md) | P2 | done | SWE-1 | feature/hub-start | F-0122, F-0106 | New `workstation-image/scripts/hub-start` launches Hub with Electron flags, `env -u LD_LIBRARY_PATH`, `setsid`+`disown`, redirects to `~/logs/hub-launch.log`, switches to ws1, exits immediately. No kill/cleanup/wait. Deployed via `cloud-build-setup.sh`. 3 new boot tests (presence, executable, PATH). |
 
+
+---
+
+## Milestone 45: Antigravity IDE v2 Installation
+
+| ID | Feature | Spec | Priority | Status | Owner | Branch | Dependencies | Feedback |
+|----|---------|------|----------|--------|-------|--------|--------------|----------|
+| F-0136 | Install Antigravity IDE v2 (tarball, ws1, new workspace layout) | [F-0136](specs/F-0136-antigravity-ide-v2.md) | P1 | done | SWE-1 | feature/antigravity-ide-v2 | F-0116, F-0124, F-0125 | Download from GCS tarball, install to `~/.local/share/antigravity-ide/`, symlink to `~/.local/bin/antigravity-ide`, app_id=`antigravity-ide` on ws1. Hub moved to ws5. F-0125 cleanup removed. New layout: ws1=IDE, ws2=VS Code, ws3=foot, ws4=Chrome, ws5=Hub (manual). 9 new boot tests. bash -n PASS all files. |
+
 ---
 
 ## Future Items

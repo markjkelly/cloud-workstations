@@ -139,69 +139,111 @@ log "User session confirmed ready — proceeding with app updates"
 # placement collisions. No apt operations needed here for Antigravity.
 
 # =============================================================================
-# F-0125: Remove orphaned Antigravity IDE dirs left by F-0116.
+# F-0136: Install Antigravity IDE v2 (one-time tarball install)
 #
-# The Antigravity IDE used four dirs on the persistent disk that are now dead.
-# They are distinct from Hub and CLI dirs (see guard assertions below).
-# This block runs idempotently on every boot and on fresh setup, so the dirs
-# are cleaned up regardless of when the workstation was first provisioned.
+# Downloads Antigravity IDE v2 from the official release URL, extracts to
+# ~/.local/share/antigravity-ide/, creates a symlink at ~/.local/bin/antigravity-ide,
+# and creates a .desktop file for app launcher integration.
+# Only runs if the install directory does not already exist (one-time install).
 #
-# DIRS TO REMOVE (IDE-only, now orphaned):
-#   ~/.config/Antigravity           — IDE Electron userData
-#   ~/.config/Antigravity.bak.*     — backup(s) of the above created at install
-#   ~/.antigravity                  — IDE extensions / local state
-#   ~/.cache/antigravity            — IDE cache
-#
-# DIRS TO KEEP (Hub / CLI / other):
-#   ~/.config/Antigravity-Hub       — Hub Electron userData  (KEEP)
-#   ~/.local/share/antigravity-hub  — Hub binary dir          (KEEP)
-#   ~/.gemini/antigravity-cli       — Antigravity CLI install (KEEP)
-#   ~/.gemini/antigravity           — Antigravity CLI state   (KEEP)
-#   ~/.antigravitycli               — CLI project symlinks    (KEEP)
-#
-# Safety: each rm call targets a specific path that cannot match Hub/CLI dirs
-# (different name segment — "Antigravity" vs "Antigravity-Hub",
-#  ".antigravity" vs ".antigravitycli", ".cache/antigravity" is cache-only).
+# Tarball extracts to "Antigravity IDE/" with binary "antigravity-ide" inside.
+# app_id (Wayland) = "antigravity-ide" (from product.json applicationName).
 # =============================================================================
-log "F-0125: Removing orphaned Antigravity IDE dirs (idempotent)..."
+log "F-0136: Installing Antigravity IDE v2..."
+IDE_INSTALL_DIR="$HOME_DIR/.local/share/antigravity-ide"
+IDE_SYMLINK="$HOME_DIR/.local/bin/antigravity-ide"
+IDE_DESKTOP="$HOME_DIR/.local/share/applications/antigravity-ide.desktop"
+IDE_URL="https://edgedl.me.gvt1.com/edgedl/release2/j0qc3/antigravity/stable/2.0.4-6381998290370560/linux-x64/Antigravity%20IDE.tar.gz"
+IDE_TEMP="/tmp/antigravity-ide-v2-download.tar.gz"
 
-# 1. IDE userData: ~/.config/Antigravity
-#    Guard: must NOT be ~/.config/Antigravity-Hub (Hub dir, different suffix)
-IDE_USERDATA="$HOME_DIR/.config/Antigravity"
-if [ -e "$IDE_USERDATA" ] && [ "$IDE_USERDATA" != "$HOME_DIR/.config/Antigravity-Hub" ]; then
-    runuser -u $USER -- rm -rf "$IDE_USERDATA" && \
-        log "F-0125: Removed $IDE_USERDATA" || \
-        log "F-0125: WARNING — could not remove $IDE_USERDATA (rc=$?)"
+if [ ! -d "$IDE_INSTALL_DIR" ]; then
+    log "Antigravity IDE v2 not found — downloading and extracting..."
+    runuser -u $USER -- mkdir -p "$HOME_DIR/.local/share" "$HOME_DIR/.local/bin" "$HOME_DIR/.local/share/applications"
+    if runuser -u $USER -- curl -fsSL --retry 3 --retry-delay 5 --connect-timeout 30 -o "$IDE_TEMP" "$IDE_URL" >> "$LOG_FILE" 2>&1; then
+        if runuser -u $USER -- tar -xzf "$IDE_TEMP" -C "$HOME_DIR/.local/share/" >> "$LOG_FILE" 2>&1; then
+            # Tarball extracts to "Antigravity IDE/" — rename to standard install dir
+            runuser -u $USER -- mv "$HOME_DIR/.local/share/Antigravity IDE" "$IDE_INSTALL_DIR" 2>/dev/null || true
+            rm -f "$IDE_TEMP"
+            log "Antigravity IDE v2: downloaded and extracted — OK"
+        else
+            log "Antigravity IDE v2: extraction FAILED (rc=$?) — check $LOG_FILE for details"
+            rm -f "$IDE_TEMP"
+        fi
+    else
+        log "Antigravity IDE v2: download FAILED (rc=$?) — check $LOG_FILE for details"
+        rm -f "$IDE_TEMP"
+    fi
+else
+    log "Antigravity IDE v2: already installed at $IDE_INSTALL_DIR — OK"
 fi
 
-# 2. IDE userData backups: ~/.config/Antigravity.bak.*
-#    These are named Antigravity.bak.<numeric-suffix>, never Antigravity-Hub.*
-for bak_dir in "$HOME_DIR"/.config/Antigravity.bak.*; do
-    [ -e "$bak_dir" ] || continue
-    runuser -u $USER -- rm -rf "$bak_dir" && \
-        log "F-0125: Removed $bak_dir" || \
-        log "F-0125: WARNING — could not remove $bak_dir (rc=$?)"
+# Deploy wrapper script and .desktop file if the installation directory exists
+if [ -d "$IDE_INSTALL_DIR" ]; then
+    # Create wrapper script at $IDE_SYMLINK to automatically handle display/ozone/GPU configurations
+    runuser -u $USER -- tee "$IDE_SYMLINK" > /dev/null <<'WRAPPER_EOF'
+#!/bin/bash
+# Wrapper for Antigravity IDE v2 to automatically inject ozone and GPU flags,
+# and resolve active Sway session environment (so it works from SSH/tmux).
+
+# Detect active Sway session socket and display (similar to 08-workspaces.sh)
+DETECTED_SOCK=""
+DETECTED_DISPLAY="wayland-1"
+
+# Try to find the CRD session socket first (must have X11-1 output)
+for sock in /run/user/1000/sway-ipc.1000.*.sock; do
+    [ -S "$sock" ] || continue
+    if SWAYSOCK="$sock" /home/user/.nix-profile/bin/swaymsg -t get_outputs 2>/dev/null | grep -q 'X11-1'; then
+        DETECTED_SOCK="$sock"
+        pid=$(basename "$sock" | cut -d. -f3)
+        lock_file=$(ls -la /proc/$pid/fd/ 2>/dev/null | grep -o 'wayland-[0-9]\+\.lock' | head -n1 || true)
+        if [ -n "$lock_file" ]; then
+            DETECTED_DISPLAY="${lock_file%.lock}"
+        fi
+        break
+    fi
 done
 
-# 3. IDE extensions / local state: ~/.antigravity
-#    Guard: must NOT be ~/.antigravitycli (CLI project state, different suffix)
-IDE_EXTDIR="$HOME_DIR/.antigravity"
-if [ -e "$IDE_EXTDIR" ] && [ "$IDE_EXTDIR" != "$HOME_DIR/.antigravitycli" ]; then
-    runuser -u $USER -- rm -rf "$IDE_EXTDIR" && \
-        log "F-0125: Removed $IDE_EXTDIR" || \
-        log "F-0125: WARNING — could not remove $IDE_EXTDIR (rc=$?)"
+# If no CRD socket found, try fallback
+if [ -z "$DETECTED_SOCK" ]; then
+    fallback_sock=$(ls /run/user/1000/sway-ipc.1000.*.sock 2>/dev/null | head -n1 || true)
+    if [ -n "$fallback_sock" ]; then
+        DETECTED_SOCK="$fallback_sock"
+        pid=$(basename "$fallback_sock" | cut -d. -f3)
+        lock_file=$(ls -la /proc/$pid/fd/ 2>/dev/null | grep -o 'wayland-[0-9]\+\.lock' | head -n1 || true)
+        if [ -n "$lock_file" ]; then
+            DETECTED_DISPLAY="${lock_file%.lock}"
+        fi
+    fi
 fi
 
-# 4. IDE cache: ~/.cache/antigravity
-#    Guard: scoped to .cache/ so it cannot touch Hub or CLI dirs
-IDE_CACHE="$HOME_DIR/.cache/antigravity"
-if [ -e "$IDE_CACHE" ]; then
-    runuser -u $USER -- rm -rf "$IDE_CACHE" && \
-        log "F-0125: Removed $IDE_CACHE" || \
-        log "F-0125: WARNING — could not remove $IDE_CACHE (rc=$?)"
+if [ -n "$DETECTED_SOCK" ]; then
+    export SWAYSOCK="${SWAYSOCK:-$DETECTED_SOCK}"
+    export WAYLAND_DISPLAY="${WAYLAND_DISPLAY:-$DETECTED_DISPLAY}"
 fi
+export XDG_RUNTIME_DIR=/run/user/1000
 
-log "F-0125: Orphaned IDE dir cleanup done"
+exec env -u LD_LIBRARY_PATH /home/user/.local/share/antigravity-ide/antigravity-ide \
+    --ozone-platform=wayland \
+    --disable-gpu \
+    --disable-dev-shm-usage \
+    "$@"
+WRAPPER_EOF
+    runuser -u $USER -- chmod +x "$IDE_SYMLINK"
+
+    # Create .desktop file for app launcher integration
+    runuser -u $USER -- tee "$IDE_DESKTOP" > /dev/null <<'DESKTOP_EOF'
+[Desktop Entry]
+Name=Antigravity IDE
+Comment=Antigravity IDE v2 — AI-powered development environment
+Exec=/home/user/.local/bin/antigravity-ide %F
+Icon=/home/user/.local/share/antigravity-ide/resources/app/resources/linux/code.png
+Type=Application
+Categories=Development;IDE;
+Terminal=false
+StartupWMClass=antigravity-ide
+DESKTOP_EOF
+    log "Antigravity IDE v2: wrapper and .desktop deployed/updated"
+fi
 
 # --- Install/update Antigravity 2.0 Desktop App (Hub) ---
 # NOTE: URL version 2.0.10-5119448496078848 is hardcoded. Update this URL when a
