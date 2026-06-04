@@ -1,5 +1,29 @@
 # Development Progress Log — Cloud Workstation
 
+## Session 51 — 2026-06-04 (VS Code SingletonLock race fix)
+
+### Date
+2026-06-04
+
+### Milestone
+CRD Autolaunch — Fix VS Code launching on headless instead of CRD
+
+### Completed
+- **Root cause**: Sway config `exec env -u LD_LIBRARY_PATH $nix/code ...` runs on the headless Sway session (which loads the config first), claiming Electron's SingletonLock. When `08-workspaces.sh` later tries to launch VS Code on CRD, SingletonLock is already held.
+- **Fix**: Removed the `exec` directive from sway config. `08-workspaces.sh` (via `ws-autolaunch.service`) is now the sole VS Code launcher, targeting the CRD session.
+- **Test updates**: F-0131 autostart test now asserts VS Code exec is **absent** from sway config. F-0116 ws2 test now expects VS Code on ws2 (supersedes empty-ws2 assertion).
+
+### Files Changed
+- `workstation-image/configs/sway/config` — removed VS Code exec autostart, added explanatory comment
+- `workstation-image/boot/10-tests.sh` — updated F-0131 and F-0116 tests
+- `docs/PROGRESS.md` — this entry
+
+### Decisions
+- Sway config should never `exec` Electron apps that use SingletonLock — the headless session always wins the race
+
+---
+
+
 ## Session 49 — 2026-06-04 (workspace pinning + keyring fix)
 
 ### Date
