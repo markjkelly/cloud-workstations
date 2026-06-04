@@ -290,8 +290,6 @@ exec env -u LD_LIBRARY_PATH /home/user/.nix-profile/bin/wl-paste -t text --watch
 # Bridge clipboard between CRD X11 display and Wayland (runs nested inside CRD Sway)
 exec [ "$WLR_BACKENDS" = "x11" ] && /home/user/.local/bin/crd-clipboard-bridge
 
-# VS Code — auto-start on workspace 2 at every sway session boot.
-# Uses exec (not exec_always) so swaymsg reload does NOT spawn a duplicate instance.
-# The for_window placement rule above moves it to ws2 immediately after the window appears.
-# Invocation is identical to the $mod+y keybinding (line ~110).
-exec env -u LD_LIBRARY_PATH $nix/code --no-sandbox --ozone-platform=wayland --disable-gpu --disable-dev-shm-usage
+# VS Code is auto-launched by 08-workspaces.sh (via ws-autolaunch.service) so
+# it targets the CRD session. Do NOT add an 'exec code ...' here — the headless
+# Sway loads this config first and would claim SingletonLock before CRD is ready.
