@@ -441,11 +441,11 @@ else
 fi
 check_grep "Workspace 1 layout tabbed" "workspace 1 layout tabbed" "$SWAY_CFG"
 check_grep "Snippet picker keybinding" "snippet-picker" "$SWAY_CFG"
-# Assert that the Chrome placement rule is present so that it opens in workspace 5
-if grep -q 'for_window \[app_id="google-chrome"\]' "$SWAY_CFG"; then
-    test_pass "Chrome placement rule present in sway config"
+# Assert that the Chrome placement and no_focus rules are present
+if grep -q 'for_window \[app_id="google-chrome"\]' "$SWAY_CFG" && grep -q 'no_focus \[app_id="google-chrome"\]' "$SWAY_CFG"; then
+    test_pass "Chrome placement and no_focus rules present in sway config"
 else
-    test_fail "Chrome placement rule missing from sway config"
+    test_fail "Chrome placement or no_focus rules missing from sway config"
 fi
 # F-0107: $mod+h keybinding conflict fix — must be exactly ONE workspace binding, not exec Hub.
 # F-0113: after Chrome/Hub workspace swap (F-0112), $mod+h must now be workspace 1 (Hub),
