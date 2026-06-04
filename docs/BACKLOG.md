@@ -1,7 +1,7 @@
 # Project Backlog — Cloud Workstation
 
 **Maintained by:** TPM
-**Last updated:** 2026-06-04 (F-0133 fix autolaunch skip logic)
+**Last updated:** 2026-06-04 (F-0134 sync sway-status on boot)
 
 ---
 
@@ -435,6 +435,14 @@ config drift, not active regressions. Each item below addresses one root-cause c
 | ID | Feature | Spec | Priority | Status | Owner | Branch | Dependencies | Feedback |
 |----|---------|------|----------|--------|-------|--------|--------------|----------|
 | F-0133 | Fix autolaunch idempotent check: count app windows, not raw PIDs | [F-0133](specs/F-0133-autolaunch-skip-fix.md) | P0 | done | SWE-1 | fix/autolaunch-skip-logic | F-0029, F-0124 | Idempotent check in 08-workspaces.sh was counting all PIDs in sway tree (grep -o '"pid"') and skipping at > 1. Background processes (swaybar, Xwayland) already produce PID entries, so autolaunch always skipped after reboot. Fix: use python3 to parse sway tree JSON, count only containers with app_id or window_properties.class set (actual application windows). 5 new tests in 10-tests.sh. bash -n PASS both files. |
+
+---
+
+## Milestone 43: Sync sway-status on Boot
+
+| ID | Feature | Spec | Priority | Status | Owner | Branch | Dependencies | Feedback |
+|----|---------|------|----------|--------|-------|--------|--------------|----------|
+| F-0134 | Add sway-status deployment to 09-sync.sh for boot persistence | [F-0134](specs/F-0134-sync-sway-status.md) | P1 | done | SWE-1 | fix/sync-sway-status | F-0108, F-0132 | `sway-status` was only deployed by `cloud-build-setup.sh` during initial provisioning. Repo changes (e.g., F-0132 timezone fix) never propagated to `~/.local/bin/sway-status` until a full rebuild. Fix: `09-sync.sh` now copies `workstation-image/configs/swaybar/sway-status` → `~/.local/bin/sway-status` on every boot (guarded, chmod +x, chown 1000:1000). 4 new tests in 10-tests.sh. bash -n PASS both files. |
 
 ---
 

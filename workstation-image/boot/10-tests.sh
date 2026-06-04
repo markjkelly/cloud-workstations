@@ -965,6 +965,46 @@ else
 fi
 
 # =============================================================================
+# Boot Sync sway-status Deployment (F-0134)
+# =============================================================================
+log ""
+log "--- Boot Sync sway-status (09-sync.sh) ---"
+
+# Check that 09-sync.sh contains sway-status sync block
+SYNC_SCRIPT_F134="$HOME_DIR/boot/09-sync.sh"
+if [ -f "$SYNC_SCRIPT_F134" ]; then
+    # (a) Check that sway-status source path is referenced
+    if grep -q "configs/swaybar/sway-status" "$SYNC_SCRIPT_F134" 2>/dev/null; then
+        test_pass "09-sync.sh: sway-status source path present"
+    else
+        test_fail "09-sync.sh: sway-status source path missing — sway-status will not sync on boot"
+    fi
+
+    # (b) Check that destination path is ~/.local/bin/sway-status
+    if grep -q '\.local/bin/sway-status' "$SYNC_SCRIPT_F134" 2>/dev/null; then
+        test_pass "09-sync.sh: sway-status destination path present"
+    else
+        test_fail "09-sync.sh: sway-status destination path missing"
+    fi
+
+    # (c) Check that chmod +x is applied to sway-status
+    if grep -q 'chmod +x.*sway-status\|chmod +x.*SWAY_STATUS' "$SYNC_SCRIPT_F134" 2>/dev/null; then
+        test_pass "09-sync.sh: sway-status chmod +x present"
+    else
+        test_fail "09-sync.sh: sway-status chmod +x missing — script will not be executable"
+    fi
+
+    # (d) Check that file-existence guard is present
+    if grep -q 'SWAY_STATUS_SRC' "$SYNC_SCRIPT_F134" 2>/dev/null; then
+        test_pass "09-sync.sh: sway-status guarded with source variable"
+    else
+        test_fail "09-sync.sh: sway-status source guard variable missing"
+    fi
+else
+    test_fail "09-sync.sh not found at $SYNC_SCRIPT_F134 (cannot verify F-0134)"
+fi
+
+# =============================================================================
 # User-Session Readiness Gate (F-0121)
 # =============================================================================
 # These are STATIC tests (grep-based) — no reboot required.

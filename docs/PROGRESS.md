@@ -1,5 +1,44 @@
 # Development Progress Log — Cloud Workstation
 
+## Session 54 — 2026-06-04 (F-0134: sync sway-status on boot)
+
+### Date
+2026-06-04
+
+### Milestone
+Milestone 43 — Sync sway-status on Boot (F-0134)
+
+### Completed
+- **F-0134** (Add sway-status deployment to 09-sync.sh): `~/.local/bin/sway-status` was only deployed by `scripts/cloud-build-setup.sh` during initial provisioning. Changes to the repo's `sway-status` (e.g., the F-0132 timezone fix from `America/Los_Angeles` → `America/Chicago`) never propagated to the live workstation until a full rebuild.
+  - **Fix**: Added a new sync block to `workstation-image/boot/09-sync.sh` that copies `$REPO_DIR/workstation-image/configs/swaybar/sway-status` → `$HOME_DIR/.local/bin/sway-status` on every boot.
+  - **Pattern**: Follows the existing sway config sync pattern — guarded with `[[ -f ]]` check, `mkdir -p` for destination directory, `cp` + `chmod +x` + `chown 1000:1000`, with success/failure/skip logging.
+- **4 new boot tests added** to `workstation-image/boot/10-tests.sh`:
+  - (a) sway-status source path present in 09-sync.sh
+  - (b) sway-status destination path (`~/.local/bin/sway-status`) present
+  - (c) chmod +x applied to sway-status
+  - (d) SWAY_STATUS_SRC guard variable present
+- **Spec created**: `docs/specs/F-0134-sync-sway-status.md`
+- **QA verified**: Implementation follows identical pattern to existing sway config sync block
+
+### Files Changed
+- `workstation-image/boot/09-sync.sh` — added sway-status sync block (lines 77-90)
+- `workstation-image/boot/10-tests.sh` — added F-0134 test section (4 assertions)
+- `docs/specs/F-0134-sync-sway-status.md` — new spec
+- `docs/BACKLOG.md` — Milestone 43 added, F-0134 marked done
+- `docs/PROGRESS.md` — this entry
+- `docs/RELEASENOTES.md` — v1.30.0 entry
+
+### Decisions
+- Placed the sway-status sync after the sway config sync (same logical grouping — both are config files deployed to user-writable locations)
+- Used `mkdir -p` for the destination directory to be safe, even though `~/.local/bin` should always exist
+- Did NOT add syncing for other `~/.local/bin` scripts (hub-restart, snippet-picker, etc.) — those have their own deployment paths and aren't affected by this particular repo-drift issue
+
+### Next Steps
+- PO approves PR → merge → tag v1.30.0
+- On next boot, verify `~/logs/sync.log` shows `✓ Copied sway-status` and the live `~/.local/bin/sway-status` has the correct timezone
+
+---
+
 ## Session 53 — 2026-06-04 (F-0133: fix autolaunch skip logic)
 
 ### Date

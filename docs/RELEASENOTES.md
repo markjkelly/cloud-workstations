@@ -1,5 +1,25 @@
 # Release Notes — Cloud Workstation
 
+## v1.30.0 — Sync sway-status from repo on every boot (2026-06-04)
+
+### Fixed
+- **sway-status config drift after repo changes** (F-0134) — `~/.local/bin/sway-status` was
+  only deployed by `scripts/cloud-build-setup.sh` during initial project provisioning. Any
+  subsequent changes to the repo's `workstation-image/configs/swaybar/sway-status` (such as
+  the F-0132 timezone change from Pacific to Central) never propagated to the live workstation
+  until a full `ws.sh teardown && ws.sh setup` rebuild. The swaybar clock would continue
+  showing the old timezone indefinitely.
+
+### Changed
+- **`workstation-image/boot/09-sync.sh`** — Added a new sync block that copies the repo's
+  `sway-status` script to `~/.local/bin/sway-status` on every boot. The copy is guarded by
+  a file-existence check, sets executable permissions (`chmod +x`), and restores user ownership
+  (`chown 1000:1000`). Follows the identical pattern used for sway config sync.
+
+### Tests
+- 4 new boot tests in `10-tests.sh` (F-0134 section): verify `09-sync.sh` contains the
+  sway-status source path, destination path, chmod +x, and source guard variable.
+
 ## v1.29.0 — Fix autolaunch idempotent check: count app windows, not PIDs (2026-06-04)
 
 ### Fixed
