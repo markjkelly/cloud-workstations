@@ -433,13 +433,13 @@ if grep -qE 'bindsym.*mod\+g.*antigravity|bindsym.*mod\+n.*antigravity' "$SWAY_C
 else
     test_pass "Sway config has no antigravity IDE keybindings (\$mod+g/\$mod+n removed — F-0116)"
 fi
-# F-0125: Hub placement rule removed (dead since F-0124 removed Hub autostart;
-# hub-restart does its own swaymsg workspace 1). Assert it is ABSENT.
+# Assert that the Antigravity placement rule is present so that it opens in workspace 1
 if grep -q 'for_window \[app_id="antigravity"\]' "$SWAY_CFG"; then
-    test_fail "Dead for_window [app_id=\"antigravity\"] rule still in sway config (should be removed — F-0125)"
+    test_pass "Antigravity/Hub placement rule present in sway config"
 else
-    test_pass "Dead for_window antigravity rule absent from sway config (F-0125)"
+    test_fail "Antigravity/Hub placement rule missing from sway config"
 fi
+check_grep "Workspace 1 layout tabbed" "workspace 1 layout tabbed" "$SWAY_CFG"
 check_grep "Snippet picker keybinding" "snippet-picker" "$SWAY_CFG"
 # F-0107: $mod+h keybinding conflict fix — must be exactly ONE workspace binding, not exec Hub.
 # F-0113: after Chrome/Hub workspace swap (F-0112), $mod+h must now be workspace 1 (Hub),
