@@ -74,6 +74,21 @@ mkdir -p "${LOG_DIR}"
     echo "  ⚠ Sway config source not found at ${SWAY_SRC} (skipping)"
   fi
 
+  # Copy sway-status script and restore ownership + permissions (F-0134)
+  SWAY_STATUS_SRC="${REPO_DIR}/workstation-image/configs/swaybar/sway-status"
+  SWAY_STATUS_DST="${USER_HOME}/.local/bin/sway-status"
+  echo "Syncing sway-status from ${SWAY_STATUS_SRC}..."
+  if [[ -f "${SWAY_STATUS_SRC}" ]]; then
+    mkdir -p "$(dirname "${SWAY_STATUS_DST}")"
+    if cp "${SWAY_STATUS_SRC}" "${SWAY_STATUS_DST}" && chmod +x "${SWAY_STATUS_DST}" && chown 1000:1000 "${SWAY_STATUS_DST}"; then
+      echo "  ✓ Copied sway-status"
+    else
+      echo "  ✗ Failed to copy sway-status (continuing)"
+    fi
+  else
+    echo "  ⚠ sway-status source not found at ${SWAY_STATUS_SRC} (skipping)"
+  fi
+
   echo "=== Boot sync completed successfully at $(date) ==="
 } >> "${LOG_FILE}" 2>&1
 
