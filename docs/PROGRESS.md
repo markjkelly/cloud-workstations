@@ -2897,3 +2897,43 @@ CRD Autolaunch — Fix apps launching on headless instead of CRD session
 ### Next Steps
 - Reboot to verify the full autolaunch flow end-to-end on a fresh boot
 - Consider whether the headless Sway session is still needed when CRD is the primary access method
+
+---
+
+## Session 51 — 2026-06-04 (Automatic CRD Resolution Setup)
+
+### Date
+2026-06-04
+
+### Milestone
+Milestone 46 — Automatic CRD Resolution Setup (F-0137)
+
+### Goals
+- Automatically run `crd-resize 2560 1440` during the autolaunch sequence in `08-workspaces.sh` to configure the virtual screen resolution to 2560x1440 on boot.
+
+### Completed
+- **Added Auto-Resize Resolution Logic**: Modified `08-workspaces.sh` to check if Chrome Remote Desktop is active/enabled once Sway compositor is ready. If active, runs `crd-resize 2560 1440` as user `user` with correct PATH environment variable.
+- **Robust Path Execution & Error Handling**: Redirected stdout/stderr outputs to `/home/user/logs/crd-resize-boot.log`. Added existence and executability check `[ -x "/home/user/.local/bin/crd-resize" ]` to prevent errors if the tool is absent.
+- **Boot Test Coverage**: Added 5 new tests in `10-tests.sh` to verify script presence, correct parameter execution, user context execution, logging redirection, and file checks.
+- **Bash syntax validation**: Checked modified boot scripts using `bash -n` to ensure syntax correctness.
+- **Three-places synchronization**: Kept the live workstation in sync by copying the updated repository files `/home/user/boot/08-workspaces.sh` and `/home/user/boot/10-tests.sh` directly. Tested boot tests on the live system, and all 5 new tests pass successfully.
+
+### Agent Team
+- SWE-1: auto-resize implementation, boot tests, live copy sync, bash validation
+- TPM: specification, backlog management, progress logs (this entry)
+
+### Files Changed
+- `docs/specs/F-0137-auto-crd-resize.md` — new feature specification
+- `docs/BACKLOG.md` — added Milestone 46, marked F-0137 status as `done`
+- `workstation-image/boot/08-workspaces.sh` — added auto-resize resolution block
+- `workstation-image/boot/10-tests.sh` — added 5 regression boot tests
+- `docs/PROGRESS.md` — this entry
+
+### Decisions
+- **Check CRD status before resizing**: Ensure `crd-resize` is not run in headless/Wayland compositor-only profiles.
+- **Set PATH explicitly during runuser**: Since `/home/user/.local/bin` and Nix profiles are user-specific, explicitly injecting them into the command environment ensures binaries like `swaymsg`, `xrandr` and `cvt` are available.
+
+### Next Steps
+- Commit changes to `feature/auto-crd-resize`, push, and open PR via `gh`.
+- Document version `v1.33.0` in `docs/RELEASENOTES.md`.
+

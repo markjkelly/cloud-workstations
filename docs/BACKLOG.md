@@ -1,9 +1,7 @@
 # Project Backlog — Cloud Workstation
 
 **Maintained by:** TPM
-**Last updated:** 2026-06-04 (F-0134 sync sway-status on boot)
-
-**Last updated:** 2026-06-04 (F-0135 hub-start minimal Hub launcher)
+**Last updated:** 2026-06-04 (F-0137 auto crd-resize on boot)
 
 ---
 
@@ -460,6 +458,14 @@ config drift, not active regressions. Each item below addresses one root-cause c
 | ID | Feature | Spec | Priority | Status | Owner | Branch | Dependencies | Feedback |
 |----|---------|------|----------|--------|-------|--------|--------------|----------|
 | F-0136 | Install Antigravity IDE v2 (tarball, ws1, new workspace layout) | [F-0136](specs/F-0136-antigravity-ide-v2.md) | P1 | done | SWE-1 | feature/antigravity-ide-v2 | F-0116, F-0124, F-0125 | Download from GCS tarball, install to `~/.local/share/antigravity-ide/`, symlink to `~/.local/bin/antigravity-ide`, app_id=`antigravity-ide` on ws1. Hub moved to ws5. F-0125 cleanup removed. New layout: ws1=IDE, ws2=VS Code, ws3=foot, ws4=Chrome, ws5=Hub (manual). 9 new boot tests. bash -n PASS all files. |
+
+---
+
+## Milestone 46: Automatic CRD Resolution Setup
+
+| ID | Feature | Spec | Priority | Status | Owner | Branch | Dependencies | Feedback |
+|----|---------|------|----------|--------|-------|--------|--------------|----------|
+| F-0137 | Automatically run `crd-resize 2560 1440` during autolaunch | [F-0137](specs/F-0137-auto-crd-resize.md) | P1 | done | SWE-1 | feature/auto-crd-resize | — | **Implemented, tested, verified (2026-06-04).** Once Sway is detected as ready, automatically executes `/home/user/.local/bin/crd-resize 2560 1440` as user `user` if CRD is active/enabled. Redirects output to `/home/user/logs/crd-resize-boot.log`. Added 5 boot tests verifying CRD detection, path execution, user context, logging redirection, and file/executability checks. bash -n PASS. |
 
 ---
 

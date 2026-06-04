@@ -1,6 +1,19 @@
 # Release Notes — Cloud Workstation
 
+## v1.33.0 — Automatic CRD Resolution Setup (2026-06-04)
+
+### Added
+- **Automatic CRD Resolution Resize** (F-0137) — Automatically configures the virtual display resolution to 2560x1440 on boot. Once Sway is ready during the autolaunch sequence (`08-workspaces.sh`), checks if Chrome Remote Desktop is active or enabled. If so, executes `/home/user/.local/bin/crd-resize 2560 1440` as user `user` with correct PATH environment variables.
+- **Boot Resolution Logging** — Redirects stdout and stderr of the boot-time resize command to `/home/user/logs/crd-resize-boot.log` to track execution and help debug any startup issues.
+
+### Changed
+- **`08-workspaces.sh`** — Appended the resolution configuration check and execution blocks right after the wait-for-Sway loop. Performs file existence and executability check (`-x "/home/user/.local/bin/crd-resize"`) before executing to avoid boot-time failures on profiles without the tool.
+
+### Tests
+- Added 5 new boot tests in `10-tests.sh` (F-0137 section) to assert CRD status check, correct `crd-resize` invocation, user context execution, logging output redirection, and presence check.
+
 ## v1.32.0 — Install Antigravity IDE v2 and Rework Workspace Layout (2026-06-04)
+
 
 ### Added
 - **Antigravity IDE v2** (F-0136) — Installed the new standalone Electron-based Antigravity IDE v2. It is downloaded as a tarball from the official URL, extracted to `~/.local/share/antigravity-ide/`, and symlinked to `~/.local/bin/antigravity-ide`.

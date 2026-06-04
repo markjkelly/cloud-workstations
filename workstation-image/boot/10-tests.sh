@@ -1446,6 +1446,49 @@ if [ -f "$WS_SCRIPT_F0136" ]; then
 fi
 
 # =============================================================================
+# F-0137: Auto-resize CRD resolution on boot
+# =============================================================================
+WS_SCRIPT_F0137="$HOME_DIR/boot/08-workspaces.sh"
+if [ -f "$WS_SCRIPT_F0137" ]; then
+    # (a) Check if CRD active/enabled check is present
+    if grep -q 'chrome-remote-desktop@user.service' "$WS_SCRIPT_F0137" 2>/dev/null && grep -q 'chrome-remote-desktop' "$WS_SCRIPT_F0137" 2>/dev/null; then
+        test_pass "F-0137: 08-workspaces.sh contains check for CRD service/process"
+    else
+        test_fail "F-0137: 08-workspaces.sh missing check for CRD service/process"
+    fi
+
+    # (b) Check if crd-resize command with correct arguments is present
+    if grep -q 'crd-resize 2560 1440' "$WS_SCRIPT_F0137" 2>/dev/null; then
+        test_pass "F-0137: 08-workspaces.sh invokes crd-resize 2560 1440"
+    else
+        test_fail "F-0137: 08-workspaces.sh missing crd-resize 2560 1440 invocation"
+    fi
+
+    # (c) Check if runuser is used to run as the correct user
+    if grep -q 'runuser -u "$USER"' "$WS_SCRIPT_F0137" 2>/dev/null || grep -q 'runuser -u user' "$WS_SCRIPT_F0137" 2>/dev/null; then
+        test_pass "F-0137: 08-workspaces.sh runs crd-resize as user 'user'"
+    else
+        test_fail "F-0137: 08-workspaces.sh does not execute crd-resize as user 'user'"
+    fi
+
+    # (d) Check if output redirection to crd-resize-boot.log is present
+    if grep -q '>/home/user/logs/crd-resize-boot.log' "$WS_SCRIPT_F0137" 2>/dev/null || grep -q '> /home/user/logs/crd-resize-boot.log' "$WS_SCRIPT_F0137" 2>/dev/null; then
+        test_pass "F-0137: 08-workspaces.sh redirects outputs to crd-resize-boot.log"
+    else
+        test_fail "F-0137: 08-workspaces.sh does not redirect outputs to crd-resize-boot.log"
+    fi
+
+    # (e) Check if file existence/executability check is performed
+    if grep -q '\-x "/home/user/.local/bin/crd-resize"' "$WS_SCRIPT_F0137" 2>/dev/null || grep -q '\-f "/home/user/.local/bin/crd-resize"' "$WS_SCRIPT_F0137" 2>/dev/null; then
+        test_pass "F-0137: 08-workspaces.sh checks for crd-resize file existence/executability"
+    else
+        test_fail "F-0137: 08-workspaces.sh does not check for crd-resize presence before executing"
+    fi
+else
+    test_fail "F-0137: 08-workspaces.sh not found at $WS_SCRIPT_F0137"
+fi
+
+# =============================================================================
 # Summary
 # =============================================================================
 TOTAL=$((PASS+FAIL+WARN+SKIP))
