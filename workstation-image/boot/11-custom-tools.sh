@@ -82,6 +82,22 @@ install_gh() {
     local bin_dir="$HOME_DIR/.local/bin"
     local bin="$bin_dir/gh"
 
+    # If the binary exists but is the real executable (not our wrapper), migrate it
+    if [ -f "$bin" ] && ! grep -q "github_pat_antigravitydummytoken" "$bin" 2>/dev/null; then
+        log "[gh] Migrating real gh binary to gh.real and installing wrapper"
+        mv "$bin" "$bin_dir/gh.real"
+        cat << 'EOF' > "$bin"
+#!/bin/bash
+# Wrapper to strip out dummy GITHUB_TOKEN when using GitHub CLI
+if [[ "$GITHUB_TOKEN" == "github_pat_antigravitydummytoken" ]]; then
+    unset GITHUB_TOKEN
+fi
+exec /home/user/.local/bin/gh.real "$@"
+EOF
+        chmod 0755 "$bin"
+        chown $USER:$USER "$bin"
+    fi
+
     if [ -x "$bin" ]; then
         log "[gh] $("$bin" --version | head -1) already installed — skipping"
         return
@@ -102,7 +118,17 @@ install_gh() {
     curl -fsSL "$url" -o "${tmp}/gh.tar.gz" >> "$LOG_FILE" 2>&1
     tar -xzf "${tmp}/gh.tar.gz" -C "$tmp" >> "$LOG_FILE" 2>&1
     runuser -u $USER -- mkdir -p "$bin_dir"
-    install -o $USER -g $USER -m 0755 "${tmp}/gh_${version}_linux_${arch}/bin/gh" "$bin"
+    install -o $USER -g $USER -m 0755 "${tmp}/gh_${version}_linux_${arch}/bin/gh" "$bin_dir/gh.real"
+    cat << 'EOF' > "$bin"
+#!/bin/bash
+# Wrapper to strip out dummy GITHUB_TOKEN when using GitHub CLI
+if [[ "$GITHUB_TOKEN" == "github_pat_antigravitydummytoken" ]]; then
+    unset GITHUB_TOKEN
+fi
+exec /home/user/.local/bin/gh.real "$@"
+EOF
+    chmod 0755 "$bin"
+    chown $USER:$USER "$bin"
 
     log "[gh] Installed: $("$bin" --version | head -1)"
 }
