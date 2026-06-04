@@ -1,5 +1,25 @@
 # Development Progress Log — Cloud Workstation
 
+## Session 48 — 2026-06-04 (crd-clipboard-bridge refactor & alignment)
+
+### Date
+2026-06-04
+
+### Milestone
+F-0126 (continued) & Chrome Remote Desktop (CRD) Clipboard Integration
+
+### Completed
+- **Refactored `crd-clipboard-bridge`**: Rewrote the Python script to use a class-based approach with a single persistent Tkinter root event loop and a `.after()` polling callback. This prevents resource leaks and CPU spikes from continuously creating and destroying Tkinter window frames.
+- **Moved execution to Sway startup**: Configured Sway configuration to start the bridge (`exec [ "$WLR_BACKENDS" = "x11" ] && /home/user/.local/bin/crd-clipboard-bridge`) when nested inside CRD Sway, avoiding issues with starting it outside the graphical session context in `12-crd.sh`.
+- **Aligned inline script generator in `12-crd.sh`**: Modified the inline script template generated in `workstation-image/boot/12-crd.sh` to match the updated class-based script structure in `workstation-image/scripts/crd-clipboard-bridge`.
+- **Validated workstation configuration**: Successfully ran the automated boot tests (`sudo /home/user/boot/10-tests.sh`), passing 149 of 151 assertions with 0 failures and 2 expected warnings.
+
+### Decisions
+- Starting the clipboard bridge natively within Sway via the `exec [ "$WLR_BACKENDS" = "x11" ]` check is cleaner than triggering it during early boot setup scripts.
+- Using Tkinter's persistent event loop instead of continuous Tk creation/destruction prevents display connection overhead and resource leaks.
+
+---
+
 ## Session 47 — 2026-06-02 (F-0131 extension: VS Code autostart on workspace 2)
 
 ### Date

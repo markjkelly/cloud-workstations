@@ -77,9 +77,6 @@ fi
 # Connect to the systemd user D-Bus session bus to share services (like gnome-keyring)
 export DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/1000/bus"
 
-# Start clipboard bridge between CRD virtual X11 display :20 and Wayland
-/home/user/.local/bin/crd-clipboard-bridge &
-
 echo "Launching Sway with path: $SWAY_BIN"
 exec "$SWAY_BIN"
 EOF
@@ -264,39 +261,71 @@ import tkinter
 # Force display name to display :20 (CRD session)
 os.environ["DISPLAY"] = ":20"
 
-def get_x11_clipboard():
-    try:
-        root = tkinter.Tk()
-        root.withdraw()
-        clip = root.clipboard_get()
-        root.destroy()
-        return clip
-    except Exception:
-        return ""
+class ClipboardBridge:
+    def __init__(self):
+        self.root = tkinter.Tk()
+        self.root.withdraw()
+        
+        # Initialize clipboard states
+        self.last_x11 = self.get_x11_clipboard()
+        self.last_wl = self.get_wayland_clipboard()
+        
+        # Start the periodic sync loop (every 500 ms)
+        self.root.after(500, self.sync)
 
-def set_x11_clipboard(text):
-    try:
-        root = tkinter.Tk()
-        root.withdraw()
-        root.clipboard_clear()
-        root.clipboard_append(text)
-        root.update()
-        root.destroy()
-    except Exception:
-        pass
+    def get_x11_clipboard(self):
+        try:
+            return self.root.clipboard_get()
+        except Exception:
+            return ""
 
-def get_wayland_clipboard():
-    try:
-        return subprocess.check_output(["wl-paste", "-n", "-t", "text"], stderr=subprocess.DEVNULL).decode("utf-8")
-    except Exception:
-        return ""
+    def set_x11_clipboard(self, text):
+        try:
+            self.root.clipboard_clear()
+            self.root.clipboard_append(text)
+            # update X11 display to process clipboard ownership events
+            self.root.update()
+        except Exception:
+            pass
 
-def set_wayland_clipboard(text):
-    try:
-        p = subprocess.Popen(["wl-copy"], stdin=subprocess.PIPE, stderr=subprocess.DEVNULL)
-        p.communicate(input=text.encode("utf-8"))
-    except Exception:
-        pass
+    def get_wayland_clipboard(self):
+        try:
+            return subprocess.check_output(["wl-paste", "-n", "-t", "text"], stderr=subprocess.DEVNULL).decode("utf-8")
+        except Exception:
+            return ""
+
+    def set_wayland_clipboard(self, text):
+        try:
+            p = subprocess.Popen(["wl-copy"], stdin=subprocess.PIPE, stderr=subprocess.DEVNULL)
+            p.communicate(input=text.encode("utf-8"))
+        except Exception:
+            pass
+
+    def sync(self):
+        try:
+            # Sync X11 -> Wayland
+            current_x11 = self.get_x11_clipboard()
+            if current_x11 != self.last_x11 and current_x11 != self.last_wl:
+                if current_x11:
+                    self.set_wayland_clipboard(current_x11)
+                    self.last_wl = current_x11
+                self.last_x11 = current_x11
+            
+            # Sync Wayland -> X11
+            current_wl = self.get_wayland_clipboard()
+            if current_wl != self.last_wl and current_wl != self.last_x11:
+                if current_wl:
+                    self.set_x11_clipboard(current_wl)
+                    self.last_x11 = current_wl
+                self.last_wl = current_wl
+        except Exception:
+            pass
+        
+        # Schedule next iteration
+        self.root.after(500, self.sync)
+
+    def run(self):
+        self.root.mainloop()
 
 def main():
     # Wait for display :20 to be ready
@@ -308,29 +337,11 @@ def main():
         except Exception:
             time.sleep(1)
             
-    last_x11 = get_x11_clipboard()
-    last_wl = get_wayland_clipboard()
-    
-    while True:
-        try:
-            # Sync X11 -> Wayland
-            current_x11 = get_x11_clipboard()
-            if current_x11 != last_x11 and current_x11 != last_wl:
-                if current_x11:
-                    set_wayland_clipboard(current_x11)
-                    last_wl = current_x11
-                last_x11 = current_x11
-            
-            # Sync Wayland -> X11
-            current_wl = get_wayland_clipboard()
-            if current_wl != last_wl and current_wl != last_x11:
-                if current_wl:
-                    set_x11_clipboard(current_wl)
-                    last_x11 = current_wl
-                last_wl = current_wl
-        except Exception:
-            pass
-        time.sleep(1.0)
+    try:
+        bridge = ClipboardBridge()
+        bridge.run()
+    except Exception:
+        sys.exit(1)
 
 if __name__ == "__main__":
     main()

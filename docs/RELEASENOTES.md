@@ -1,5 +1,12 @@
 # Release Notes — Cloud Workstation
 
+## v1.27.1 — Refactor CRD clipboard bridge and align configuration (2026-06-04)
+
+### Changed
+- **Refactored `crd-clipboard-bridge`**: Rewrote the Python script to use a class-based approach with a single persistent Tkinter root event loop and a `.after()` polling callback to prevent resource leaks and CPU spikes from continuously creating and destroying Tkinter window frames.
+- **Moved execution to Sway startup**: Configured Sway configuration to start the bridge (`exec [ "$WLR_BACKENDS" = "x11" ] && /home/user/.local/bin/crd-clipboard-bridge`) when nested inside CRD Sway, avoiding issues with starting it outside the graphical session context in `12-crd.sh`.
+- **Aligned inline script generator in `12-crd.sh`**: Modified the inline script template generated in `workstation-image/boot/12-crd.sh` to match the updated class-based script structure in `workstation-image/scripts/crd-clipboard-bridge`.
+
 ## v1.27.0 — Install VS Code + reconcile home.nix drift + autostart on workspace 2 (2026-06-02)
 
 ### Added
