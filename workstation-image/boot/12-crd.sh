@@ -74,10 +74,11 @@ if [ ! -x "$SWAY_BIN" ]; then
     SWAY_BIN=$(which sway 2>/dev/null || echo "/usr/bin/sway")
 fi
 
-echo "Launching Sway with path: $SWAY_BIN"
+# Connect to the systemd user D-Bus session bus to share services (like gnome-keyring)
+export DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/1000/bus"
 
-# Launch inside a clean dbus user session to avoid IPC or DBus communication errors
-exec dbus-run-session -- "$SWAY_BIN"
+echo "Launching Sway with path: $SWAY_BIN"
+exec "$SWAY_BIN"
 EOF
 
 chown "$USER:$USER" "$SESSION_FILE"
@@ -219,8 +220,15 @@ DISPLAY=:20 xrandr --addmode DUMMY0 "$MODE_NAME"
 echo "Applying X11 resolution..."
 DISPLAY=:20 xrandr --output DUMMY0 --mode "$MODE_NAME"
 
-# Find active Sway IPC socket for nested session
-SWAYSOCK_NESTED=$(find /run/user/1000/ -name "sway-ipc.1000.*.sock" | grep -v "2520" | head -n 1 || true)
+# Find active Sway IPC socket for nested session (must have X11-1 output)
+SWAYSOCK_NESTED=""
+for sock in /run/user/1000/sway-ipc.1000.*.sock; do
+    [ -S "$sock" ] || continue
+    if SWAYSOCK="$sock" swaymsg -t get_outputs 2>/dev/null | grep -q 'X11-1'; then
+        SWAYSOCK_NESTED="$sock"
+        break
+    fi
+done
 
 if [[ -n "$SWAYSOCK_NESTED" ]]; then
     echo "Applying Sway nested X11-1 output mode..."
