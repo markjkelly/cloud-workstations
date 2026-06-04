@@ -141,7 +141,7 @@ A Cloud Scheduler job stops the workstation daily at **8:00 PM Central** to save
 | **Fonts** | DejaVu Sans Mono (system), Operator Mono (proprietary OTF), Cascadia Code, Fira Code, JetBrains Mono (via Nix) |
 | **Browsers** | Google Chrome, Chromium |
 | **IDEs** | VS Code, Cursor, Windsurf, Zed, IntelliJ IDEA, Neovim (custom config) |
-| **AI Tools** | Claude Code, Gemini CLI, Codex CLI, OpenCode, Aider, Cody CLI, pi-coding-agent, GitHub Copilot CLI |
+| **AI Tools** | Claude Code, Gemini CLI, Codex CLI, OpenCode, Aider, Cody CLI, pi-coding-agent |
 | **Languages** | Go (latest), Rust (via rustup), Python 3.12 (via pyenv), Ruby 3.3 (via rbenv), Node.js 22 (via Nix) |
 | **Apps** | Antigravity, tmux, ripgrep, fd, jq, ffmpeg, wofi, thunar, clipman |
 | **Networking** | Tailscale VPN (opt-in via `~/.env`) |
