@@ -96,7 +96,8 @@ RUN apt-get update && apt-get install -y \
     tigervnc-scraping-server \
     tigervnc-standalone-server \
     tigervnc-xorg-extension \
-    python3-numpy  && \
+    python3-numpy \
+    python3-tk && \
   apt-get clean && \
   rm -rf /var/lib/apt/lists/*
 

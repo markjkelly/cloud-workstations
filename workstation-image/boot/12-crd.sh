@@ -245,6 +245,113 @@ chmod 0755 "$RESIZE_SCRIPT"
 log "Deployed resolution resize helper script successfully"
 
 # =============================================================================
+# 4b. Create clipboard bridge helper script
+# =============================================================================
+CLIPBOARD_SCRIPT="$BIN_DIR/crd-clipboard-bridge"
+log "Deploying clipboard bridge helper script to $CLIPBOARD_SCRIPT..."
+
+cat > "$CLIPBOARD_SCRIPT" << 'EOF'
+#!/usr/bin/env python3
+import sys
+import os
+import subprocess
+import time
+import tkinter
+
+# Force display name to display :20 (CRD session)
+os.environ["DISPLAY"] = ":20"
+
+class ClipboardBridge:
+    def __init__(self):
+        self.root = tkinter.Tk()
+        self.root.withdraw()
+        
+        # Initialize clipboard states
+        self.last_x11 = self.get_x11_clipboard()
+        self.last_wl = self.get_wayland_clipboard()
+        
+        # Start the periodic sync loop (every 500 ms)
+        self.root.after(500, self.sync)
+
+    def get_x11_clipboard(self):
+        try:
+            return self.root.clipboard_get()
+        except Exception:
+            return ""
+
+    def set_x11_clipboard(self, text):
+        try:
+            self.root.clipboard_clear()
+            self.root.clipboard_append(text)
+            # update X11 display to process clipboard ownership events
+            self.root.update()
+        except Exception:
+            pass
+
+    def get_wayland_clipboard(self):
+        try:
+            return subprocess.check_output(["wl-paste", "-n", "-t", "text"], stderr=subprocess.DEVNULL).decode("utf-8")
+        except Exception:
+            return ""
+
+    def set_wayland_clipboard(self, text):
+        try:
+            p = subprocess.Popen(["wl-copy"], stdin=subprocess.PIPE, stderr=subprocess.DEVNULL)
+            p.communicate(input=text.encode("utf-8"))
+        except Exception:
+            pass
+
+    def sync(self):
+        try:
+            # Sync X11 -> Wayland
+            current_x11 = self.get_x11_clipboard()
+            if current_x11 != self.last_x11 and current_x11 != self.last_wl:
+                if current_x11:
+                    self.set_wayland_clipboard(current_x11)
+                    self.last_wl = current_x11
+                self.last_x11 = current_x11
+            
+            # Sync Wayland -> X11
+            current_wl = self.get_wayland_clipboard()
+            if current_wl != self.last_wl and current_wl != self.last_x11:
+                if current_wl:
+                    self.set_x11_clipboard(current_wl)
+                    self.last_x11 = current_wl
+                self.last_wl = current_wl
+        except Exception:
+            pass
+        
+        # Schedule next iteration
+        self.root.after(500, self.sync)
+
+    def run(self):
+        self.root.mainloop()
+
+def main():
+    # Wait for display :20 to be ready
+    for _ in range(30):
+        try:
+            root = tkinter.Tk()
+            root.destroy()
+            break
+        except Exception:
+            time.sleep(1)
+            
+    try:
+        bridge = ClipboardBridge()
+        bridge.run()
+    except Exception:
+        sys.exit(1)
+
+if __name__ == "__main__":
+    main()
+EOF
+
+chown "$USER:$USER" "$CLIPBOARD_SCRIPT"
+chmod 0755 "$CLIPBOARD_SCRIPT"
+log "Deployed clipboard bridge helper script successfully"
+
+# =============================================================================
 # 5. Enable and start the systemd service if CRD is configured
 # =============================================================================
 if ls "$HOME_DIR/.config/chrome-remote-desktop"/host#*.json &>/dev/null; then

@@ -276,6 +276,9 @@ exec [ "$WLR_BACKENDS" != "x11" ] && /usr/bin/Xwayland -rootless :0 &
 # Clear LD_LIBRARY_PATH to prevent nvidia GL conflicts with Nix binaries
 exec env -u LD_LIBRARY_PATH /home/user/.nix-profile/bin/wl-paste -t text --watch /home/user/.nix-profile/bin/clipman store
 
+# Bridge clipboard between CRD X11 display and Wayland (runs nested inside CRD Sway)
+exec [ "$WLR_BACKENDS" = "x11" ] && /home/user/.local/bin/crd-clipboard-bridge
+
 # VS Code — auto-start on workspace 2 at every sway session boot.
 # Uses exec (not exec_always) so swaymsg reload does NOT spawn a duplicate instance.
 # The for_window placement rule above moves it to ws2 immediately after the window appears.

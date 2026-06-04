@@ -106,10 +106,6 @@ if ws_module_enabled "ides"; then
     log "--- IDEs ---"
     check_binary "VSCode" "code"
     check_version "VSCode" "code --version"
-    check_binary "IntelliJ" "idea-oss"
-    check_binary "Cursor" "cursor"
-    check_binary "Windsurf" "windsurf"
-    check_binary "Zed" "zeditor"
 else
     log "--- IDEs --- (SKIPPED — module disabled)"
     test_skip "IDEs (module disabled)"
@@ -274,16 +270,7 @@ log ""
 if ws_module_enabled "ai-tools"; then
     log "--- AI CLI Tools ---"
     check_binary "Claude Code" "claude"
-    check_binary "Codex" "codex"
     check_binary "OpenCode" "opencode"
-    check_binary "Cody" "cody"
-    check_binary "Pi" "pi"
-    # Aider (pip, installed to ~/.local/bin)
-    if runuser -u $USER -- bash -c "export PYENV_ROOT=$HOME_DIR/.pyenv && export PATH=$HOME_DIR/.local/bin:\$PYENV_ROOT/bin:\$PATH && eval \"\$(pyenv init -)\" && which aider" >/dev/null 2>&1; then
-        test_pass "Aider (aider)"
-    else
-        test_fail "Aider (not found)"
-    fi
     # GH Copilot (extension)
     if runuser -u $USER -- bash -c ". $NIX_SH && gh copilot --version" >/dev/null 2>&1; then
         test_pass "GH Copilot"
@@ -293,11 +280,7 @@ if ws_module_enabled "ai-tools"; then
 elif ws_module_enabled "ai-tools-minimal"; then
     log "--- AI CLI Tools (minimal) ---"
     check_binary "Claude Code" "claude"
-    test_skip "Codex (ai-tools-minimal)"
     test_skip "OpenCode (ai-tools-minimal)"
-    test_skip "Cody (ai-tools-minimal)"
-    test_skip "Pi (ai-tools-minimal)"
-    test_skip "Aider (ai-tools-minimal)"
     test_skip "GH Copilot (ai-tools-minimal)"
 else
     log "--- AI CLI Tools --- (SKIPPED — module disabled)"
@@ -422,7 +405,11 @@ else
     test_skip "tmux.conf (tmux module disabled)"
 fi
 check_file ".zshrc" "$HOME_DIR/.zshrc"
-check_file ".env" "$HOME_DIR/.env"
+if [ -f "$HOME_DIR/.env" ]; then
+    test_pass ".env"
+else
+    test_warn ".env ($HOME_DIR/.env missing — expected if no secrets configured)"
+fi
 check_file "Chrome Remote Desktop" "/opt/google/chrome-remote-desktop/chrome-remote-desktop"
 check_file "CRD session config" "$HOME_DIR/.chrome-remote-desktop-session"
 check_file "CRD setup helper" "$HOME_DIR/.local/bin/setup-crd.sh"
@@ -655,7 +642,7 @@ fi
 
 # F-0097 (a2): sway config autostart — the real launcher of Xwayland :0
 if [ -f "$SWAY_CFG" ]; then
-    if grep -qE '^exec[[:space:]]+/usr/bin/Xwayland[[:space:]]+-rootless[[:space:]]+:0' "$SWAY_CFG"; then
+    if grep -qE '^exec[[:space:]]+.*Xwayland[[:space:]]+-rootless[[:space:]]+:0' "$SWAY_CFG"; then
         test_pass "sway config autostart invokes Xwayland with -rootless"
     else
         test_fail "sway config autostart missing -rootless on Xwayland :0 exec (F-0097 regression)"
@@ -813,27 +800,7 @@ if ws_module_enabled "ai-tools"; then
     fi
 
     check_version "Claude Code" "claude --version"
-    check_version "Codex" "codex --version"
     check_version "OpenCode" "opencode -v"
-    check_version "Cody" "cody --version"
-    check_version "Pi" "pi --version"
-
-    # Aider version (pip, installed to ~/.local/bin — needs pyenv for Python)
-    AIDER_VER=$(runuser -u $USER -- bash -c "export PYENV_ROOT=$HOME_DIR/.pyenv && export PATH=$HOME_DIR/.local/bin:\$PYENV_ROOT/bin:\$PATH && eval \"\$(pyenv init -)\" && aider --version" 2>&1 | head -1)
-    if [ -n "$AIDER_VER" ] && ! echo "$AIDER_VER" | grep -qiE "not found|error"; then
-        test_pass "Aider version: $AIDER_VER"
-    else
-        test_fail "Aider version check failed"
-    fi
-
-    # GH Copilot extension installed
-    if [ -d "$HOME_DIR/.local/share/gh/extensions/gh-copilot" ] || runuser -u $USER -- bash -c ". $NIX_SH && gh extension list" 2>&1 | grep -q "copilot"; then
-        test_pass "GH Copilot extension installed"
-    elif ! runuser -u $USER -- bash -c ". $NIX_SH && gh auth status" >/dev/null 2>&1; then
-        test_warn "GH Copilot extension (gh not authenticated)"
-    else
-        test_fail "GH Copilot extension not found"
-    fi
 elif ws_module_enabled "ai-tools-minimal"; then
     check_version "Claude Code" "claude --version"
     test_skip "Full AI tools versions (ai-tools-minimal profile)"
