@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-Build a Cloud Workstation in GCP Project ID YOUR_PROJECT_ID with Google Antigravity installed (antigravity.google) following the blog at this link https://medium.com/google-cloud/running-antigravity-on-a-browser-tab-6298bb7e47c4. The Cloud Workstation machine should have a GPU and 64GB RAM as well as 500GB SSD drive. The 500GB SSD drive is a persistent disk with HOME folder mounted to it. All apps must be installed inside the peristent disk. The main docker image should be minimal so all changes, app installs persist inside the persistent disk. For OS, I prefer NixOS with Nix package manager. Follow the blog for what to install and ask questions as necessary
+Build a Cloud Workstation in GCP. The Cloud Workstation machine should have 32GB RAM as well as 250GB SSD drive. The 250GB SSD drive is a persistent disk with HOME folder mounted to it. All apps must be installed inside the peristent disk. The main docker image should be minimal so all changes, app installs persist inside the persistent disk. For OS, I prefer NixOS with Nix package manager.
 
 ## Key References
 
@@ -19,7 +19,7 @@ Build a Cloud Workstation in GCP Project ID YOUR_PROJECT_ID with Google Antigrav
 - **Project ID:** `YOUR_PROJECT_ID`
 - **Project Number:** `YOUR_PROJECT_NUMBER`
 - **Organization:** `your-org.example.com`
-- **Region:** `us-west1` (primary — matches existing Cloud Run services)
+- **Region:** `us-central1` (primary — matches existing Cloud Run services)
 
 ### Service Accounts
 
@@ -176,11 +176,3 @@ in the backlog before implementation begins and updated when completed.
 ### Other Conventions
 - **Branching:** Feature branches (`feature/<name>`) off `main`
 - **Platform Engineer (PE) owns all GCP interactions:** Cloud Run deployment, Dockerfile, IAM/service accounts, logging, monitoring, billing, free tier quota tracking, reliability, troubleshooting
-
-## GCP Free Tier (Non-Negotiable)
-
-- **This app must stay within the GCP free tier. Zero additional billing.**
-- Single user app — no need for high availability or scale
-- Cloud Run config: **256Mi memory, 0.5 vCPU, maxScale=1, minInstances=0, request-based CPU**
-- Region: **us-west1** (matches existing services)
-- Clean up old Artifact Registry images to stay within 0.5 GB free storage
