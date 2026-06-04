@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+# hub-start — fire-and-forget launch of the Antigravity Hub on workspace 1.
+#
+# Unlike hub-restart (F-0122), this script does NOT kill existing processes,
+# remove stale locks, or wait for readiness. It launches the Hub and exits
+# immediately. Use hub-restart when you need a clean restart with verification.
+set -u
+
+# --- session environment (auto-detect; works in or out of the sway session) ---
+export WAYLAND_DISPLAY="${WAYLAND_DISPLAY:-wayland-1}"
+export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
+export DBUS_SESSION_BUS_ADDRESS="${DBUS_SESSION_BUS_ADDRESS:-unix:path=${XDG_RUNTIME_DIR}/bus}"
+[ -z "${SWAYSOCK:-}" ] && export SWAYSOCK="$(ls -t "$XDG_RUNTIME_DIR"/sway-ipc.*.sock 2>/dev/null | head -1)"
+
+HUB="$HOME/.local/bin/antigravity-hub"
+UDD="$HOME/.config/Antigravity-Hub"
+LOG="$HOME/logs/hub-launch.log"
+mkdir -p "$HOME/logs"
+
+[ -x "$HUB" ] || { echo "ERROR: Hub not found at $HUB" >&2; exit 1; }
+
+printf '\n=== hub-start: %s ===\n' "$(date '+%Y-%m-%d %H:%M:%S')" >> "$LOG"
+env -u LD_LIBRARY_PATH setsid "$HUB" --no-sandbox --ozone-platform=wayland \
+  --disable-gpu --disable-dev-shm-usage --user-data-dir="$UDD" >> "$LOG" 2>&1 &
+disown
+swaymsg workspace number 1 >/dev/null 2>&1
+
+echo "Hub launched (workspace 1) — log: $LOG"

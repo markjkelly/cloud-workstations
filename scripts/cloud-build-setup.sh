@@ -749,6 +749,12 @@ cat "${REPO_DIR}/workstation-image/scripts/hub-restart" | \
     ws_pipe "mkdir -p ~/.local/bin && cat > ~/.local/bin/hub-restart && chmod +x ~/.local/bin/hub-restart"
 test_pass "hub-restart deployed"
 
+# Deploy hub-start utility (F-0135) — minimal fire-and-forget Hub launcher
+cat "${REPO_DIR}/workstation-image/scripts/hub-start" | \
+    ws_pipe "mkdir -p ~/.local/bin && cat > ~/.local/bin/hub-start && chmod +x ~/.local/bin/hub-start"
+test_pass "hub-start deployed"
+
+
 cat "${REPO_DIR}/workstation-image/configs/waybar/config.jsonc" | \
     ws_pipe "mkdir -p ~/.config/waybar && cat > ~/.config/waybar/config.jsonc"
 cat "${REPO_DIR}/workstation-image/configs/waybar/style.css" | \

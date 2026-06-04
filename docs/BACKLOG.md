@@ -3,6 +3,8 @@
 **Maintained by:** TPM
 **Last updated:** 2026-06-04 (F-0134 sync sway-status on boot)
 
+**Last updated:** 2026-06-04 (F-0135 hub-start minimal Hub launcher)
+
 ---
 
 ## How to Read This Backlog
@@ -443,6 +445,12 @@ config drift, not active regressions. Each item below addresses one root-cause c
 | ID | Feature | Spec | Priority | Status | Owner | Branch | Dependencies | Feedback |
 |----|---------|------|----------|--------|-------|--------|--------------|----------|
 | F-0134 | Add sway-status deployment to 09-sync.sh for boot persistence | [F-0134](specs/F-0134-sync-sway-status.md) | P1 | done | SWE-1 | fix/sync-sway-status | F-0108, F-0132 | `sway-status` was only deployed by `cloud-build-setup.sh` during initial provisioning. Repo changes (e.g., F-0132 timezone fix) never propagated to `~/.local/bin/sway-status` until a full rebuild. Fix: `09-sync.sh` now copies `workstation-image/configs/swaybar/sway-status` → `~/.local/bin/sway-status` on every boot (guarded, chmod +x, chown 1000:1000). 4 new tests in 10-tests.sh. bash -n PASS both files. |
+
+## Milestone 44: hub-start Minimal Hub Launcher
+
+| ID | Feature | Spec | Priority | Status | Owner | Branch | Dependencies | Feedback |
+|----|---------|------|----------|--------|-------|--------|--------------|----------|
+| F-0135 | hub-start — minimal fire-and-forget Hub launcher | [F-0135](specs/F-0135-hub-start.md) | P2 | done | SWE-1 | feature/hub-start | F-0122, F-0106 | New `workstation-image/scripts/hub-start` launches Hub with Electron flags, `env -u LD_LIBRARY_PATH`, `setsid`+`disown`, redirects to `~/logs/hub-launch.log`, switches to ws1, exits immediately. No kill/cleanup/wait. Deployed via `cloud-build-setup.sh`. 3 new boot tests (presence, executable, PATH). |
 
 ---
 
