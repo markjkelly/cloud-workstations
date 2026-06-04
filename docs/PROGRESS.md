@@ -2585,3 +2585,58 @@ F-0110 — Hub WS5 Auth-Friendly Launch (validation fix)
 
 ### Decisions
 - Fold into v1.24.3 (not a new version) since the PR is still open and unmerged — cleaner changelog history
+
+---
+
+## Session 23 — 2026-06-04 (CRD autolaunch fixes)
+
+### Date
+2026-06-04
+
+### Milestone
+CRD Autolaunch — Fix apps launching on headless instead of CRD session
+
+### Goals
+- Fix "5 layout tabbed" appearing as workspace name in CRD session bar
+- Fix Chrome, VS Code, and terminals launching on the headless Sway session instead of CRD
+- Fix VS Code renderer crash (EGL code 4) on GPU-less hosts
+
+### Completed
+- **Root cause analysis**: Identified three compounding issues causing apps to persistently land on the headless Sway session:
+  1. `ws-autolaunch.service` ordered `After=wayvnc.service` (headless ready) but CRD starts later — `detect_active_session()` fell back to headless after 30s
+  2. `11-custom-tools.sh` masked `ws-autolaunch.service` to `/dev/null` on every boot, preventing `08-workspaces.sh` from running at all
+  3. `LD_LIBRARY_PATH=/var/lib/nvidia/lib64` (set by `02-nvidia.sh`) caused Electron's ANGLE EGL initialization to fail, crashing the VS Code renderer with code 4
+  4. `workspace N layout tabbed` syntax in sway config was misinterpreted as workspace names (e.g. "5 layout tabbed")
+
+- **Sway config** (`workstation-image/configs/sway/config`): Removed `workspace 1 layout tabbed` and `workspace 5 layout tabbed` directives. Synced to home-manager source and reloaded both Sway sessions.
+
+- **03-sway.sh**: Added `After=chrome-remote-desktop@user.service` and `Wants=chrome-remote-desktop@user.service` to `ws-autolaunch.service` unit, plus a 5s `ExecStartPre` sleep for the CRD nested Sway to fully initialize.
+
+- **08-workspaces.sh**: Removed the 30s headless fallback — when CRD is enabled, `detect_active_session()` now waits indefinitely (up to 240s) for the CRD session and never falls back to headless. Added `env -u LD_LIBRARY_PATH` to `launch_and_wait()` to prevent NVIDIA libs from crashing Electron. Added VS Code to the autolaunch sequence on workspace 2.
+
+- **11-custom-tools.sh**: Removed `mask_autolaunch()` function and its invocation so `ws-autolaunch.service` actually runs on boot.
+
+- **10-tests.sh**: Added 7 static assertion tests covering all fixes: CRD ordering, no headless fallback, LD_LIBRARY_PATH unset, VS Code in launch sequence, no autolaunch mask, no workspace layout tabbed, and VS Code LD_LIBRARY_PATH in sway config.
+
+- **Manual session fix**: Killed orphaned Chrome/VS Code processes holding SingletonLock, relaunched both into the CRD session with correct environment.
+
+### Agent Team
+- SWE: root cause analysis, all fixes, tests
+- TPM: progress update (this entry)
+
+### Files Changed
+- `workstation-image/configs/sway/config` — removed `workspace N layout tabbed` directives
+- `workstation-image/boot/03-sway.sh` — ws-autolaunch ordered after CRD
+- `workstation-image/boot/08-workspaces.sh` — no headless fallback, `env -u LD_LIBRARY_PATH`, VS Code on ws2
+- `workstation-image/boot/11-custom-tools.sh` — removed `mask_autolaunch()`
+- `workstation-image/boot/10-tests.sh` — 7 new CRD autolaunch regression tests
+- `docs/PROGRESS.md` — this entry
+
+### Decisions
+- **Never fall back to headless when CRD is enabled**: The headless session should serve only as the base compositor for noVNC; all user-facing apps must launch on the CRD session
+- **`env -u LD_LIBRARY_PATH`**: The NVIDIA host driver libs are needed by Sway's wlroots for GPU rendering but poison Electron's EGL initialization on GPU-less hosts; unsetting for Electron app launches is the narrowest fix
+- **`swaymsg exec` vs direct launch**: `swaymsg exec` inherits the Sway session environment (including LD_LIBRARY_PATH); `launch_and_wait` uses `runuser` with explicit env which allows unsetting variables
+
+### Next Steps
+- Reboot to verify the full autolaunch flow end-to-end on a fresh boot
+- Consider whether the headless Sway session is still needed when CRD is the primary access method

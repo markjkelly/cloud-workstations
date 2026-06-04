@@ -1150,6 +1150,76 @@ else
 fi
 
 # =============================================================================
+# CRD Autolaunch Fixes — ws-autolaunch ordering + Electron EGL crash prevention
+# Static assertions — verify boot scripts and sway config are correct.
+# =============================================================================
+log ""
+log "--- CRD Autolaunch Fixes ---"
+
+WS_BOOT_03="$HOME_DIR/boot/03-sway.sh"
+WS_BOOT_08="$HOME_DIR/boot/08-workspaces.sh"
+WS_BOOT_11="$HOME_DIR/boot/11-custom-tools.sh"
+SWAY_CONFIG="$HOME_DIR/.config/sway/config"
+
+# (a) ws-autolaunch.service must be ordered After=chrome-remote-desktop@user.service
+#     so the CRD nested Sway session is ready before apps launch.
+if grep -q 'After=.*chrome-remote-desktop@user.service' "$WS_BOOT_03" 2>/dev/null; then
+    test_pass "CRD-autolaunch: 03-sway.sh orders ws-autolaunch After=chrome-remote-desktop@user.service"
+else
+    test_fail "CRD-autolaunch: 03-sway.sh missing After=chrome-remote-desktop@user.service in ws-autolaunch unit"
+fi
+
+# (b) 08-workspaces.sh must NOT fall back to headless when CRD is enabled.
+#     The old code had: if [ "$crd_enabled" -eq 1 ] && [ "$attempt" -lt 15 ]; then
+#     The fix removes the attempt limit so it never falls back.
+if grep -q 'if \[ "\$crd_enabled" -eq 1 \]; then' "$WS_BOOT_08" 2>/dev/null; then
+    test_pass "CRD-autolaunch: 08-workspaces.sh never falls back to headless when CRD enabled"
+else
+    if grep -q 'attempt.*-lt.*15' "$WS_BOOT_08" 2>/dev/null; then
+        test_fail "CRD-autolaunch: 08-workspaces.sh still has 15-attempt headless fallback (will race with CRD)"
+    else
+        test_fail "CRD-autolaunch: 08-workspaces.sh detect_active_session CRD guard not found"
+    fi
+fi
+
+# (c) 08-workspaces.sh must unset LD_LIBRARY_PATH in launch_and_wait to prevent
+#     NVIDIA host driver libs from crashing Electron's EGL initialization.
+if grep -q 'env -u LD_LIBRARY_PATH' "$WS_BOOT_08" 2>/dev/null; then
+    test_pass "CRD-autolaunch: 08-workspaces.sh unsets LD_LIBRARY_PATH in launch_and_wait"
+else
+    test_fail "CRD-autolaunch: 08-workspaces.sh missing 'env -u LD_LIBRARY_PATH' (Electron EGL will crash)"
+fi
+
+# (d) 08-workspaces.sh must launch VS Code on workspace 2.
+if grep -q 'launch_and_wait 2.*code' "$WS_BOOT_08" 2>/dev/null; then
+    test_pass "CRD-autolaunch: 08-workspaces.sh launches VS Code on ws2"
+else
+    test_fail "CRD-autolaunch: 08-workspaces.sh missing VS Code launch on ws2"
+fi
+
+# (e) 11-custom-tools.sh must NOT mask ws-autolaunch.service.
+if grep -q 'mask_autolaunch' "$WS_BOOT_11" 2>/dev/null; then
+    test_fail "CRD-autolaunch: 11-custom-tools.sh still contains mask_autolaunch (ws-autolaunch will be disabled)"
+else
+    test_pass "CRD-autolaunch: 11-custom-tools.sh does not mask ws-autolaunch"
+fi
+
+# (f) Sway config must NOT contain 'workspace N layout tabbed' directives.
+#     Sway misinterprets this syntax as a workspace name (e.g. "5 layout tabbed").
+if grep -q '^workspace [0-9].* layout tabbed' "$SWAY_CONFIG" 2>/dev/null; then
+    test_fail "CRD-autolaunch: sway config contains 'workspace N layout tabbed' (will be misinterpreted as workspace name)"
+else
+    test_pass "CRD-autolaunch: sway config does not contain 'workspace N layout tabbed' directives"
+fi
+
+# (g) Sway config must use 'env -u LD_LIBRARY_PATH' for VS Code keybindings.
+if grep -q 'env -u LD_LIBRARY_PATH.*code' "$SWAY_CONFIG" 2>/dev/null; then
+    test_pass "CRD-autolaunch: sway config uses 'env -u LD_LIBRARY_PATH' for VS Code launch"
+else
+    test_fail "CRD-autolaunch: sway config missing 'env -u LD_LIBRARY_PATH' for VS Code (will crash on GPU-less hosts)"
+fi
+
+# =============================================================================
 # Summary
 # =============================================================================
 TOTAL=$((PASS+FAIL+WARN+SKIP))
