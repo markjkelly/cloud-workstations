@@ -3,7 +3,7 @@
 # Master Bootstrap Script — Cloud Workstation
 # =============================================================================
 # Single entry point for all workstation setup logic.
-# Called from /etc/workstation-startup.d/000_bootstrap.sh on boot.
+# Called from /etc/workstation-startup.d/250_bootstrap.sh on boot.
 # Sources all numbered sub-scripts from ~/boot/ in order.
 # =============================================================================
 

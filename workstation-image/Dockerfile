@@ -62,11 +62,16 @@ RUN apt-get update && apt-get install -y \
 # at runtime by 07-apps.sh (tarball to ~/.local/share/antigravity-hub/) and
 # does NOT require the apt repo.
 
-# Install Google Chrome
+# Install Google Chrome and Chrome Remote Desktop
 RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmor -o /usr/share/keyrings/google-chrome-keyring.gpg && \
     echo "deb [arch=amd64 signed-by=/usr/share/keyrings/google-chrome-keyring.gpg] http://dl.google.com/linux/chrome/deb/ stable main" | tee /etc/apt/sources.list.d/google-chrome.list > /dev/null && \
     apt-get update && \
-    apt-get install -y google-chrome-stable
+    apt-get install -y google-chrome-stable && \
+    wget -q https://dl.google.com/linux/direct/chrome-remote-desktop_current_amd64.deb && \
+    apt-get install -y ./chrome-remote-desktop_current_amd64.deb && \
+    rm chrome-remote-desktop_current_amd64.deb && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
 # Divert the original Chrome executable to a new location and create a wrapper script.
 # This ensures the fix persists even when the Chrome package is updated.

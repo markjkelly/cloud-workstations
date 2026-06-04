@@ -27,6 +27,8 @@ set $inactive #565f89
 # We use CTRL+SHIFT as the primary modifier because Super is unreliable
 # through browser-based noVNC connections.
 set $mod Ctrl+Shift
+# Super key (Windows/Command) is fully supported in Chrome Remote Desktop.
+set $super Mod4
 
 # -----------------------------------------------------------------------------
 # Font
@@ -97,31 +99,42 @@ set $nix /home/user/.nix-profile/bin
 
 # Terminal (foot)
 bindsym $mod+Return exec $nix/foot --working-directory=/home/user
+bindsym $super+Return exec $nix/foot --working-directory=/home/user
 bindsym $mod+t exec $nix/foot --working-directory=/home/user
+bindsym $super+t exec $nix/foot --working-directory=/home/user
 
 # Application Launcher (wofi)
-bindsym $mod+r exec env -u LD_LIBRARY_PATH XDG_DATA_DIRS=/home/user/.nix-profile/share:/usr/share:/usr/local/share $nix/wofi --show drun --allow-images
+bindsym $mod+r exec env -u LD_LIBRARY_PATH GDK_BACKEND=wayland XDG_DATA_DIRS=/home/user/.nix-profile/share:/usr/share:/usr/local/share $nix/wofi --show drun --allow-images
+bindsym $super+r exec env -u LD_LIBRARY_PATH GDK_BACKEND=wayland XDG_DATA_DIRS=/home/user/.nix-profile/share:/usr/share:/usr/local/share $nix/wofi --show drun --allow-images
 
 # File Manager (Thunar)
 bindsym $mod+e exec $nix/thunar
+bindsym $super+e exec $nix/thunar
 
 # Web Browser (Google Chrome — /dev/shm too small at 64MB in container)
 bindsym $mod+b exec google-chrome-stable --disable-dev-shm-usage
+bindsym $super+b exec google-chrome-stable --disable-dev-shm-usage
+
 
 # IntelliJ IDEA Community (X11/Swing app — needs DISPLAY for Xwayland)
 bindsym $mod+m exec env DISPLAY=:0 $nix/idea-oss
+bindsym $super+m exec env DISPLAY=:0 $nix/idea-oss
 
 # VS Code (Electron app — clear LD_LIBRARY_PATH so nvidia GL doesn't conflict with Nix)
 bindsym $mod+y exec env -u LD_LIBRARY_PATH $nix/code --no-sandbox --ozone-platform=wayland --disable-gpu --disable-dev-shm-usage
+bindsym $super+y exec env -u LD_LIBRARY_PATH $nix/code --no-sandbox --ozone-platform=wayland --disable-gpu --disable-dev-shm-usage
 
 # Windsurf (Electron app — same flags as VSCode)
 bindsym $mod+w exec env -u LD_LIBRARY_PATH $nix/windsurf --no-sandbox --ozone-platform=wayland --disable-gpu --disable-dev-shm-usage
+bindsym $super+w exec env -u LD_LIBRARY_PATH $nix/windsurf --no-sandbox --ozone-platform=wayland --disable-gpu --disable-dev-shm-usage
 
 # Clipboard history picker (clipman — needs wofi in PATH and clear LD_LIBRARY_PATH)
-bindsym $mod+a exec env -u LD_LIBRARY_PATH PATH=/home/user/.nix-profile/bin:$PATH $nix/clipman pick --tool wofi
+bindsym $mod+a exec env -u LD_LIBRARY_PATH GDK_BACKEND=wayland PATH=/home/user/.nix-profile/bin:$PATH $nix/clipman pick --tool wofi
+bindsym $super+a exec env -u LD_LIBRARY_PATH GDK_BACKEND=wayland PATH=/home/user/.nix-profile/bin:$PATH $nix/clipman pick --tool wofi
 
 # Snippet picker (text expansion)
 bindsym $mod+s exec /home/user/.local/bin/snippet-picker
+bindsym $super+s exec /home/user/.local/bin/snippet-picker
 
 # -----------------------------------------------------------------------------
 # General — Window Management
@@ -129,24 +142,31 @@ bindsym $mod+s exec /home/user/.local/bin/snippet-picker
 
 # Close active window
 bindsym $mod+q kill
+bindsym $super+q kill
 
 # Toggle fullscreen
 bindsym $mod+f fullscreen toggle
-bindsym Mod4+f fullscreen toggle
+bindsym $super+f fullscreen toggle
 
 # Toggle floating window
 bindsym $mod+d floating toggle
+bindsym $super+d floating toggle
 
 # Exit Sway
 bindsym $mod+Escape exec $nix/swaynag -t warning -m 'Exit Sway?' -B 'Yes, exit' '$nix/swaymsg exit'
+bindsym $super+Escape exec $nix/swaynag -t warning -m 'Exit Sway?' -B 'Yes, exit' '$nix/swaymsg exit'
 
 # -----------------------------------------------------------------------------
 # Navigation — Focus
 # -----------------------------------------------------------------------------
 bindsym $mod+Left focus left
+bindsym $super+Left focus left
 bindsym $mod+Right focus right
+bindsym $super+Right focus right
 bindsym $mod+Up focus up
+bindsym $super+Up focus up
 bindsym $mod+Down focus down
+bindsym $super+Down focus down
 
 # -----------------------------------------------------------------------------
 # Window Resize
@@ -154,9 +174,13 @@ bindsym $mod+Down focus down
 # Comma = grow width, Period = shrink width
 # Minus = shrink height, Equal = grow height
 bindsym $mod+comma resize grow width 20px
+bindsym $super+comma resize grow width 20px
 bindsym $mod+period resize shrink width 20px
+bindsym $super+period resize shrink width 20px
 bindsym $mod+minus resize shrink height 20px
+bindsym $super+minus resize shrink height 20px
 bindsym $mod+equal resize grow height 20px
+bindsym $super+equal resize grow height 20px
 
 # -----------------------------------------------------------------------------
 # Mouse Bindings
@@ -166,30 +190,46 @@ bindsym $mod+equal resize grow height 20px
 floating_modifier Mod4 normal
 
 # -----------------------------------------------------------------------------
-# Workspaces — Switch (CTRL+SHIFT + key)
+# Workspaces — Switch (CTRL+SHIFT or Super + key)
 # Layout (F-0113/F-0116): ws1=Hub($mod+h), ws2=empty($mod+i), ws3=foot($mod+o),
 #                         ws4=foot($mod+p), ws5=Chrome($mod+u), ws6-8($mod+j/k/l)
 # -----------------------------------------------------------------------------
 bindsym $mod+h workspace number 1
+bindsym $super+h workspace number 1
 bindsym $mod+i workspace number 2
+bindsym $super+i workspace number 2
 bindsym $mod+o workspace number 3
+bindsym $super+o workspace number 3
 bindsym $mod+p workspace number 4
+bindsym $super+p workspace number 4
 bindsym $mod+u workspace number 5
+bindsym $super+u workspace number 5
 bindsym $mod+j workspace number 6
+bindsym $super+j workspace number 6
 bindsym $mod+k workspace number 7
+bindsym $super+k workspace number 7
 bindsym $mod+l workspace number 8
+bindsym $super+l workspace number 8
 
 # -----------------------------------------------------------------------------
-# Workspaces — Move Window (CTRL+SHIFT+ALT + key)
+# Workspaces — Move Window (CTRL+SHIFT+ALT or Super+Alt + key)
 # -----------------------------------------------------------------------------
 bindsym $mod+Alt+h move container to workspace number 1
+bindsym $super+Alt+h move container to workspace number 1
 bindsym $mod+Alt+i move container to workspace number 2
+bindsym $super+Alt+i move container to workspace number 2
 bindsym $mod+Alt+o move container to workspace number 3
+bindsym $super+Alt+o move container to workspace number 3
 bindsym $mod+Alt+p move container to workspace number 4
+bindsym $super+Alt+p move container to workspace number 4
 bindsym $mod+Alt+u move container to workspace number 5
+bindsym $super+Alt+u move container to workspace number 5
 bindsym $mod+Alt+j move container to workspace number 6
+bindsym $super+Alt+j move container to workspace number 6
 bindsym $mod+Alt+k move container to workspace number 7
+bindsym $super+Alt+k move container to workspace number 7
 bindsym $mod+Alt+l move container to workspace number 8
+bindsym $super+Alt+l move container to workspace number 8
 
 # =============================================================================
 # SWAYBAR (integrated status bar — waybar doesn't render through wayvnc)
@@ -202,7 +242,7 @@ bar {
     status_command /home/user/.local/bin/sway-status
 
     # Click on status area opens app launcher (◆ Apps button)
-    bindsym button1 exec env -u LD_LIBRARY_PATH XDG_DATA_DIRS=/home/user/.nix-profile/share:/usr/share:/usr/local/share /home/user/.nix-profile/bin/wofi --show drun --allow-images
+    bindsym button1 exec env -u LD_LIBRARY_PATH GDK_BACKEND=wayland XDG_DATA_DIRS=/home/user/.nix-profile/share:/usr/share:/usr/local/share /home/user/.nix-profile/bin/wofi --show drun --allow-images
 
     colors {
         background #1a1b26
@@ -229,7 +269,7 @@ bar {
 # The earlier F-0096 fix edited only 08-workspaces.sh, but this exec wins
 # the race and started Xwayland non-rootless, defeating that change at boot.
 xwayland disable
-exec /usr/bin/Xwayland -rootless :0 &
+exec [ "$WLR_BACKENDS" != "x11" ] && /usr/bin/Xwayland -rootless :0 &
 
 # Clipboard manager — watch clipboard and store history
 # Use full path since sway's shell doesn't have Nix profile in PATH

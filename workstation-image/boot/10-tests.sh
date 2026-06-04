@@ -423,6 +423,9 @@ else
 fi
 check_file ".zshrc" "$HOME_DIR/.zshrc"
 check_file ".env" "$HOME_DIR/.env"
+check_file "Chrome Remote Desktop" "/opt/google/chrome-remote-desktop/chrome-remote-desktop"
+check_file "CRD session config" "$HOME_DIR/.chrome-remote-desktop-session"
+check_file "CRD setup helper" "$HOME_DIR/.local/bin/setup-crd.sh"
 
 # =============================================================================
 # Sway Config Content
@@ -489,6 +492,7 @@ check_grep "foot \$mod+Return starts in /home/user" \
     'bindsym \$mod+Return exec .*foot.*--working-directory=/home/user' "$SWAY_CFG"
 check_grep "foot \$mod+t starts in /home/user" \
     'bindsym \$mod+t exec .*foot.*--working-directory=/home/user' "$SWAY_CFG"
+check_grep "Sway CRD Xwayland check" 'WLR_BACKENDS.*x11.*Xwayland' "$SWAY_CFG"
 
 # R4b: autostart workspace script must carry the same guard on every foot
 # invocation. Check the live ~/boot copy (what actually runs on boot). A
@@ -785,6 +789,10 @@ check_process "swaybar" "swaybar"
 check_process "wayvnc" "wayvnc"
 check_process "Xwayland" "Xwayland"
 check_process "clipman" "clipman store"
+if ls "$HOME_DIR/.config/chrome-remote-desktop"/host#*.json &>/dev/null; then
+    check_process "chrome-remote-desktop" "chrome-remote-desktop"
+fi
+
 
 # =============================================================================
 # Upgrade Scripts

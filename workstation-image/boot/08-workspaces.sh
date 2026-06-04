@@ -20,15 +20,62 @@ DBUS_ADDR="unix:path=/run/user/1000/bus"
 
 log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] [08-workspaces] $1"; }
 
-find_swaysock() {
-    ls /run/user/1000/sway-ipc.*.sock 2>/dev/null | head -1
+DETECTED_SOCK=""
+DETECTED_DISPLAY="wayland-1"
+
+detect_active_session() {
+    local attempt="${1:-1}"
+    DETECTED_SOCK=""
+    DETECTED_DISPLAY="wayland-1"
+
+    local crd_enabled=0
+    if systemctl is-enabled chrome-remote-desktop@user.service >/dev/null 2>&1; then
+        crd_enabled=1
+    fi
+
+    # Try to find the CRD session socket first (must have X11-1 output)
+    for sock in /run/user/1000/sway-ipc.1000.*.sock; do
+        [ -S "$sock" ] || continue
+        if SWAYSOCK="$sock" "$SWAYMSG" -t get_outputs 2>/dev/null | grep -q 'X11-1'; then
+            DETECTED_SOCK="$sock"
+            local pid
+            pid=$(basename "$sock" | cut -d. -f3)
+            local lock_file
+            lock_file=$(ls -la /proc/$pid/fd/ 2>/dev/null | grep -o 'wayland-[0-9]\+\.lock' | head -n1 || true)
+            if [ -n "$lock_file" ]; then
+                DETECTED_DISPLAY="${lock_file%.lock}"
+            fi
+            return 0
+        fi
+    done
+
+    # If CRD is enabled, we wait for it. But after 15 attempts (~30 seconds),
+    # we fall back to headless if available.
+    if [ "$crd_enabled" -eq 1 ] && [ "$attempt" -lt 15 ]; then
+        return 1
+    fi
+
+    # Fall back to headless if available
+    local fallback_sock
+    fallback_sock=$(ls /run/user/1000/sway-ipc.1000.*.sock 2>/dev/null | head -n1 || true)
+    if [ -n "$fallback_sock" ]; then
+        DETECTED_SOCK="$fallback_sock"
+        local pid
+        pid=$(basename "$fallback_sock" | cut -d. -f3)
+        local lock_file
+        lock_file=$(ls -la /proc/$pid/fd/ 2>/dev/null | grep -o 'wayland-[0-9]\+\.lock' | head -n1 || true)
+        if [ -n "$lock_file" ]; then
+            DETECTED_DISPLAY="${lock_file%.lock}"
+        fi
+        return 0
+    fi
+
+    return 1
 }
 
 sway_cmd() {
-    local sock
-    sock="$(find_swaysock)"
-    [ -z "$sock" ] && return 1
-    runuser -u $USER -- env WAYLAND_DISPLAY=wayland-1 XDG_RUNTIME_DIR=/run/user/1000 SWAYSOCK="$sock" "$SWAYMSG" "$@"
+    [ -z "$DETECTED_SOCK" ] && return 1
+    runuser -u $USER -- env WAYLAND_DISPLAY="$DETECTED_DISPLAY" XDG_RUNTIME_DIR=/run/user/1000 SWAYSOCK="$DETECTED_SOCK" "$SWAYMSG" "$@"
 }
 
 # Count windows on a specific workspace
@@ -53,8 +100,8 @@ print(count(tree, $ws))
 # --- Wait for Sway ---
 log "Waiting for Sway to be ready..."
 for i in $(seq 1 60); do
-    if sway_cmd -t get_tree >/dev/null 2>&1; then
-        log "Sway is ready (attempt $i)"
+    if detect_active_session "$i" && sway_cmd -t get_tree >/dev/null 2>&1; then
+        log "Sway is ready (attempt $i). Socket: $DETECTED_SOCK, Display: $DETECTED_DISPLAY"
         break
     fi
     [ "$i" -eq 60 ] && { log "ERROR: Sway not ready after 60s — aborting"; exit 1; }
@@ -100,9 +147,7 @@ launch_and_wait() {
     before=$(count_windows_on_ws "$ws")
 
     # Launch the app
-    local sock
-    sock="$(find_swaysock)"
-    runuser -u $USER -- env WAYLAND_DISPLAY=wayland-1 XDG_RUNTIME_DIR=/run/user/1000 SWAYSOCK="$sock" DBUS_SESSION_BUS_ADDRESS="$DBUS_ADDR" "$@" &
+    runuser -u $USER -- env WAYLAND_DISPLAY="$DETECTED_DISPLAY" XDG_RUNTIME_DIR=/run/user/1000 SWAYSOCK="$DETECTED_SOCK" DBUS_SESSION_BUS_ADDRESS="$DBUS_ADDR" "$@" &
     local app_pid=$!
 
     # Wait for a new window to appear on this workspace
