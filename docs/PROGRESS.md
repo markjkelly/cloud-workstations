@@ -1,5 +1,47 @@
 # Development Progress Log — Cloud Workstation
 
+## Session 53 — 2026-06-04 (F-0133: fix autolaunch skip logic)
+
+### Date
+2026-06-04
+
+### Milestone
+Milestone 42 — Fix Autolaunch Skip Logic (F-0133)
+
+### Completed
+- **F-0133** (Fix autolaunch idempotent check): Replaced the broken PID-counting idempotent check in `workstation-image/boot/08-workspaces.sh` with a proper app window counter.
+  - **Root cause**: The old check at lines 112-117 used `grep -o '"pid"' | wc -l` which counted ALL PID entries in the sway tree — including background processes like swaybar and Xwayland. On the CRD session, these background processes already produced 2+ PID entries, so the check always fired and autolaunch was skipped. Journal showed: `[08-workspaces] Windows already open (2 found) — skipping`.
+  - **Fix**: New check uses `python3` to walk the sway tree JSON and count only containers with `app_id` (Wayland apps) or `window_properties.class` (X11 apps) and `type == 'con'`. Background processes (swaybar, Xwayland server, etc.) do NOT have `app_id`/`class` set and are correctly excluded.
+  - **Threshold**: Changed from `> 1` (raw PIDs) to `> 0` (actual app windows). If ANY real application windows exist, autolaunch skips — preserving idempotency for restarts.
+  - **Variable rename**: `WINDOW_COUNT` → `APP_COUNT` to reflect the new semantics.
+- **5 new boot tests added** to `workstation-image/boot/10-tests.sh`:
+  - (a) python3 with app_id counting present
+  - (b) window_properties.class for X11 apps present
+  - (c) old PID-counting pattern (grep "pid" | wc) absent (regression guard)
+  - (d) type == 'con' filter present
+  - (e) APP_COUNT variable present
+- **Spec created**: `docs/specs/F-0133-autolaunch-skip-fix.md`
+- **QA verified**: `bash -n` PASS on both modified files
+
+### Files Changed
+- `workstation-image/boot/08-workspaces.sh` — replaced idempotent check (lines 112-134)
+- `workstation-image/boot/10-tests.sh` — added F-0133 test section (5 assertions)
+- `docs/specs/F-0133-autolaunch-skip-fix.md` — new spec
+- `docs/BACKLOG.md` — Milestone 42 added, F-0133 marked done
+- `docs/PROGRESS.md` — this entry
+- `docs/RELEASENOTES.md` — v1.29.0 entry
+
+### Decisions
+- Used `python3` (not `jq`) for JSON parsing because `python3` is always present and the existing `count_windows_on_ws` helper already uses the same pattern
+- Threshold `> 0` instead of `> 1` because the new counter accurately counts only app windows (background processes excluded)
+- Kept the approach consistent with the existing `count_windows_on_ws()` function at line 83-98 which already uses python3
+
+### Next Steps
+- PO approves PR → merge → tag v1.29.0
+- On next boot, verify autolaunch runs and apps appear on workspaces (no false skip)
+
+---
+
 ## Session 52 — 2026-06-04 (timezone change: Pacific → Central)
 
 ### Date
