@@ -63,7 +63,7 @@ if [ -f "$HOME/.nix-profile/etc/profile.d/nix.sh" ]; then
 fi
 
 # Timezone
-export TZ="America/Los_Angeles"
+export TZ="America/Chicago"
 
 # PATH additions (includes ~/.local/bin for Antigravity CLI and user scripts)
 export PATH="$HOME/.npm-global/bin:$HOME/.local/bin:/var/lib/nvidia/bin:$PATH"

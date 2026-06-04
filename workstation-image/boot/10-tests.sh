@@ -95,7 +95,7 @@ check_version() {
 # Start fresh results
 echo "========================================" > "$RESULTS"
 echo "Cloud Workstation Boot Test Results" >> "$RESULTS"
-echo "Date: $(TZ=America/Los_Angeles date)" >> "$RESULTS"
+echo "Date: $(TZ=America/Chicago date)" >> "$RESULTS"
 echo "========================================" >> "$RESULTS"
 echo "" >> "$RESULTS"
 
@@ -577,7 +577,7 @@ else
     ZSHRC_SOURCE="$HOME_DIR/.zshrc"
 fi
 check_grep "zshrc.local sourcing" "zshrc.local" "$ZSHRC_SOURCE"
-check_grep "Timezone Pacific" "America/Los_Angeles" "$ZSHRC_SOURCE"
+check_grep "Timezone Central" "America/Chicago" "$ZSHRC_SOURCE"
 check_grep "Go PATH" "GOROOT" "$ZSHRC_SOURCE"
 check_grep "Rust PATH" "cargo/bin" "$ZSHRC_SOURCE"
 check_grep "pyenv init" "pyenv init" "$ZSHRC_SOURCE"
@@ -1269,7 +1269,7 @@ PROFILE_INFO=""
 if [ -f "$HOME_DIR/.ws-modules" ]; then
     PROFILE_INFO=" | Profile: $(grep '^profile=' "$HOME_DIR/.ws-modules" 2>/dev/null | cut -d= -f2)"
 fi
-echo "$(TZ=America/Los_Angeles date '+%Y-%m-%d %H:%M:%S %Z') | PASS: $PASS | FAIL: $FAIL | WARN: $WARN | SKIP: $SKIP${PROFILE_INFO}" > "$SUMMARY"
+echo "$(TZ=America/Chicago date '+%Y-%m-%d %H:%M:%S %Z') | PASS: $PASS | FAIL: $FAIL | WARN: $WARN | SKIP: $SKIP${PROFILE_INFO}" > "$SUMMARY"
 
 # Set ownership
 chown -R $USER:$USER "$LOG_DIR"

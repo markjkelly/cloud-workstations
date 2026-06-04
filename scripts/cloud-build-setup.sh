@@ -587,7 +587,7 @@ cat << NIXEOF | ws_pipe "mkdir -p ~/.config/home-manager && cat > ~/.config/home
       if [ -e \$HOME/.nix-profile/etc/profile.d/hm-session-vars.sh ]; then . \$HOME/.nix-profile/etc/profile.d/hm-session-vars.sh; fi
 
       # Timezone
-      export TZ="America/Los_Angeles"
+      export TZ="America/Chicago"
 
       # PATH additions
       export PATH="\$HOME/.npm-global/bin:\$HOME/.local/bin:/var/lib/nvidia/bin:\$PATH"

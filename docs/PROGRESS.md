@@ -1,5 +1,46 @@
 # Development Progress Log — Cloud Workstation
 
+## Session 52 — 2026-06-04 (timezone change: Pacific → Central)
+
+### Date
+2026-06-04
+
+### Milestone
+Milestone 41 — Timezone Change to US Central (F-0132)
+
+### Completed
+- **F-0132** (Change timezone from Pacific to US Central): Updated `TZ=America/Los_Angeles` → `TZ=America/Chicago` in all 6 locations:
+  - `workstation-image/boot/03-sway.sh` — `Environment=TZ=America/Chicago` in sway-desktop.service (all sway child processes)
+  - `workstation-image/boot/05-shell.sh` — `export TZ="America/Chicago"` in .zshrc template (interactive shells)
+  - `workstation-image/configs/swaybar/sway-status` — `export TZ="America/Chicago"` at top of script (status bar clock)
+  - `scripts/cloud-build-setup.sh` — `export TZ="America/Chicago"` in home.nix `initContent` block (fresh project setups)
+  - `workstation-image/boot/10-tests.sh` — `TZ=America/Chicago` in date header (line 98) and summary line (line 1272)
+  - `workstation-image/boot/10-tests.sh` — `check_grep "Timezone Central" "America/Chicago"` replaces Pacific check (line 580)
+- **Spec created**: `docs/specs/F-0132-timezone-central.md` with 7 acceptance criteria
+- **QA verified**: zero `America/Los_Angeles` references remain in `workstation-image/` and `scripts/cloud-build-setup.sh`
+
+### Files Changed
+- `workstation-image/boot/03-sway.sh` — TZ env var in sway-desktop.service
+- `workstation-image/boot/05-shell.sh` — TZ export in .zshrc template
+- `workstation-image/configs/swaybar/sway-status` — TZ export for status bar
+- `scripts/cloud-build-setup.sh` — TZ in home.nix initContent for fresh setups
+- `workstation-image/boot/10-tests.sh` — date headers, timezone check, summary line
+- `docs/specs/F-0132-timezone-central.md` — new spec
+- `docs/BACKLOG.md` — F-0132 added and marked done
+- `docs/PROGRESS.md` — this entry
+- `docs/RELEASENOTES.md` — v1.28.0 entry
+
+### Decisions
+- Used the same `TZ` env var approach established by F-0069 — no system-level `/etc/timezone` change needed since all contexts (sway, shell, status bar, fresh setup) are covered by the env var
+- Did NOT update historical documentation references (specs, progress, release notes from F-0069) — those are accurate historical records of what was configured at that time
+
+### Next Steps
+- PO approves PR → merge → tag v1.28.0
+- On next boot, verify swaybar clock and shell `date` command show Central Time
+- If live workstation is running, manually update `~/.config/home-manager/home.nix` to match the new timezone (home-manager switch will apply)
+
+---
+
 ## Session 51 — 2026-06-04 (VS Code SingletonLock race fix)
 
 ### Date

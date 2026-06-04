@@ -1,5 +1,17 @@
 # Release Notes — Cloud Workstation
 
+## v1.28.0 — Timezone change: Pacific → US Central (2026-06-04)
+
+### Changed
+- **Timezone updated from Pacific to Central** — All system contexts now use `TZ=America/Chicago` (US Central Time) instead of `TZ=America/Los_Angeles` (Pacific Time). This affects the swaybar clock, interactive shell sessions, all sway child processes, and fresh project provisioning.
+
+### Files Changed
+- **`workstation-image/boot/03-sway.sh`** — `Environment=TZ=America/Chicago` in sway-desktop.service (was `America/Los_Angeles`)
+- **`workstation-image/boot/05-shell.sh`** — `export TZ="America/Chicago"` in .zshrc template (was `America/Los_Angeles`)
+- **`workstation-image/configs/swaybar/sway-status`** — `export TZ="America/Chicago"` at top of script (was `America/Los_Angeles`)
+- **`scripts/cloud-build-setup.sh`** — `export TZ="America/Chicago"` in home.nix `initContent` block for fresh setups (was `America/Los_Angeles`)
+- **`workstation-image/boot/10-tests.sh`** — Boot test date headers and summary line use `TZ=America/Chicago`; timezone check validates `America/Chicago` (was `Timezone Pacific` / `America/Los_Angeles`)
+
 ## v1.27.1 — Refactor CRD clipboard bridge and align configuration (2026-06-04)
 
 ### Changed
