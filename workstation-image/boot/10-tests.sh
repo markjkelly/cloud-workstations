@@ -172,11 +172,13 @@ else
 fi
 
 # F-0115: gnome-keyring Secret Service for Hub OAuth token persistence.
-# Verify the fix block is still present in the boot script (F-0124 keeps F-0115):
+# Verify the boot script handles keyring unlock robustly (F-0115):
 #   (a) gnome-keyring-daemon started with --unlock (empty-password unlock)
 #   (b) gnome-keyring-daemon started with --components=secrets
 #   (c) DBUS_SESSION_BUS_ADDRESS exported to launched app processes
-#   (d) idempotent pgrep guard prevents duplicate daemon launches
+#   (d) D-Bus lock-state check for the login collection
+#   (e) restart-on-locked logic (kill + restart if keyring is locked)
+#   (f) final verification of daemon running + keyring unlocked
 WS_SCRIPT_F0115="$HOME_DIR/boot/08-workspaces.sh"
 if [ -f "$WS_SCRIPT_F0115" ]; then
     check_grep "Keyring: gnome-keyring-daemon started with --unlock (F-0115)" \
@@ -188,8 +190,14 @@ if [ -f "$WS_SCRIPT_F0115" ]; then
     check_grep "Keyring: DBUS_SESSION_BUS_ADDRESS exported in launch_and_wait env (F-0115)" \
         'DBUS_SESSION_BUS_ADDRESS' \
         "$WS_SCRIPT_F0115"
-    check_grep "Keyring: idempotent pgrep guard present (F-0115)" \
-        'pgrep.*gnome-keyring-daemon' \
+    check_grep "Keyring: D-Bus lock-state check for login collection (F-0115)" \
+        'org.freedesktop.Secret.Collection.*Locked' \
+        "$WS_SCRIPT_F0115"
+    check_grep "Keyring: restart-on-locked logic kills existing daemon (F-0115)" \
+        'pkill.*gnome-keyring-daemon' \
+        "$WS_SCRIPT_F0115"
+    check_grep "Keyring: removes password-protected login.keyring before restart (F-0115)" \
+        'rm.*KEYRING_FILE' \
         "$WS_SCRIPT_F0115"
 else
     test_fail "08-workspaces.sh not found at $WS_SCRIPT_F0115 (F-0115 check)"

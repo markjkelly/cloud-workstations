@@ -173,25 +173,71 @@ launch_and_wait() {
 # persist/reload fails and the Hub reverts to logged-out after first paint.
 # We start gnome-keyring-daemon with an empty password so the login keyring
 # (stored on the persistent home disk at ~/.local/share/keyrings/) is unlocked
-# non-interactively on every boot. DBUS_ADDR is set above; apps also receive
-# DBUS_SESSION_BUS_ADDRESS so they can reach the bus.
-# Idempotent: if gnome-keyring-daemon is already running, skip re-launch.
+# non-interactively on every boot.
+#
+# Race-condition fix: CRD or D-Bus autoactivation may start gnome-keyring-daemon
+# before this script runs. When that happens, the login keyring can be locked
+# (created with PAM password). We must detect this and restart the daemon with
+# --unlock. We also ensure login.keyring uses an empty password by removing any
+# password-protected keyring file before starting the daemon.
 # =============================================================================
-if [ ! -x /usr/bin/gnome-keyring-daemon ]; then
-    log "WARNING: /usr/bin/gnome-keyring-daemon not found — Secret Service unavailable; Hub OAuth token will not persist"
-elif pgrep -x gnome-keyring-daemon >/dev/null 2>&1; then
-    log "Secret service already running, skipping gnome-keyring-daemon start"
-else
-    log "Starting gnome-keyring secret service (F-0115)..."
-    runuser -u "$USER" -- env XDG_RUNTIME_DIR=/run/user/1000 DBUS_SESSION_BUS_ADDRESS="$DBUS_ADDR" \
+KEYRING_DIR="/home/$USER/.local/share/keyrings"
+KEYRING_FILE="$KEYRING_DIR/login.keyring"
+
+_keyring_env="env XDG_RUNTIME_DIR=/run/user/1000 DBUS_SESSION_BUS_ADDRESS=$DBUS_ADDR"
+
+# Helper: check if the login collection is locked via D-Bus.
+_keyring_is_locked() {
+    local result
+    result=$(runuser -u "$USER" -- $_keyring_env \
+        dbus-send --session --print-reply \
+        --dest=org.freedesktop.secrets \
+        /org/freedesktop/secrets/collection/login \
+        org.freedesktop.DBus.Properties.Get \
+        string:org.freedesktop.Secret.Collection string:Locked 2>/dev/null)
+    echo "$result" | grep -q "boolean true"
+}
+
+# Helper: start (or restart) gnome-keyring-daemon with empty-password unlock.
+_keyring_start_unlocked() {
+    # Remove any password-protected keyring file so the daemon creates a fresh
+    # one with the empty password we pipe in.
+    if [ -f "$KEYRING_FILE" ]; then
+        log "Removing password-protected login.keyring to recreate with empty password"
+        rm -f "$KEYRING_FILE"
+    fi
+    runuser -u "$USER" -- $_keyring_env \
         sh -c 'printf "\n" | /usr/bin/gnome-keyring-daemon --unlock --components=secrets' \
         >/dev/null 2>&1 &
     sleep 1
-    if pgrep -x gnome-keyring-daemon >/dev/null 2>&1; then
-        log "Started gnome-keyring secret service"
+}
+
+if [ ! -x /usr/bin/gnome-keyring-daemon ]; then
+    log "WARNING: /usr/bin/gnome-keyring-daemon not found — Secret Service unavailable; Hub OAuth token will not persist"
+elif pgrep -x gnome-keyring-daemon >/dev/null 2>&1; then
+    log "Secret service already running, checking login keyring lock state..."
+    if _keyring_is_locked; then
+        log "Login keyring is LOCKED — restarting gnome-keyring-daemon with --unlock (F-0115)"
+        pkill -x gnome-keyring-daemon 2>/dev/null
+        sleep 1
+        _keyring_start_unlocked
     else
-        log "WARNING: gnome-keyring-daemon failed to start — Hub OAuth token persistence may not work"
+        log "Login keyring is already unlocked — no action needed"
     fi
+else
+    log "Starting gnome-keyring secret service (F-0115)..."
+    _keyring_start_unlocked
+fi
+
+# Final verification: daemon running and keyring unlocked.
+if pgrep -x gnome-keyring-daemon >/dev/null 2>&1; then
+    if _keyring_is_locked; then
+        log "WARNING: gnome-keyring-daemon running but login keyring still locked — Hub OAuth may fail"
+    else
+        log "gnome-keyring secret service running, login keyring unlocked ✓"
+    fi
+else
+    log "WARNING: gnome-keyring-daemon failed to start — Hub OAuth token persistence may not work"
 fi
 
 # =============================================================================
