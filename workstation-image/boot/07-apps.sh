@@ -305,15 +305,6 @@ else
     fi
 fi
 
-# --- Install/update GitHub Copilot CLI extension ---
-# F-0121: check exit status; log real success or failure.
-log "Updating GitHub Copilot CLI..."
-if runuser -u $USER -- bash -c ". $NIX_SH && gh extension install github/gh-copilot 2>/dev/null || gh extension upgrade gh-copilot" >> "$LOG_FILE" 2>&1; then
-    log "GitHub Copilot CLI: update OK"
-else
-    log "GitHub Copilot CLI: update FAILED (rc=$?) — check $LOG_FILE for details"
-fi
-
 # --- Update OpenCode (Go binary) ---
 # F-0121: check exit status; log real success or failure.
 log "Updating OpenCode..."

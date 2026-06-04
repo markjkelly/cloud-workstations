@@ -876,7 +876,7 @@ step "Step 17/19: Install AI tools and Antigravity"
 AI_MODULE_CHECK=$(ws_ssh '. ~/.local/bin/ws-modules.sh 2>/dev/null && if ws_module_enabled ai-tools; then echo full; elif ws_module_enabled ai-tools-minimal; then echo minimal; else echo disabled; fi' 2>/dev/null || echo "full")
 
 if echo "$AI_MODULE_CHECK" | grep -q "full"; then
-    # Full AI tools: all NPM tools + OpenCode + Aider + gh-copilot
+    # Full AI tools: all NPM tools + OpenCode + Aider
     if ws_ssh_long '
     '"${NIX_SOURCE}"'
     export NPM_CONFIG_PREFIX=$HOME/.npm-global
@@ -913,13 +913,6 @@ if echo "$AI_MODULE_CHECK" | grep -q "full"; then
         test_pass "Aider installed"
     else
         test_warn "Aider install failed (may work on next boot via 07-apps.sh)"
-    fi
-
-    # Install gh copilot
-    if ws_ssh "${NIX_SOURCE}"' && gh extension install github/gh-copilot 2>&1 || gh extension upgrade gh-copilot 2>&1'; then
-        test_pass "GitHub Copilot CLI installed"
-    else
-        test_warn "GitHub Copilot CLI install failed (may work on next boot via 07-apps.sh)"
     fi
 
     # Create default .env if it doesn't exist (user adds secrets manually)
@@ -1132,7 +1125,7 @@ echo ""
 echo " Installed: Sway (Tokyo Night), Nix, ZSH, Starship,"
 echo "   Operator Mono font, Chrome, VS Code, IntelliJ, Windsurf,"
 echo "   Cursor, Zed, Antigravity, Claude Code, Gemini CLI,"
-echo "   Codex, Cody, OpenCode, Aider, gh-copilot, pi-coding-agent,"
+echo "   Codex, Cody, OpenCode, Aider, pi-coding-agent,"
 echo "   Go, Rust (rustup), Python (pyenv), Ruby (rbenv), Node.js (Nix),"
 echo "   Wofi app launcher, snippet picker, clipboard manager"
 echo "============================================="

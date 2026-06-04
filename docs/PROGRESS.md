@@ -2937,3 +2937,44 @@ Milestone 46 — Automatic CRD Resolution Setup (F-0137)
 - Commit changes to `feature/auto-crd-resize`, push, and open PR via `gh`.
 - Document version `v1.33.0` in `docs/RELEASENOTES.md`.
 
+
+---
+
+## Session 52 — 2026-06-04 (Remove GitHub Copilot CLI)
+
+### Date
+2026-06-04
+
+### Milestone
+Milestone 47 — Remove GitHub Copilot CLI (F-0138)
+
+### Goals
+- Remove GitHub Copilot CLI (`gh-copilot`) installation, updates, tests, and documentation from the Cloud Workstation repository.
+
+### Completed
+- **Removed installation & update logic**: Stripped the `github/gh-copilot` installation/update commands from the boot script `07-apps.sh` and provisioning script `cloud-build-setup.sh`.
+- **Cleaned up boot validation**: Removed tests and skip definitions for `gh-copilot` from `10-tests.sh`. Also removed the failure logging grep validation for Copilot CLI.
+- **Updated documentation**: Removed `GitHub Copilot CLI` from `README.md` list of installed AI tools.
+- **Backlog maintenance**: Registered `F-0138` spec/backlog, and marked `F-0130` (Review and resolve boot test WARNs: GH Copilot extension) as `superseded` since the tool is removed.
+- **Workstation verification**: Synced modified scripts to `/home/user/boot/` and ran validation tests manually to confirm all tests pass successfully with no copilot errors/warnings.
+
+### Agent Team
+- SWE-1: code cleanup, boot script edits, manual test verification
+- TPM: specification, backlog updates, progress logs (this entry)
+
+### Files Changed
+- `docs/specs/F-0138-remove-copilot.md` — new spec document
+- `workstation-image/boot/07-apps.sh` — removed install/update loop
+- `workstation-image/boot/10-tests.sh` — removed boot tests
+- `scripts/cloud-build-setup.sh` — removed setup block and completion logs
+- `README.md` — removed description of GitHub Copilot CLI
+- `docs/BACKLOG.md` — registered F-0138, marked F-0130 as superseded
+- `docs/PROGRESS.md` — this entry
+
+### Decisions
+- **Complete removal**: Deleting all references to Copilot simplifies the boot process and avoids spurious warnings/failures related to Copilot CLI credentials or auth.
+
+### Next Steps
+- Commit changes to `feature/remove-copilot`, push, and open a PR.
+
+

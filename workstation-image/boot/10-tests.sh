@@ -279,17 +279,10 @@ if ws_module_enabled "ai-tools"; then
     log "--- AI CLI Tools ---"
     check_binary "Claude Code" "claude"
     check_binary "OpenCode" "opencode"
-    # GH Copilot (extension)
-    if runuser -u $USER -- bash -c ". $NIX_SH && gh copilot --version" >/dev/null 2>&1; then
-        test_pass "GH Copilot"
-    else
-        test_warn "GH Copilot (extension may not be installed)"
-    fi
 elif ws_module_enabled "ai-tools-minimal"; then
     log "--- AI CLI Tools (minimal) ---"
     check_binary "Claude Code" "claude"
     test_skip "OpenCode (ai-tools-minimal)"
-    test_skip "GH Copilot (ai-tools-minimal)"
 else
     log "--- AI CLI Tools --- (SKIPPED — module disabled)"
     test_skip "AI CLI Tools (module disabled)"
@@ -1068,12 +1061,6 @@ if grep -q 'npm global packages: update FAILED' "$APPS_SCRIPT" 2>/dev/null; then
     test_pass "F-0121: 07-apps.sh logs npm update FAILED on non-zero exit"
 else
     test_fail "F-0121: 07-apps.sh does not log npm update FAILED (may still swallow errors)"
-fi
-
-if grep -q 'GitHub Copilot CLI: update FAILED\|Copilot.*FAILED' "$APPS_SCRIPT" 2>/dev/null; then
-    test_pass "F-0121: 07-apps.sh logs GitHub Copilot update FAILED on non-zero exit"
-else
-    test_fail "F-0121: 07-apps.sh does not log GitHub Copilot FAILED (may still swallow errors)"
 fi
 
 if grep -q 'OpenCode: update FAILED\|OpenCode.*FAILED' "$APPS_SCRIPT" 2>/dev/null; then

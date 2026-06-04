@@ -1,5 +1,19 @@
 # Release Notes — Cloud Workstation
 
+## v1.34.0 — Remove GitHub Copilot CLI (2026-06-04)
+
+### Removed
+- **GitHub Copilot CLI extension** (F-0138) — Completely removed the `gh-copilot` CLI extension (`github/gh-copilot`) from the workstation bootstrap and setup processes.
+
+### Changed
+- **`07-apps.sh`** — Removed the boot-time install and update step for `github/gh-copilot`.
+- **`cloud-build-setup.sh`** — Stripped the initial provisioning installation block, validation messages, and end-of-setup list entries for `gh-copilot`.
+- **`README.md`** — Updated the "What's Included" list of AI tools to remove GitHub Copilot CLI.
+
+### Tests
+- **`10-tests.sh`** — Removed all test cases validating `gh-copilot` presence, skip states, or update failure logging in the boot test suite.
+- **`docs/BACKLOG.md`** — Marked `F-0130` (Review and resolve boot test WARNs: GH Copilot extension) as `superseded` since the tool was removed. Added Milestone 47 / `F-0138` backlog tracking.
+
 ## v1.33.0 — Automatic CRD Resolution Setup (2026-06-04)
 
 ### Added
