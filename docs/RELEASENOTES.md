@@ -20,6 +20,23 @@
 - 4 new boot tests in `10-tests.sh` (F-0134 section): verify `09-sync.sh` contains the
   sway-status source path, destination path, chmod +x, and source guard variable.
 
+## v1.31.0 — hub-start: minimal fire-and-forget Hub launcher (2026-06-04)
+
+### Added
+- **`hub-start` script** (F-0135) — A minimal companion to `hub-restart` that
+  launches the Antigravity Hub and exits immediately. Unlike `hub-restart`, it
+  does NOT kill existing processes, remove stale Singleton locks, or wait for
+  readiness. Designed for fire-and-forget use cases (e.g., sway keybindings,
+  startup scripts).
+
+### Changed
+- **`scripts/cloud-build-setup.sh`** — Deploys `hub-start` to `~/.local/bin/`
+  during fresh project provisioning (same cat-pipe pattern as `hub-restart`).
+
+### Tests
+- 3 new boot tests in `10-tests.sh` (F-0135 section): verify `hub-start`
+  present at `~/.local/bin/hub-start`, executable, and discoverable on PATH.
+
 ## v1.29.0 — Fix autolaunch idempotent check: count app windows, not PIDs (2026-06-04)
 
 ### Fixed

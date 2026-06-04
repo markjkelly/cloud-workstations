@@ -2,6 +2,8 @@
 
 ## Session 54 — 2026-06-04 (F-0134: sync sway-status on boot)
 
+## Session 55 — 2026-06-04 (F-0135: hub-start minimal Hub launcher)
+
 ### Date
 2026-06-04
 
@@ -36,6 +38,44 @@ Milestone 43 — Sync sway-status on Boot (F-0134)
 ### Next Steps
 - PO approves PR → merge → tag v1.30.0
 - On next boot, verify `~/logs/sync.log` shows `✓ Copied sway-status` and the live `~/.local/bin/sway-status` has the correct timezone
+
+Milestone 44 — hub-start Minimal Hub Launcher (F-0135)
+
+### Completed
+- **F-0135** (hub-start — minimal fire-and-forget Hub launcher): Created a stripped-down
+  companion to `hub-restart` (F-0122) that ONLY launches the Hub and exits immediately.
+  - **New script**: `workstation-image/scripts/hub-start` — auto-detects Wayland/Sway/D-Bus
+    session environment, launches Hub with Electron flags (`--no-sandbox --ozone-platform=wayland
+    --disable-gpu --disable-dev-shm-usage --user-data-dir`), unsets `LD_LIBRARY_PATH` to prevent
+    EGL crash (same pattern as VS Code), uses `setsid`+`disown` for full detachment, redirects
+    to `~/logs/hub-launch.log`, switches to workspace 1, prints one line and exits.
+  - **Deployment**: Added to `scripts/cloud-build-setup.sh` (cat pipe pattern, right after
+    hub-restart deployment).
+  - **3 new boot tests** in `workstation-image/boot/10-tests.sh`: presence at
+    `~/.local/bin/hub-start`, executable bit, PATH discoverability.
+- **Spec created**: `docs/specs/F-0135-hub-start.md`
+- **QA verified**: `bash -n` PASS on hub-start, 10-tests.sh, cloud-build-setup.sh
+
+### Files Changed
+- `workstation-image/scripts/hub-start` — new script (30 lines)
+- `scripts/cloud-build-setup.sh` — added hub-start deployment block
+- `workstation-image/boot/10-tests.sh` — added F-0135 test section (3 assertions)
+- `docs/specs/F-0135-hub-start.md` — new spec
+- `docs/BACKLOG.md` — Milestone 44 added, F-0135 marked done
+- `docs/PROGRESS.md` — this entry
+- `docs/RELEASENOTES.md` — v1.31.0 entry
+
+### Decisions
+- Kept the script intentionally minimal (~30 lines vs hub-restart's ~47 lines) — the
+  whole point is simplicity and instant exit
+- Used `env -u LD_LIBRARY_PATH` inline (same VS Code pattern) rather than a separate
+  `unset` statement, keeping the launch as a single pipeline
+- Did NOT add kill/cleanup logic — that's hub-restart's job
+- Did NOT add readiness checking — user can visually confirm or run hub-restart if needed
+
+### Next Steps
+- PO approves PR → merge → tag v1.31.0
+- Deploy to live workstation: `cp workstation-image/scripts/hub-start ~/.local/bin/ && chmod +x ~/.local/bin/hub-start`
 
 ---
 
