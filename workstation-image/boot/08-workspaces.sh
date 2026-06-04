@@ -110,6 +110,21 @@ for i in $(seq 1 120); do
     sleep 2
 done
 
+# --- CRD Resolution Auto-Resize (F-0137) ---
+# Once Sway is detected as ready, check if CRD is enabled/active.
+if systemctl is-enabled chrome-remote-desktop@user.service >/dev/null 2>&1 || \
+   systemctl is-active --quiet chrome-remote-desktop@user.service || \
+   pgrep -f chrome-remote-desktop >/dev/null 2>&1; then
+    log "CRD is enabled/active. Automatically configuring virtual screen resolution to 2560x1440..."
+    runuser -u "$USER" -- mkdir -p /home/user/logs
+    if [ -x "/home/user/.local/bin/crd-resize" ]; then
+        runuser -u "$USER" -- env PATH="/home/user/.nix-profile/bin:/usr/bin:/bin:$PATH" /home/user/.local/bin/crd-resize 2560 1440 > /home/user/logs/crd-resize-boot.log 2>&1
+    else
+        log "WARNING: /home/user/.local/bin/crd-resize not found or not executable, skipping resolution configure"
+    fi
+fi
+
+
 # --- Idempotent check (F-0133) ---
 # Count only actual application windows — containers with app_id (Wayland) or
 # window_properties.class (X11) and type == "con".  Background processes like
