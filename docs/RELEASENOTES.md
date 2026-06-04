@@ -1,5 +1,24 @@
 # Release Notes — Cloud Workstation
 
+## v1.32.0 — Install Antigravity IDE v2 and Rework Workspace Layout (2026-06-04)
+
+### Added
+- **Antigravity IDE v2** (F-0136) — Installed the new standalone Electron-based Antigravity IDE v2. It is downloaded as a tarball from the official URL, extracted to `~/.local/share/antigravity-ide/`, and symlinked to `~/.local/bin/antigravity-ide`.
+- **Desktop Entry** — Created a `.desktop` file at `~/.local/share/applications/antigravity-ide.desktop` for integration with Wofi application launcher.
+
+### Changed
+- **Sway Window Placement Rules** — Added a placement rule to pin the IDE v2 (`app_id="antigravity-ide"`) to Workspace 1. Moved the Antigravity Hub placement rule (`app_id="antigravity"`) from Workspace 1 to Workspace 5 to prevent window collisions.
+- **Workspace Auto-launch Layout** — Reworked `08-workspaces.sh` auto-launch order and focused workspace:
+  - ws1: Antigravity IDE v2 (auto-launched at boot, focused after boot).
+  - ws2: VS Code.
+  - ws3: foot terminal.
+  - ws4: Chrome.
+  - ws5: Hub (manual launch only).
+- **F-0125 Cleanup Removal** — Removed the old IDE v1 directory cleanup from `07-apps.sh`.
+
+### Tests
+- Added 9 new boot tests in `10-tests.sh` (F-0136 section): verify IDE v2 installation directory, binary on PATH, `.desktop` file presence, sway config rules for IDE and Hub, absence of F-0125 cleanup in `07-apps.sh`, and `08-workspaces.sh` launch/focus.
+
 ## v1.30.0 — Sync sway-status from repo on every boot (2026-06-04)
 
 ### Fixed

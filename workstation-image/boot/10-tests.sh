@@ -454,8 +454,8 @@ if grep -qE 'bindsym.*mod\+g.*antigravity|bindsym.*mod\+n.*antigravity' "$SWAY_C
 else
     test_pass "Sway config has no antigravity IDE keybindings (\$mod+g/\$mod+n removed — F-0116)"
 fi
-# Assert that the Antigravity placement rule is present so that it opens in workspace 1
-if grep -q 'for_window \[app_id="antigravity"\]' "$SWAY_CFG"; then
+# Assert that the Antigravity placement rule is present so that it opens in its workspace
+if grep -q -E 'for_window \[app_id="\^?antigravity\$?"\]' "$SWAY_CFG"; then
     test_pass "Antigravity/Hub placement rule present in sway config"
 else
     test_fail "Antigravity/Hub placement rule missing from sway config"
@@ -737,14 +737,15 @@ fi
 # Launch order: Chrome (ws5) first, then foot (ws3, ws4).
 # Final focus: ws3 (terminal — user runs hub-restart from here).
 log ""
-log "--- Workspace autostart layout (F-0098/F-0112/F-0124) ---"
+log "--- Workspace autostart layout (F-0098/F-0112/F-0124/F-0136) ---"
 WS_SCRIPT="$HOME_DIR/boot/08-workspaces.sh"
 if [ -f "$WS_SCRIPT" ]; then
-    # ws1 must be empty — Hub is NOT auto-launched (F-0124)
-    if ! grep -qE '^[[:space:]]*launch_and_wait[[:space:]]+1[[:space:]]' "$WS_SCRIPT"; then
-        test_pass "08-workspaces.sh ws1 is empty (Hub not auto-launched — F-0124)"
+    # ws1 must launch Antigravity IDE v2 (F-0136)
+    WS1_LINE=$(grep -nE '^[[:space:]]*launch_and_wait[[:space:]]+1[[:space:]]' "$WS_SCRIPT" | head -1)
+    if echo "$WS1_LINE" | grep -q 'antigravity-ide'; then
+        test_pass "08-workspaces.sh ws1 launches Antigravity IDE v2 (F-0136)"
     else
-        test_fail "08-workspaces.sh ws1 still has a launch_and_wait call (F-0124 regression)"
+        test_fail "08-workspaces.sh ws1 does not launch IDE v2 (line: $WS1_LINE)"
     fi
 
     # ws2 must launch VS Code (re-added by CRD autolaunch fix, supersedes F-0116)
@@ -763,27 +764,26 @@ if [ -f "$WS_SCRIPT" ]; then
         test_fail "08-workspaces.sh ws3 does not launch foot (line: $WS3_LINE)"
     fi
 
-    # ws4 must be foot terminal
+    # ws4 must be Chrome (F-0136: Chrome moved to ws4)
     WS4_LINE=$(grep -nE '^[[:space:]]*launch_and_wait[[:space:]]+4[[:space:]]' "$WS_SCRIPT" | head -1)
-    if echo "$WS4_LINE" | grep -q '"\$FOOT"'; then
-        test_pass "08-workspaces.sh ws4 launches foot terminal"
+    if echo "$WS4_LINE" | grep -q "google-chrome-stable"; then
+        test_pass "08-workspaces.sh ws4 launches google-chrome-stable (F-0136)"
     else
-        test_fail "08-workspaces.sh ws4 does not launch foot (line: $WS4_LINE)"
+        test_fail "08-workspaces.sh ws4 does not launch Chrome (line: $WS4_LINE) (F-0136)"
     fi
 
-    # ws5 must be Chrome (F-0112: Chrome moved from ws1 → ws5)
-    WS5_LINE=$(grep -nE '^[[:space:]]*launch_and_wait[[:space:]]+5[[:space:]]' "$WS_SCRIPT" | head -1)
-    if echo "$WS5_LINE" | grep -q "google-chrome-stable"; then
-        test_pass "08-workspaces.sh ws5 launches google-chrome-stable (F-0112)"
+    # ws5 must be empty — Hub is NOT auto-launched (F-0124/F-0136)
+    if ! grep -qE '^[[:space:]]*launch_and_wait[[:space:]]+5[[:space:]]' "$WS_SCRIPT"; then
+        test_pass "08-workspaces.sh ws5 is empty (Hub not auto-launched — F-0124/F-0136)"
     else
-        test_fail "08-workspaces.sh ws5 does not launch Chrome (line: $WS5_LINE) (F-0112)"
+        test_fail "08-workspaces.sh ws5 still has a launch_and_wait call (Hub autostart regression)"
     fi
 
-    # Header comment must reflect the F-0124 layout (ws1 empty — Hub not auto-launched)
-    if grep -qE '^#.*ws1 = \(empty|Hub not auto-launched' "$WS_SCRIPT"; then
-        test_pass "08-workspaces.sh header comment reflects F-0124 layout (ws1 empty, Hub not auto-launched)"
+    # Header comment must reflect the F-0136 layout (ws1=Antigravity IDE v2)
+    if grep -qE '^#.*ws1 = Antigravity IDE v2' "$WS_SCRIPT"; then
+        test_pass "08-workspaces.sh header comment reflects F-0136 layout"
     else
-        test_fail "08-workspaces.sh header comment does not reflect F-0124 layout (expected ws1 empty)"
+        test_fail "08-workspaces.sh header comment does not reflect F-0136 layout"
     fi
 
     # launch_and_wait must return 1 on timeout
@@ -1365,6 +1365,83 @@ if [ -f "$WS_SCRIPT_F0133" ]; then
         test_pass "F-0133: 08-workspaces.sh cleans up stale SingletonLock files"
     else
         test_fail "F-0133: 08-workspaces.sh missing SingletonLock cleanup (Chrome/VS Code will fail after reboot)"
+    fi
+fi
+
+
+# =============================================================================
+# F-0136: Antigravity IDE v2 installation and workspace layout
+# =============================================================================
+log ""
+log "--- F-0136: Antigravity IDE v2 ---"
+
+# (a) IDE v2 install directory exists
+check_dir "F-0136: IDE v2 install directory" "$HOME_DIR/.local/share/antigravity-ide"
+
+# (b) IDE v2 binary on PATH (via symlink)
+check_binary "F-0136: IDE v2 binary (antigravity-ide)" "antigravity-ide"
+
+# (c) .desktop file exists
+check_file "F-0136: IDE v2 .desktop file" "$HOME_DIR/.local/share/applications/antigravity-ide.desktop"
+
+# (d) Sway config has IDE v2 for_window rule (app_id=antigravity-ide → ws1)
+SWAY_CONFIG_F0136="/home/user/dev/git/cloud-workstations/workstation-image/configs/sway/config"
+if [ -f "$SWAY_CONFIG_F0136" ]; then
+    if grep -q 'for_window \[app_id="\^antigravity-ide\$"\] move container to workspace number 1' "$SWAY_CONFIG_F0136" 2>/dev/null; then
+        test_pass "F-0136: sway config has IDE v2 placement rule (app_id=^antigravity-ide$ → ws1)"
+    else
+        test_fail "F-0136: sway config missing IDE v2 placement rule (for_window [app_id=\"^antigravity-ide$\"] → workspace 1)"
+    fi
+else
+    test_skip "F-0136: sway config not found at $SWAY_CONFIG_F0136"
+fi
+
+# (e) Sway config has Hub rule pointing to workspace 5 (not workspace 1)
+if [ -f "$SWAY_CONFIG_F0136" ]; then
+    if grep -q 'for_window \[app_id="\^antigravity\$"\] move container to workspace number 5' "$SWAY_CONFIG_F0136" 2>/dev/null; then
+        test_pass "F-0136: sway config has Hub placement rule (app_id=^antigravity$ → ws5)"
+    else
+        test_fail "F-0136: sway config Hub rule not pointing to workspace 5"
+    fi
+fi
+
+# (f) Old F-0125 cleanup block must NOT be present in 07-apps.sh
+APPS_SCRIPT_F0136="/home/user/dev/git/cloud-workstations/workstation-image/boot/07-apps.sh"
+if [ -f "$APPS_SCRIPT_F0136" ]; then
+    if grep -q 'F-0125.*Remove orphaned' "$APPS_SCRIPT_F0136" 2>/dev/null; then
+        test_fail "F-0136: 07-apps.sh still contains F-0125 orphaned IDE cleanup (should be removed)"
+    else
+        test_pass "F-0136: 07-apps.sh does not contain F-0125 cleanup (correctly removed)"
+    fi
+else
+    test_fail "F-0136: 07-apps.sh not found at $APPS_SCRIPT_F0136"
+fi
+
+# (g) 08-workspaces.sh launches IDE v2 on ws1
+WS_SCRIPT_F0136="/home/user/dev/git/cloud-workstations/workstation-image/boot/08-workspaces.sh"
+if [ -f "$WS_SCRIPT_F0136" ]; then
+    if grep -q 'launch_and_wait 1.*antigravity-ide' "$WS_SCRIPT_F0136" 2>/dev/null; then
+        test_pass "F-0136: 08-workspaces.sh launches IDE v2 on ws1"
+    else
+        test_fail "F-0136: 08-workspaces.sh missing IDE v2 launch on ws1"
+    fi
+fi
+
+# (h) 08-workspaces.sh Chrome is now on ws4 (not ws5)
+if [ -f "$WS_SCRIPT_F0136" ]; then
+    if grep -q 'launch_and_wait 4.*google-chrome' "$WS_SCRIPT_F0136" 2>/dev/null; then
+        test_pass "F-0136: 08-workspaces.sh launches Chrome on ws4"
+    else
+        test_fail "F-0136: 08-workspaces.sh Chrome not on ws4"
+    fi
+fi
+
+# (i) 08-workspaces.sh final focus is ws1
+if [ -f "$WS_SCRIPT_F0136" ]; then
+    if grep -q 'workspace number 1' "$WS_SCRIPT_F0136" 2>/dev/null && grep -q 'switched to workspace 1' "$WS_SCRIPT_F0136" 2>/dev/null; then
+        test_pass "F-0136: 08-workspaces.sh final focus is ws1 (Antigravity IDE)"
+    else
+        test_fail "F-0136: 08-workspaces.sh final focus is not ws1"
     fi
 fi
 
