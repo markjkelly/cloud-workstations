@@ -5,7 +5,10 @@
 
 USER="user"
 HOME_DIR="/home/user"
-REPO_DIR="/home/user/Apps/cloud-workstations"
+REPO_DIR="/home/user/dev/git/cloud-workstations"
+if [ ! -d "$REPO_DIR" ]; then
+    REPO_DIR="/home/user/Apps/cloud-workstations"
+fi
 TMUX_SRC="$REPO_DIR/workstation-image/configs/tmux/tmux.conf"
 
 log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] [06b-tmux] $1"; }

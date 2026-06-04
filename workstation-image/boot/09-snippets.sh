@@ -9,7 +9,10 @@
 
 USER="user"
 HOME_DIR="/home/user"
-REPO_DIR="$HOME_DIR/Apps/cloud-workstations/workstation-image"
+REPO_DIR="/home/user/dev/git/cloud-workstations/workstation-image"
+if [ ! -d "$REPO_DIR" ]; then
+    REPO_DIR="$HOME_DIR/Apps/cloud-workstations/workstation-image"
+fi
 
 log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] [09-snippets] $1"; }
 
