@@ -89,7 +89,9 @@ for_window [app_id="antigravity"] move container to workspace number 1
 
 # Chrome placement — always land on workspace 5
 for_window [app_id="google-chrome"] move container to workspace number 5
+for_window [class="Google-chrome"] move container to workspace number 5
 no_focus [app_id="google-chrome"]
+no_focus [class="Google-chrome"]
 
 # =============================================================================
 # KEY BINDINGS
@@ -202,6 +204,7 @@ floating_modifier Mod4 normal
 #                         ws4=foot($mod+p), ws5=Chrome($mod+u), ws6-8($mod+j/k/l)
 # -----------------------------------------------------------------------------
 workspace 1 layout tabbed
+workspace 5 layout tabbed
 
 bindsym $mod+h workspace number 1
 bindsym $super+h workspace number 1
