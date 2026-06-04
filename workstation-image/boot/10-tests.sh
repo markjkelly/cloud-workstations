@@ -544,12 +544,13 @@ else
     test_fail "F-0131: sway config missing VSCode placement rule (for_window [app_id=\"code\"] move container to workspace number 2)"
 fi
 
-# F-0131 autostart: VS Code autostart exec directive present in AUTOSTART section
-# Static grep: confirms exec (not exec_always) invocation is present.
+# F-0131 autostart: VS Code must NOT have an exec directive in sway config.
+# The headless Sway loads the config first and claims SingletonLock before CRD.
+# VS Code is now launched by 08-workspaces.sh (ws-autolaunch.service) on CRD.
 if grep -qE '^exec env -u LD_LIBRARY_PATH \$nix/code --no-sandbox' "$SWAY_CFG"; then
-    test_pass "F-0131: sway config has VSCode autostart exec (exec, not exec_always)"
+    test_fail "F-0131: sway config still has VSCode exec autostart (will launch on headless, not CRD)"
 else
-    test_fail "F-0131: sway config missing VSCode autostart exec directive"
+    test_pass "F-0131: sway config does not exec VS Code (launched by 08-workspaces.sh on CRD)"
 fi
 
 # F-0131 parity guard: repo sway config and home-manager sway-config must be byte-identical.
@@ -733,12 +734,12 @@ if [ -f "$WS_SCRIPT" ]; then
         test_fail "08-workspaces.sh ws1 still has a launch_and_wait call (F-0124 regression)"
     fi
 
-    # ws2 must be empty (Antigravity IDE removed in F-0116)
+    # ws2 must launch VS Code (re-added by CRD autolaunch fix, supersedes F-0116)
     WS2_LINE=$(grep -nE '^[[:space:]]*launch_and_wait[[:space:]]+2[[:space:]]' "$WS_SCRIPT" | head -1)
-    if [ -z "$WS2_LINE" ]; then
-        test_pass "08-workspaces.sh ws2 is empty (Antigravity IDE removed — F-0116)"
+    if echo "$WS2_LINE" | grep -q 'code'; then
+        test_pass "08-workspaces.sh ws2 launches VS Code"
     else
-        test_fail "08-workspaces.sh ws2 still has a launch_and_wait call (F-0116 regression): $WS2_LINE"
+        test_fail "08-workspaces.sh ws2 does not launch VS Code (line: $WS2_LINE)"
     fi
 
     # ws3 must be foot terminal
