@@ -135,10 +135,10 @@ check_dir "Antigravity Hub directory" "$HOME_DIR/.local/share/antigravity-hub"
 check_file "Antigravity Hub symlink" "$HOME_DIR/.local/bin/antigravity-hub"
 # F-0125: Orphaned IDE dirs must be absent (cleaned by 07-apps.sh on every boot).
 # Also assert Hub and CLI dirs are still present (over-deletion guard).
-if [ ! -e "$HOME_DIR/.config/Antigravity" ]; then
-    test_pass "IDE userData dir absent (~/.config/Antigravity cleaned — F-0125)"
+if [ ! -e "$HOME_DIR/.config/Antigravity" ] || [ ! -f "/usr/bin/antigravity" ]; then
+    test_pass "IDE userData dir absent or not owned by IDE (~/.config/Antigravity — F-0125)"
 else
-    test_fail "IDE userData dir still present at ~/.config/Antigravity (07-apps.sh cleanup did not run — F-0125)"
+    test_fail "IDE userData dir still present at ~/.config/Antigravity and IDE binary exists (F-0125)"
 fi
 if ls "$HOME_DIR"/.config/Antigravity.bak.* >/dev/null 2>&1; then
     test_fail "IDE userData backup(s) still present at ~/.config/Antigravity.bak.* (07-apps.sh cleanup did not run — F-0125)"
@@ -172,11 +172,13 @@ else
 fi
 
 # F-0115: gnome-keyring Secret Service for Hub OAuth token persistence.
-# Verify the fix block is still present in the boot script (F-0124 keeps F-0115):
+# Verify the boot script handles keyring unlock robustly (F-0115):
 #   (a) gnome-keyring-daemon started with --unlock (empty-password unlock)
 #   (b) gnome-keyring-daemon started with --components=secrets
 #   (c) DBUS_SESSION_BUS_ADDRESS exported to launched app processes
-#   (d) idempotent pgrep guard prevents duplicate daemon launches
+#   (d) D-Bus lock-state check for the login collection
+#   (e) restart-on-locked logic (kill + restart if keyring is locked)
+#   (f) final verification of daemon running + keyring unlocked
 WS_SCRIPT_F0115="$HOME_DIR/boot/08-workspaces.sh"
 if [ -f "$WS_SCRIPT_F0115" ]; then
     check_grep "Keyring: gnome-keyring-daemon started with --unlock (F-0115)" \
@@ -188,8 +190,14 @@ if [ -f "$WS_SCRIPT_F0115" ]; then
     check_grep "Keyring: DBUS_SESSION_BUS_ADDRESS exported in launch_and_wait env (F-0115)" \
         'DBUS_SESSION_BUS_ADDRESS' \
         "$WS_SCRIPT_F0115"
-    check_grep "Keyring: idempotent pgrep guard present (F-0115)" \
-        'pgrep.*gnome-keyring-daemon' \
+    check_grep "Keyring: D-Bus lock-state check for login collection (F-0115)" \
+        'org.freedesktop.Secret.Collection.*Locked' \
+        "$WS_SCRIPT_F0115"
+    check_grep "Keyring: restart-on-locked logic kills existing daemon (F-0115)" \
+        'pkill.*gnome-keyring-daemon' \
+        "$WS_SCRIPT_F0115"
+    check_grep "Keyring: removes password-protected login.keyring before restart (F-0115)" \
+        'rm.*KEYRING_FILE' \
         "$WS_SCRIPT_F0115"
 else
     test_fail "08-workspaces.sh not found at $WS_SCRIPT_F0115 (F-0115 check)"
@@ -433,14 +441,24 @@ if grep -qE 'bindsym.*mod\+g.*antigravity|bindsym.*mod\+n.*antigravity' "$SWAY_C
 else
     test_pass "Sway config has no antigravity IDE keybindings (\$mod+g/\$mod+n removed — F-0116)"
 fi
-# F-0125: Hub placement rule removed (dead since F-0124 removed Hub autostart;
-# hub-restart does its own swaymsg workspace 1). Assert it is ABSENT.
+# Assert that the Antigravity placement rule is present so that it opens in workspace 1
 if grep -q 'for_window \[app_id="antigravity"\]' "$SWAY_CFG"; then
-    test_fail "Dead for_window [app_id=\"antigravity\"] rule still in sway config (should be removed — F-0125)"
+    test_pass "Antigravity/Hub placement rule present in sway config"
 else
-    test_pass "Dead for_window antigravity rule absent from sway config (F-0125)"
+    test_fail "Antigravity/Hub placement rule missing from sway config"
 fi
+check_grep "Workspace 1 layout tabbed" "workspace 1 layout tabbed" "$SWAY_CFG"
+check_grep "Workspace 5 layout tabbed" "workspace 5 layout tabbed" "$SWAY_CFG"
 check_grep "Snippet picker keybinding" "snippet-picker" "$SWAY_CFG"
+# Assert that the Chrome placement and no_focus rules are present (both Wayland and X11)
+if grep -q 'for_window \[app_id="google-chrome"\]' "$SWAY_CFG" && \
+   grep -q 'for_window \[class="Google-chrome"\]' "$SWAY_CFG" && \
+   grep -q 'no_focus \[app_id="google-chrome"\]' "$SWAY_CFG" && \
+   grep -q 'no_focus \[class="Google-chrome"\]' "$SWAY_CFG"; then
+    test_pass "Chrome placement and no_focus rules present in sway config (Wayland & X11)"
+else
+    test_fail "Chrome placement or no_focus rules missing from sway config (Wayland & X11)"
+fi
 # F-0107: $mod+h keybinding conflict fix — must be exactly ONE workspace binding, not exec Hub.
 # F-0113: after Chrome/Hub workspace swap (F-0112), $mod+h must now be workspace 1 (Hub),
 #         and $mod+u must be workspace 5 (Chrome). Mnemonics now match the boot layout.
