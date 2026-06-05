@@ -2,7 +2,10 @@
 
 **Type:** Feature
 **Priority:** P1 (important)
-**Status:** In Progress
+**Status:** Archived — Superseded by F-0112, F-0113, F-0124
+
+> [!NOTE]
+> Hub workspace placement was changed multiple times (F-0112 → F-0113 → F-0124 removed autostart). Hub is now manually started via hub-restart and placed on ws5 via for_window rule.
 **Requested by:** PO
 **Date:** 2026-05-29
 

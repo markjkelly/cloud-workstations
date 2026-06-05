@@ -2,7 +2,10 @@
 
 **Type:** Enhancement (Diagnostic)
 **Priority:** P0 (critical — blocks root-cause fix F-0120)
-**Status:** Done
+**Status:** Archived — Superseded by F-0124
+
+> [!NOTE]
+> Hub language server spawn capture code was removed when Hub autostart was removed in F-0124.
 **Requested by:** PO
 **Date:** 2026-05-29
 

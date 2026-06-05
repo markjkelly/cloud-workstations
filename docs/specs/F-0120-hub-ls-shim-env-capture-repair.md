@@ -2,7 +2,10 @@
 
 **Type:** Bug / Enhancement
 **Priority:** P0 (critical)
-**Status:** In Progress
+**Status:** Archived — Superseded by F-0124
+
+> [!NOTE]
+> Hub language server shim environment repair code was removed when Hub autostart was removed in F-0124.
 **Requested by:** PO
 **Date:** 2026-05-29
 

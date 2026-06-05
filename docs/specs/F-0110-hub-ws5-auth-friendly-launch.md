@@ -2,7 +2,10 @@
 
 **Type:** Bug Fix / Enhancement
 **Priority:** P1 (important)
-**Status:** In Progress
+**Status:** Archived — Superseded by F-0124
+
+> [!NOTE]
+> Hub autostart was removed entirely in F-0124. The auth-friendly launch approach is no longer used.
 **Requested by:** PO
 **Date:** 2026-05-29
 

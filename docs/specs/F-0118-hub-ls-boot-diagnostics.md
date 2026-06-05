@@ -2,7 +2,10 @@
 
 **Type:** Enhancement (Diagnostic)
 **Priority:** P0 (critical path — prerequisite for any real fix)
-**Status:** Done
+**Status:** Archived — Superseded by F-0124
+
+> [!NOTE]
+> Hub language server diagnostics code was removed when Hub autostart was removed in F-0124.
 **Requested by:** PO
 **Date:** 2026-05-29
 
