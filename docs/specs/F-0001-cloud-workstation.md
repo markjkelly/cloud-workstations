@@ -2,7 +2,10 @@
 
 **Type:** Feature
 **Priority:** P0 (critical)
-**Status:** Draft
+**Status:** Archived — Superseded by current SETUP.md and cloud-build-setup.sh
+
+> [!NOTE]
+> This was the initial design spec. All infrastructure details (machine type, GPU, disk size, region) have changed significantly since this was written. See SETUP.md for current configuration.
 **Requested by:** PO (Your Name)
 **Date:** 2026-03-19
 

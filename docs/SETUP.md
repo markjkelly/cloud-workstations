@@ -65,7 +65,7 @@ The selected profile creates a `~/.ws-modules` config file on the workstation. B
 - **Project ID:** `YOUR_PROJECT_ID`
 - **Project Number:** `YOUR_PROJECT_NUMBER`
 - **Organization:** `your-org.example.com`
-- **Region:** `us-west1`
+- **Region:** `us-central1`
 - **Identity:** `admin@your-org.example.com` (or use `owner-sa@YOUR_PROJECT_ID.iam.gserviceaccount.com` if available)
 
 ### Required APIs
@@ -86,17 +86,7 @@ gcloud services enable cloudbuild.googleapis.com \
     --project=YOUR_PROJECT_ID
 ```
 
-### GPU Quota
 
-You need GPU quota in `us-west1` for NVIDIA Tesla T4. Check your quota:
-
-```bash
-gcloud compute regions describe us-west1 \
-    --project=YOUR_PROJECT_ID \
-    --format="table(quotas.filter(metric='NVIDIA_T4_GPUS'))"
-```
-
-If quota is 0, request an increase via the GCP Console under IAM & Admin > Quotas. You need at least 1 NVIDIA T4 GPU.
 
 ### gcloud CLI
 
@@ -105,19 +95,10 @@ Install and authenticate:
 ```bash
 gcloud auth login
 gcloud config set project YOUR_PROJECT_ID
-gcloud config set compute/region us-west1
+gcloud config set compute/region us-central1
 ```
 
-### Clone the Assets Repository
 
-The Docker image uses assets from Google's example repo:
-
-```bash
-git clone https://github.com/GoogleCloudPlatform/cloud-workstations-custom-image-examples.git
-cd cloud-workstations-custom-image-examples/examples/images/gnome/noVnc/
-```
-
-The `assets/` folder from this repo provides entrypoint scripts, systemd services, and noVNC configuration.
 
 ---
 
@@ -125,19 +106,19 @@ The `assets/` folder from this repo provides entrypoint scripts, systemd service
 
 ### 2.1 Workstation Cluster
 
-Create a Cloud Workstation cluster in `us-west1` using the default VPC:
+Create a Cloud Workstation cluster in `us-central1` using the default VPC:
 
 ```bash
-gcloud workstations clusters create workstation-cluster \
-    --region=us-west1 \
+gcloud workstations clusters create main-cluster \
+    --region=us-central1 \
     --project=YOUR_PROJECT_ID
 ```
 
 This takes 5-10 minutes. Verify:
 
 ```bash
-gcloud workstations clusters describe workstation-cluster \
-    --region=us-west1 \
+gcloud workstations clusters describe main-cluster \
+    --region=us-central1 \
     --project=YOUR_PROJECT_ID
 ```
 
@@ -148,7 +129,7 @@ Create a Docker repository to host the custom workstation image:
 ```bash
 gcloud artifacts repositories create workstation-images \
     --repository-format=docker \
-    --location=us-west1 \
+    --location=us-central1 \
     --project=YOUR_PROJECT_ID \
     --description="Cloud Workstation Docker images"
 ```
@@ -161,13 +142,13 @@ The organization has a `constraints/compute.vmExternalIpAccess` policy that prev
 # Create Cloud Router
 gcloud compute routers create ws-router \
     --network=default \
-    --region=us-west1 \
+    --region=us-central1 \
     --project=YOUR_PROJECT_ID
 
 # Create Cloud NAT
 gcloud compute routers nats create ws-nat \
     --router=ws-router \
-    --region=us-west1 \
+    --region=us-central1 \
     --auto-allocate-nat-external-ips \
     --nat-all-subnet-ip-ranges \
     --project=YOUR_PROJECT_ID
@@ -182,7 +163,7 @@ Grant the Cloud Workstations service agent read access to Artifact Registry so i
 SERVICE_AGENT="service-YOUR_PROJECT_NUMBER@gcp-sa-workstations.iam.gserviceaccount.com"
 
 gcloud artifacts repositories add-iam-policy-binding workstation-images \
-    --location=us-west1 \
+    --location=us-central1 \
     --member="serviceAccount:${SERVICE_AGENT}" \
     --role="roles/artifactregistry.reader" \
     --project=YOUR_PROJECT_ID
@@ -223,11 +204,11 @@ The main image starts from the Cloud Workstations predefined base image and inst
 
 2. **GNOME Desktop** -- `ubuntu-desktop-minimal` with supporting packages. Removes `gnome-initial-setup` and `cloud-init`.
 
-3. **Google Antigravity** -- Installed from Google's APT repo at `us-central1-apt.pkg.dev/projects/antigravity-auto-updater-dev/`. Requires GPG key setup.
+3. **Antigravity IDE** -- No longer installed in Docker image. The apt package was removed (F-0116). Antigravity IDE v2 is now installed from a binary tarball by `07-apps.sh` at boot time, stored at `~/.local/share/antigravity-ide/` (F-0136).
 
 4. **Google Chrome** -- Installed from Google's official APT repo. A wrapper script is created using `dpkg-divert` so Chrome always launches with `--no-sandbox --no-zygote --disable-gpu --disable-dev-shm-usage`.
 
-5. **TigerVNC** -- VNC server (tigervnc-standalone-server, tigervnc-common, tigervnc-scraping-server, tigervnc-xorg-extension) plus dbus-x11 and python3-numpy.
+5. **TigerVNC** -- VNC server (tigervnc-standalone-server, tigervnc-common, tigervnc-scraping-server, tigervnc-xorg-extension) plus dbus-x11 and python3-numpy. (Note: TigerVNC services are masked/inactive; wayvnc is the active VNC server)
 
 6. **noVNC** -- Copied from Stage 1, serves the browser-based VNC client.
 
@@ -241,7 +222,7 @@ The main image starts from the Cloud Workstations predefined base image and inst
    - `/opt/noVNC/index.html` -- Auto-redirect to VNC client with `?autoconnect=true&resize=remote`
    - `/opt/setup-nix.sh` -- One-time Nix installer script
 
-8. **Service enablement** -- TigerVNC and noVNC services are symlinked to `multi-user.target.wants/` and enabled.
+8. **Service enablement** -- TigerVNC and noVNC services are symlinked to `multi-user.target.wants/` and enabled. (Note: In current deployment, TigerVNC is masked; only wayvnc is active)
 
 9. **Entrypoint** -- `/google/scripts/entrypoint.sh` which runs `/usr/bin/workstation-startup`, follows journalctl for cloud logging, and execs into systemd.
 
@@ -286,40 +267,38 @@ cd workstation-image/
 
 # Submit to Cloud Build (builds in GCP, no local Docker needed)
 gcloud builds submit \
-    --tag us-west1-docker.pkg.dev/YOUR_PROJECT_ID/workstation-images/workstation:latest \
+    --tag us-central1-docker.pkg.dev/YOUR_PROJECT_ID/workstation-images/workstation:latest \
     --project=YOUR_PROJECT_ID \
-    --region=us-west1
+    --region=us-central1
 ```
 
 Alternatively, build locally and push:
 
 ```bash
 # Configure Docker for Artifact Registry
-gcloud auth configure-docker us-west1-docker.pkg.dev
+gcloud auth configure-docker us-central1-docker.pkg.dev
 
 # Build locally
-docker build -t us-west1-docker.pkg.dev/YOUR_PROJECT_ID/workstation-images/workstation:latest .
+docker build -t us-central1-docker.pkg.dev/YOUR_PROJECT_ID/workstation-images/workstation:latest .
 
 # Push
-docker push us-west1-docker.pkg.dev/YOUR_PROJECT_ID/workstation-images/workstation:latest
+docker push us-central1-docker.pkg.dev/YOUR_PROJECT_ID/workstation-images/workstation:latest
 ```
 
 ---
 
 ## 4. Workstation Configuration
 
-Create the workstation configuration with the correct machine type and GPU:
+Create the workstation configuration with the correct machine type:
 
 ```bash
-gcloud workstations configs create ws-config \
-    --cluster=workstation-cluster \
-    --region=us-west1 \
-    --machine-type=n1-standard-16 \
-    --accelerator-type=nvidia-tesla-t4 \
-    --accelerator-count=1 \
-    --pd-disk-size=500 \
-    --pd-disk-type=pd-ssd \
-    --container-custom-image=us-west1-docker.pkg.dev/YOUR_PROJECT_ID/workstation-images/workstation:latest \
+gcloud workstations configs create sway-config \
+    --cluster=main-cluster \
+    --region=us-central1 \
+    --machine-type=n2-standard-8 \
+    --pd-disk-size=200 \
+    --pd-disk-type=pd-balanced \
+    --container-custom-image=us-central1-docker.pkg.dev/YOUR_PROJECT_ID/workstation-images/workstation:latest \
     --idle-timeout=14400 \
     --running-timeout=43200 \
     --disable-public-ip-addresses \
@@ -348,20 +327,20 @@ gcloud workstations configs create ws-config \
 ### Create the Workstation
 
 ```bash
-gcloud workstations create dev-workstation \
-    --config=ws-config \
-    --cluster=workstation-cluster \
-    --region=us-west1 \
+gcloud workstations create sway-workstation \
+    --config=sway-config \
+    --cluster=main-cluster \
+    --region=us-central1 \
     --project=YOUR_PROJECT_ID
 ```
 
 ### Start the Workstation
 
 ```bash
-gcloud workstations start dev-workstation \
-    --config=ws-config \
-    --cluster=workstation-cluster \
-    --region=us-west1 \
+gcloud workstations start sway-workstation \
+    --config=sway-config \
+    --cluster=main-cluster \
+    --region=us-central1 \
     --project=YOUR_PROJECT_ID
 ```
 
@@ -370,16 +349,16 @@ gcloud workstations start dev-workstation \
 The workstation is accessible via the Cloud Workstations proxy. The URL format is:
 
 ```
-https://dev-workstation.cluster-<CLUSTER_ID>.cloudworkstations.dev
+https://sway-workstation.cluster-<CLUSTER_ID>.cloudworkstations.dev
 ```
 
 You can find the exact URL with:
 
 ```bash
-gcloud workstations describe dev-workstation \
-    --config=ws-config \
-    --cluster=workstation-cluster \
-    --region=us-west1 \
+gcloud workstations describe sway-workstation \
+    --config=sway-config \
+    --cluster=main-cluster \
+    --region=us-central1 \
     --project=YOUR_PROJECT_ID \
     --format="value(host)"
 ```
@@ -389,20 +368,20 @@ The noVNC client auto-redirects via `/opt/noVNC/index.html` to `/vnc.html?autoco
 ### SSH into the Workstation
 
 ```bash
-gcloud workstations ssh dev-workstation \
-    --config=ws-config \
-    --cluster=workstation-cluster \
-    --region=us-west1 \
+gcloud workstations ssh sway-workstation \
+    --config=sway-config \
+    --cluster=main-cluster \
+    --region=us-central1 \
     --project=YOUR_PROJECT_ID
 ```
 
 ### Stop the Workstation
 
 ```bash
-gcloud workstations stop dev-workstation \
-    --config=ws-config \
-    --cluster=workstation-cluster \
-    --region=us-west1 \
+gcloud workstations stop sway-workstation \
+    --config=sway-config \
+    --cluster=main-cluster \
+    --region=us-central1 \
     --project=YOUR_PROJECT_ID
 ```
 
@@ -570,7 +549,7 @@ Deploy the Sway config to `~/.config/sway/config`. The full configuration is at 
 
 Key features:
 - **Tokyo Night color palette** with 10 color variables
-- **Gaps:** 6px inner, 12px outer, smart_gaps on
+- **Gaps:** 6px inner, 0px outer, smart_gaps on
 - **Borders:** 2px pixel (no title bars), Tokyo Night themed
 - **Headless output:** `HEADLESS-1` at 1920x1080 for wayvnc
 - **CTRL+SHIFT modifier** for all keybindings (browser/noVNC friendly; Super key is unreliable through noVNC)
@@ -589,7 +568,6 @@ Key features:
 | `CTRL+SHIFT+R` | Application Launcher (wofi) |
 | `CTRL+SHIFT+E` | Open File Manager (Thunar) |
 | `CTRL+SHIFT+B` | Open Web Browser (Chrome) |
-| `CTRL+SHIFT+N` | Open Antigravity |
 | `CTRL+SHIFT+M` | Open IntelliJ IDEA |
 | `CTRL+SHIFT+Y` | Open VS Code |
 | `CTRL+SHIFT+A` | Clipboard history picker |
@@ -627,11 +605,11 @@ Key features:
 
 | Key | Workspace |
 |-----|-----------|
-| `CTRL+SHIFT+U` | 1 |
+| `CTRL+SHIFT+H` | 1 |
 | `CTRL+SHIFT+I` | 2 |
 | `CTRL+SHIFT+O` | 3 |
 | `CTRL+SHIFT+P` | 4 |
-| `CTRL+SHIFT+H` | 5 |
+| `CTRL+SHIFT+U` | 5 |
 | `CTRL+SHIFT+J` | 6 |
 | `CTRL+SHIFT+K` | 7 |
 | `CTRL+SHIFT+L` | 8 |
@@ -640,11 +618,11 @@ Key features:
 
 | Key | Workspace |
 |-----|-----------|
-| `CTRL+SHIFT+ALT+U` | 1 |
+| `CTRL+SHIFT+ALT+H` | 1 |
 | `CTRL+SHIFT+ALT+I` | 2 |
 | `CTRL+SHIFT+ALT+O` | 3 |
 | `CTRL+SHIFT+ALT+P` | 4 |
-| `CTRL+SHIFT+ALT+H` | 5 |
+| `CTRL+SHIFT+ALT+U` | 5 |
 | `CTRL+SHIFT+ALT+J` | 6 |
 | `CTRL+SHIFT+ALT+K` | 7 |
 | `CTRL+SHIFT+ALT+L` | 8 |
@@ -857,29 +835,29 @@ gemini --version
 
 ## 11. Antigravity
 
-Google Antigravity is a proprietary Electron app from Google's APT repo. It is NOT in nixpkgs and must be managed separately.
+Google Antigravity is a proprietary Electron app.
 
-### 11.1 Copy to Persistent Disk
+### 11.1 Antigravity IDE v2
 
-Antigravity is installed to `/usr/share/antigravity/` by apt in the Docker image. Copy it to the persistent HOME disk:
+Antigravity IDE v2 is installed from a binary tarball by `07-apps.sh` at boot time. The old apt package was removed in F-0116.
 
-```bash
-cp -a /usr/share/antigravity ~/.antigravity/antigravity
-```
+- **Install location:** `~/.local/share/antigravity-ide/`
+- **Symlink:** `~/.local/bin/antigravity-ide`
+- **Desktop file:** `~/.local/share/applications/antigravity-ide.desktop`
+- **Workspace:** Auto-placed on ws1 via `for_window [app_id="^antigravity-ide$"]` rule in sway config
 
-### 11.2 Launch with Correct Flags
+### 11.2 Antigravity Hub
 
-Antigravity is an Electron app and requires specific flags to run in the containerized Wayland environment:
+Antigravity Hub is installed from a tarball by `07-apps.sh`.
 
-```bash
-~/.antigravity/antigravity/antigravity \
-    --no-sandbox \
-    --ozone-platform=wayland \
-    --disable-gpu \
-    --disable-dev-shm-usage
-```
+- **Install location:** `~/.local/share/antigravity-hub/`
+- **Symlink:** `~/.local/bin/antigravity-hub`
+- **Workspace:** Auto-placed on ws5 via `for_window [app_id="^antigravity$"]` rule in sway config
+- **Manual launch:** Run `hub-restart` or `hub-start` from any terminal
 
-**Why each flag is needed:**
+### 11.3 Launch Flags
+
+Both are Electron apps and require specific flags in the containerized Wayland environment:
 
 | Flag | Reason |
 |------|--------|
@@ -888,11 +866,12 @@ Antigravity is an Electron app and requires specific flags to run in the contain
 | `--disable-gpu` | Disable GPU compositing for VNC rendering stability (CUDA compute is unaffected) |
 | `--disable-dev-shm-usage` | `/dev/shm` is only 64MB in k8s containers; Chromium's renderer OOMs on shared memory. This flag uses `/tmp` (~31GB) instead |
 
-The Sway keybinding `CTRL+SHIFT+N` launches Antigravity with all these flags.
+### 11.4 Verify
 
-### 11.3 Verify
-
-After launching, Antigravity should report version (e.g., v1.107.0) and be fully functional in the browser via noVNC.
+After boot, Antigravity IDE should be running on workspace 1. Check with:
+```bash
+swaymsg -t get_tree | grep antigravity-ide
+```
 
 ---
 
@@ -1034,6 +1013,8 @@ This applies to ALL Nix-installed binaries: foot, wofi, thunar, code, swaynag, s
 
 ### g2 Machine Type and L4 GPU Not Supported
 
+> **Note:** This is historical context. The current deployment uses `n2-standard-8` with no GPU.
+
 **Symptom:** Creating a workstation config with `--machine-type=g2-standard-16` or `--accelerator-type=nvidia-l4` fails.
 
 **Cause:** Cloud Workstations does not support g2 machine types or L4 accelerators. These are available for regular Compute Engine VMs but not for workstation instances.
@@ -1089,7 +1070,7 @@ noVNC (port 80, serves vnc.html)
     | WebSocket -> TCP (websockify)
     |
     v
-TigerVNC / wayvnc (port 5901)
+wayvnc (port 5901)  [TigerVNC masked/inactive]
     |
     | VNC protocol
     |
@@ -1100,7 +1081,7 @@ Sway Compositor (WLR_BACKENDS=headless)
     |       +-- sway-status (i3bar JSON protocol)
     +-- foot (terminal emulator)
     +-- wofi (app launcher)
-    +-- Antigravity (Electron)
+    +-- Antigravity IDE v2 (ws1, Electron)
     +-- VS Code (Electron)
     +-- Chrome / Chromium
     +-- IntelliJ IDEA
@@ -1113,7 +1094,7 @@ Sway Compositor (WLR_BACKENDS=headless)
 | Port | Service | Protocol | Notes |
 |------|---------|----------|-------|
 | 80 | noVNC proxy | HTTP/WebSocket | Main access point, serves VNC web client |
-| 5901 | TigerVNC / wayvnc | VNC (RFB) | VNC server on display :1 |
+| 5901 | wayvnc (TigerVNC masked) | VNC (RFB) | VNC server on display :1 |
 | 6080 | noVNC (alternative) | HTTP/WebSocket | Alternative noVNC port (novnc.service listens on 80) |
 
 ### Persistent vs Ephemeral Storage
@@ -1124,7 +1105,7 @@ Sway Compositor (WLR_BACKENDS=headless)
 | `/home/user/nix/` | Persistent | Yes | Nix store contents (bind-mounted to /nix) |
 | `/home/user/.nix-profile/` | Persistent | Yes | Nix profile symlinks |
 | `/home/user/.config/` | Persistent | Yes | Sway, Waybar, Neovim, foot configs |
-| `/home/user/.antigravity/` | Persistent | Yes | Antigravity binary |
+| `/home/user/.local/share/antigravity-ide/` | Persistent | Yes | Antigravity IDE v2 binary |
 | `/home/user/.npm-global/` | Persistent | Yes | Claude Code, Gemini CLI |
 | `/nix/` | Ephemeral (bind mount restored on boot) | Restored | Bind mount target from /home/user/nix |
 | `/etc/profile.d/nvidia.sh` | Ephemeral (recreated on boot) | Recreated | NVIDIA PATH/LD_LIBRARY_PATH |
@@ -1141,11 +1122,11 @@ Sway Compositor (WLR_BACKENDS=headless)
 | `~/.config/waybar/style.css` | Waybar CSS (future use) |
 | `~/.config/nvim/init.lua` | Neovim configuration |
 | `~/.config/home-manager/home.nix` | Nix Home Manager declaration |
-| `~/.antigravity/antigravity/antigravity` | Antigravity binary |
+| `~/.local/share/antigravity-ide/antigravity-ide` | Antigravity IDE v2 binary |
 | `~/.npm-global/bin/claude` | Claude Code CLI |
 | `~/.npm-global/bin/gemini` | Gemini CLI |
 | `/var/lib/nvidia/bin/nvidia-smi` | NVIDIA system management |
-| `/etc/workstation-startup.d/200_persist-nix.sh` | Boot script: Nix bind mount + nvidia profile |
+| `/etc/workstation-startup.d/250_bootstrap.sh` | Boot script: triggers ~/boot/setup.sh |
 | `/etc/workstation-startup.d/100_add-xstartup.sh` | Boot script: VNC xstartup for GNOME |
 | `/etc/workstation-startup.d/100_persist-machine-id.sh` | Boot script: Persist machine-id |
 | `/google/scripts/entrypoint.sh` | Container entrypoint (startup + systemd) |
