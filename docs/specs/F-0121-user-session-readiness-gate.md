@@ -2,7 +2,7 @@
 
 **Type:** Bug Fix / Enhancement
 **Priority:** P0 (critical)
-**Status:** In Progress
+**Status:** Done (Part A)
 **Requested by:** PO
 **Date:** 2026-05-29
 

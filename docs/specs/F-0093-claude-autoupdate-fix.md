@@ -2,7 +2,7 @@
 
 **Type:** Bug
 **Priority:** P1
-**Status:** Draft
+**Status:** Done
 **Requested by:** PO
 **Date:** 2026-04-15
 

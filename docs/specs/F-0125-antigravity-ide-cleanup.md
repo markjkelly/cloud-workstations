@@ -2,7 +2,7 @@
 
 **Type:** Refactor / Cleanup
 **Priority:** P2 (nice to have — reclaims ~200 MB disk, removes dead config)
-**Status:** In Progress
+**Status:** Done
 **Requested by:** PO
 **Date:** 2026-05-29
 

@@ -2,7 +2,7 @@
 
 **Type:** Feature
 **Priority:** P1 (important)
-**Status:** Draft
+**Status:** Partially Done
 **Requested by:** PO
 **Date:** 2026-04-02
 

@@ -94,6 +94,9 @@ RUN dpkg-divert --add --rename --divert /usr/bin/google-chrome-stable.real /usr/
 
 
 # Install TigerVNC and noVNC
+# NOTE: TigerVNC is installed by the blog's Dockerfile but is now MASKED/INACTIVE
+# in our workstation. We use wayvnc (Wayland-native VNC server) instead,
+# configured as a systemd user service by 03-sway.sh.
 COPY --from=novnc-builder /out/noVNC /opt/noVNC
 RUN apt-get update && apt-get install -y \
     dbus-x11 \
@@ -110,6 +113,7 @@ COPY assets/opt /opt
 COPY assets/. /
 
 # Run TigerVNC and noVNC as services.
+# NOTE: TigerVNC is masked/inactive in our workstation; wayvnc is used instead.
 RUN ln -s /etc/systemd/system/tigervnc.service /etc/systemd/system/multi-user.target.wants/ && \
   ln -s /etc/systemd/system/novnc.service /etc/systemd/system/multi-user.target.wants/ && \
   systemctl enable tigervnc && \
@@ -154,6 +158,8 @@ docker push REGION-docker.pkg.dev/PROJECT_ID/cloud-workstations-images/antigravi
 5. Run `vncpasswd` (max 8 characters)
 6. Relaunch workstation tab, enter VNC password
 7. If error persists: `sudo systemctl restart tigervnc.service`
+
+> **Note:** The above VNC steps are from the original blog (TigerVNC). Our workstation now uses **wayvnc** (Wayland-native VNC server) instead; TigerVNC is masked/inactive. Connection is via Chrome Remote Desktop, not VNC password.
 
 ## Troubleshooting
 

@@ -8,7 +8,7 @@
 
 | Phase | Time | What |
 |-------|------|------|
-| Docker image build | ~17 min | apt packages, GNOME desktop, Antigravity |
+| Docker image build | ~17 min | apt packages, GNOME desktop (Antigravity apt package removed per F-0116; Antigravity IDE v2 is now installed from a binary tarball by `07-apps.sh` at boot time) |
 | Cluster creation | ~10 min | GCP infrastructure (hard limit) |
 | Config + workstation | ~5 min | GCP provisioning |
 | First boot (Nix + apps) | ~8 min | home-manager, npm tools, languages |
