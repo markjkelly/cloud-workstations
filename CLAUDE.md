@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-Build a Cloud Workstation in GCP. The Cloud Workstation machine should have 32GB RAM as well as 250GB SSD drive. The 250GB SSD drive is a persistent disk with HOME folder mounted to it. All apps must be installed inside the peristent disk. The main docker image should be minimal so all changes, app installs persist inside the persistent disk. For OS, I prefer NixOS with Nix package manager.
+Build a Cloud Workstation in GCP. The Cloud Workstation machine should have 32GB RAM as well as 250GB SSD drive. The 250GB SSD drive is a persistent disk with HOME folder mounted to it. All apps must be installed inside the peristent disk. The main docker image should be minimal so all changes, app installs persist inside the persistent disk. The base OS is Ubuntu with Nix as the package manager.
 
 ## Key References
 
@@ -19,7 +19,7 @@ Build a Cloud Workstation in GCP. The Cloud Workstation machine should have 32GB
 - **Project ID:** `YOUR_PROJECT_ID`
 - **Project Number:** `YOUR_PROJECT_NUMBER`
 - **Organization:** `your-org.example.com`
-- **Region:** `us-central1` (primary — matches existing Cloud Run services)
+- **Region:** `us-central1` (primary)
 
 ### Service Accounts
 
@@ -165,7 +165,7 @@ When adding or modifying any startup/boot script, you MUST also update `docs/STA
 ### Roles
 - **PO / CEO** (Your Name) — Product Owner, the human in the loop. Provides feedback, feature requests, and bug reports. Approves direction, tests the app.
 - **Pipeline Agent** (Sonnet 4.6) — Single agent that plays all implementation roles sequentially: PM (spec), TPM (backlog/progress/release notes), SWE (code), SWE-Test (tests), SWE-QA (verification). Spawned by the orchestrator with `model: "sonnet"`.
-- **Platform Engineer (PE)** — GCP expert (DevOps + SRE). Owns all infrastructure: Cloud Run deployment, Dockerfile, IAM/service accounts, monitoring, billing, free tier quota tracking, troubleshooting via GCP logs, reliability engineering. Spawned as a pipeline agent with `model: "sonnet"` when GCP work is needed.
+- **Platform Engineer (PE)** — GCP expert (DevOps + SRE). Owns all infrastructure: Cloud Workstations deployment, Dockerfile, IAM/service accounts, monitoring, billing, troubleshooting via GCP logs, reliability engineering. Spawned as a pipeline agent with `model: "sonnet"` when GCP work is needed.
 
 ### Backlog Tracking (Non-Negotiable)
 
@@ -175,4 +175,4 @@ in the backlog before implementation begins and updated when completed.
 
 ### Other Conventions
 - **Branching:** Feature branches (`feature/<name>`) off `main`
-- **Platform Engineer (PE) owns all GCP interactions:** Cloud Run deployment, Dockerfile, IAM/service accounts, logging, monitoring, billing, free tier quota tracking, reliability, troubleshooting
+- **Platform Engineer (PE) owns all GCP interactions:** Cloud Workstations deployment, Dockerfile, IAM/service accounts, logging, monitoring, billing, reliability, troubleshooting

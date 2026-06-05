@@ -11,7 +11,7 @@ Summary of all boot scripts that run on every workstation start. Scripts execute
 | 3 | `03-sway.sh` | Create sway-desktop, wayvnc, ws-autolaunch systemd services | Yes — overwrites services | ~3s |
 | 4 | `04-fonts.sh` | Install Operator Mono OTFs from `~/boot/fonts/` (open-source fonts come via Nix) | Yes — copies + fc-cache | ~5s |
 | 5 | `05-shell.sh` | ZSH default shell, plugins (syntax-highlighting, autosuggestions), generate `.zshrc` | Yes — guarded append, overwrite | ~3s |
-| 6 | `06-sync.sh` | **Sync boot scripts + sway config from git repo** (F-0108). Runs `git pull --ff-only` in repo, copies `workstation-image/boot/*.sh` to `~/boot/`, copies `workstation-image/configs/sway/config` to `~/.config/home-manager/sway-config`. Logs to `~/logs/sync.log`. Graceful failure if repo missing or pull fails (boot continues). | Yes — idempotent copies | ~2s (pull + copies) |
+| 6 | `09-sync.sh` | **Sync boot scripts + sway config from git repo** (F-0108). Runs `git pull --ff-only` in repo, copies `workstation-image/boot/*.sh` to `~/boot/`, copies `workstation-image/configs/sway/config` to `~/.config/home-manager/sway-config`. Logs to `~/logs/sync.log`. Graceful failure if repo missing or pull fails (boot continues). | Yes — idempotent copies | ~2s (pull + copies) |
 | 6 | `06-prompt.sh` | Install Starship prompt; deploy foot terminal config by copying `~/boot/foot.ini` (source of truth: `workstation-image/configs/foot/foot.ini`, deployed by `cloud-build-setup.sh` step 13) into `~/.config/foot/foot.ini`, with an embedded heredoc fallback if `~/boot/foot.ini` is missing (F-0094) | Yes — overwrites configs | ~5s |
 | 6a | `06a-tailscale.sh` | Tailscale VPN (opt-in via `TAILSCALE_AUTHKEY` in `~/.env`). Starts tailscaled, authenticates, enables SSH, configures SSH password auth, adds iptables rule for SSH on tailscale0 | Yes — checks running/connected | ~5s |
 | 6b | `06b-tmux.sh` | Deploy `tmux.conf` (Tokyo Night theme), `claude-tmux`, and `tmux-debug` scripts | Yes — copy overwrite | ~1s |
@@ -35,7 +35,7 @@ Docker entrypoint
               ├── 03-sway.sh  ← also creates ws-app-updates.service + enables linger
               ├── 04-fonts.sh
               ├── 05-shell.sh
-              ├── 06-sync.sh (NEW: F-0108)
+              ├── 09-sync.sh (NEW: F-0108)
               ├── 06-prompt.sh
               ├── 06a-tailscale.sh
               ├── 06b-tmux.sh
@@ -70,8 +70,7 @@ systemd (after Sway starts)
   │         Final focus: ws3 (terminal — ready to run hub-restart).
   │         Chrome uses --disable-gpu (no GPU on this host — F-0111).
   │         F-0116 Hub placement rule (sway config): the
-  │         for_window [app_id="antigravity"] → ws1 rule is KEPT so that
-  │         hub-restart's window lands on ws1 as expected.
+  │         for_window [app_id="^antigravity-ide$"] → ws1 rule (F-0136) and for_window [app_id="^antigravity$"] → ws5 rule for Hub
   │         F-0115: gnome-keyring-daemon is started with empty-password
   │         unlock (--unlock --components=secrets) BEFORE any app launch
   │         so the Hub's language_server can persist and reload its OAuth
@@ -85,7 +84,7 @@ systemd (after Sway starts)
   │         F-0124. The real language_server ELF was restored on the live
   │         disk (mv language_server.real language_server).
   └── ws-boot-tests.service (After=ws-autolaunch, 30s delay)
-        └── 10-tests.sh (run ~82 verification tests)
+        └── 10-tests.sh (run ~190 verification tests)
 ```
 
 ## Logs
@@ -98,10 +97,10 @@ systemd (after Sway starts)
 | `~/logs/ls-spawn.log` | **REMOVED in F-0124.** Was written by the F-0119 LS capture shim (spawn/exit records). Shim removed and live binary restored to real ELF. |
 | `~/logs/ls-spawn.out` | **REMOVED in F-0124.** Was written by the F-0119 LS capture shim (raw LS stdout). |
 | `~/logs/ls-spawn.err` | **REMOVED in F-0124.** Was written by the F-0119 LS capture shim (raw LS stderr). |
-| `~/logs/sync.log` | 06-sync.sh output (git pull, boot script sync, sway config sync) |
+| `~/logs/sync.log` | 09-sync.sh output (git pull, boot script sync, sway config sync) |
 | `~/logs/app-update.log` | 07-apps.sh output (npm updates, home-manager switch) |
 | `~/logs/language-install.log` | 07b-languages.sh output (Go, Rust, Python, Ruby) |
-| `~/logs/boot-test-results.txt` | Full test results (~80 PASS/FAIL/WARN checks) |
+| `~/logs/boot-test-results.txt` | Full test results (~190 PASS/FAIL/WARN checks) |
 | `~/logs/boot-test-summary.txt` | One-line summary: `PASS: X | FAIL: Y | WARN: Z` |
 | `~/.tmux.conf` | tmux config (Tokyo Night theme, deployed by 06b-tmux.sh) |
 | `~/.tailscale/tailscaled.state` | Tailscale VPN state (persisted on persistent disk, created by 06a-tailscale.sh) |
@@ -142,4 +141,4 @@ Scripts deployed to `~/.local/bin/` by `cloud-build-setup.sh` (persisted to the 
 4. **npm manages AI CLI tools** — Claude Code, Codex, Cody, Pi installed globally to `~/.npm-global/`.
 5. **Native version managers for languages** — Go (tarball), Rust (rustup), Python (pyenv), Ruby (rbenv) for multi-version support.
 6. **No-clobber for user configs** — `snippets.conf` and `.zshrc.local` are never overwritten, preserving user customizations.
-7. **Test on every boot** — `10-tests.sh` runs ~82 checks and saves results for the PO to review.
+7. **Test on every boot** — `10-tests.sh` runs ~190 checks and saves results for the PO to review.

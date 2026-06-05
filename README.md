@@ -146,7 +146,7 @@ A Cloud Scheduler job stops the workstation daily at **8:00 PM Central** to save
 | **Apps** | Antigravity, tmux, ripgrep, fd, jq, ffmpeg, wofi, thunar, clipman |
 | **Networking** | Tailscale VPN (opt-in via `~/.env`) |
 | **Auto-stop** | Cloud Scheduler stops workstation daily at 8PM Central |
-| **Boot apps** | 4 workspaces auto-launch: terminal, Chrome, Antigravity, terminal |
+| **Boot apps** | 4 workspaces auto-launch: Antigravity IDE (ws1), VS Code (ws2), terminal (ws3), Chrome (ws4) |
 | **Profiles** | Composable install: minimal (14 min), dev, ai, full (55 min) — `--profile` flag |
 | **Boot tests** | 80+ automated tests run on every boot — results at `~/logs/boot-test-results.txt` |
 | **Packages** | Managed via Nix Home Manager on persistent disk |
@@ -160,7 +160,6 @@ All shortcuts use `CTRL+SHIFT` as the modifier (works through noVNC in browser).
 | `CTRL+SHIFT+Enter` | New terminal (foot) |
 | `CTRL+SHIFT+T` | New terminal (foot) |
 | `CTRL+SHIFT+B` | Chrome browser |
-| `CTRL+SHIFT+N` | Antigravity |
 | `CTRL+SHIFT+Y` | VS Code |
 | `CTRL+SHIFT+W` | Windsurf |
 | `CTRL+SHIFT+M` | IntelliJ IDEA |
@@ -171,10 +170,10 @@ All shortcuts use `CTRL+SHIFT` as the modifier (works through noVNC in browser).
 | `CTRL+SHIFT+D` | Toggle floating window |
 | `CTRL+SHIFT+Q` | Close window |
 | `CTRL+SHIFT+F` | Toggle fullscreen |
-| `CTRL+SHIFT+U/I/O/P` | Switch to workspace 1/2/3/4 |
-| `CTRL+SHIFT+H/J/K/L` | Switch to workspace 5/6/7/8 |
-| `CTRL+SHIFT+Alt+U/I/O/P` | Move window to workspace 1/2/3/4 |
-| `CTRL+SHIFT+Alt+H/J/K/L` | Move window to workspace 5/6/7/8 |
+| `CTRL+SHIFT+H/I/O/P` | Switch to workspace 1/2/3/4 |
+| `CTRL+SHIFT+U/J/K/L` | Switch to workspace 5/6/7/8 |
+| `CTRL+SHIFT+Alt+H/I/O/P` | Move window to workspace 1/2/3/4 |
+| `CTRL+SHIFT+Alt+U/J/K/L` | Move window to workspace 5/6/7/8 |
 | `CTRL+SHIFT+Arrow keys` | Focus window left/right/up/down |
 | `CTRL+SHIFT+,/.` | Grow/shrink window width |
 | `CTRL+SHIFT+-/=` | Shrink/grow window height |

@@ -16,9 +16,9 @@ The main modifier is: **CTRL + SHIFT**
 | `CTRL+SHIFT+R` | Application Launcher (wofi) |
 | `CTRL+SHIFT+E` | Open File Manager (Thunar) |
 | `CTRL+SHIFT+B` | Open Web Browser (Chrome) |
-| `CTRL+SHIFT+N` | Open Antigravity (Safe Mode) |
 | `CTRL+SHIFT+M` | Open IntelliJ IDEA |
 | `CTRL+SHIFT+Y` | Open VS Code |
+| `CTRL+SHIFT+W` | Open Windsurf |
 | `CTRL+SHIFT+A` | Clipboard history picker |
 | `CTRL+SHIFT+S` | Snippet picker (text expansion) |
 
@@ -43,7 +43,7 @@ The main modifier is: **CTRL + SHIFT**
 ## Workspace Management
 
 ### Switch to Workspace
-Boot layout (F-0112/F-0113): ws1=Hub, ws2=Antigravity IDE, ws3=foot, ws4=foot, ws5=Chrome
+Boot layout (F-0112/F-0113): ws1=Antigravity IDE, ws2=VS Code, ws3=foot, ws4=foot, ws5=Hub
 
 | Key Combination | Action |
 | :--- | :--- |

@@ -17,7 +17,7 @@ This project manages the lifecycle and configuration of a Cloud Workstation on G
 
 -   `workstation-image/`: Contains the definition of the workstation environment.
     -   `Dockerfile`: Defines the base system (Ubuntu-based).
-    -   `boot/`: Numbered shell scripts (`00-12`) that run sequentially during the workstation's bootstrap process. These handle Nix restoration, service setup, app installation, synchronization, verification tests, and Chrome Remote Desktop setup.
+    -   `boot/`: Numbered shell scripts (`01-12`) that run sequentially during the workstation's bootstrap process. These handle Nix restoration, service setup, app installation, synchronization, verification tests, and Chrome Remote Desktop setup.
     -   `configs/`: Configuration files for Sway, waybar, tmux, nvim, etc.
     -   `scripts/`: Internal scripts like `claude-tmux` and `snippet-picker`.
 -   `scripts/`: Management scripts for the GCP infrastructure.
@@ -42,7 +42,7 @@ When the workstation container starts, it executes `/google/scripts/entrypoint.s
 9.  **App Installation (`07-apps.sh`):** Installs AI tools and application updates (runs asynchronously as a systemd service).
 10. **Language dependencies (`07a-lang-deps.sh`):** Sets up development libraries for language runtimes.
 11. **Language runtimes (`07b-languages.sh`):** Installs runtimes (Go, Rust, Python, Ruby) using direct binaries or local managers (pyenv, rbenv, rustup).
-12. **Auto-Launch (`08-workspaces.sh`):** Opens default apps across Sway workspaces (VS Code on ws2, Terminal on ws3/ws4, Chrome on ws5).
+12. **Auto-Launch (`08-workspaces.sh`):** Opens default apps across Sway workspaces (Antigravity IDE on ws1, VS Code on ws2, Terminal on ws3, Chrome on ws4).
 13. **Snippet Picker (`09-snippets.sh`):** Configures the lightweight snippet picker utility and custom configuration.
 14. **Sway Sync (`09-sync.sh`):** Synchronizes boot scripts and Sway config from the git repo on every boot to apply changes.
 15. **Application Launcher (`09-wofi.sh`):** Deploys wofi menu with Tokyo Night colors.
@@ -67,7 +67,7 @@ When the workstation container starts, it executes `/google/scripts/entrypoint.s
 
 ## Project Overview
 
-Build a Cloud Workstation in GCP Project ID YOUR_PROJECT_ID with Google Antigravity installed (antigravity.google) following the blog at this link https://medium.com/google-cloud/running-antigravity-on-a-browser-tab-6298bb7e47c4. The Cloud Workstation machine should have a GPU and 64GB RAM as well as 500GB SSD drive. The 500GB SSD drive is a persistent disk with HOME folder mounted to it. All apps must be installed inside the peristent disk. The main docker image should be minimal so all changes, app installs persist inside the persistent disk. For OS, I prefer NixOS with Nix package manager. Follow the blog for what to install and ask questions as necessary
+Build a Cloud Workstation in GCP. The Cloud Workstation machine should have 32GB RAM as well as 250GB SSD drive. The 250GB SSD drive is a persistent disk with HOME folder mounted to it. All apps must be installed inside the persistent disk. The main docker image should be minimal so all changes, app installs persist inside the persistent disk. The base OS is Ubuntu with Nix as the package manager.
 
 ## Key References
 
