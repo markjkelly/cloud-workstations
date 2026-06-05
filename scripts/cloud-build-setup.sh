@@ -344,7 +344,7 @@ else
         --container-custom-image="$IMAGE" \
         --service-account="$SWAY_SA" \
         --service-account-scopes="https://www.googleapis.com/auth/cloud-platform" \
-        --idle-timeout=7200 --running-timeout=43200 \
+        --idle-timeout=0 --running-timeout=43200 \
         --disable-public-ip-addresses \
         --shielded-secure-boot --shielded-vtpm --shielded-integrity-monitoring \
         --project="$PROJECT_ID"
