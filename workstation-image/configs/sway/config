@@ -275,6 +275,9 @@ bar {
 # AUTOSTART
 # =============================================================================
 
+# Import Wayland environment into systemd user session for XDG Desktop Portal
+exec dbus-update-activation-environment --systemd WAYLAND_DISPLAY DISPLAY XDG_CURRENT_DESKTOP=sway
+
 # Disable built-in Xwayland (Nix Xwayland fails: nvidia LD_LIBRARY_PATH breaks
 # transitive libX11 resolution in Nix linker). Use system Xwayland instead.
 # F-0097: pass -rootless so Xwayland does not create a visible X root window

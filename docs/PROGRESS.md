@@ -1,5 +1,49 @@
 # Development Progress Log — Cloud Workstation
 
+## Session 57 — 2026-06-08 (F-0139: XDG Portal Integration & F-0140: Hub Tray Icon Fix)
+
+### Date
+2026-06-08
+
+### Milestone
+Milestone 48 — XDG Portal & Tray Fixes (F-0139, F-0140)
+
+### Completed
+- **F-0139** (Fix XDG Desktop Portal failure):
+  - **Base package**: Added `xdg-desktop-portal-wlr` to `BASE_PKGS` in `scripts/cloud-build-setup.sh`.
+  - **Home Manager configuration**: Added preferred portals config to `home.nix` in `scripts/cloud-build-setup.sh`.
+  - **Sway configuration**: Added `exec dbus-update-activation-environment --systemd WAYLAND_DISPLAY DISPLAY XDG_CURRENT_DESKTOP=sway` autostart command to `workstation-image/configs/sway/config`.
+  - **Integration tests**: Added 4 test assertions to `workstation-image/boot/10-tests.sh` to check portals configuration, Sway autostart, and systemd portal service active states.
+- **F-0140** (Fix Antigravity Hub tray icon/desktop file):
+  - **Tray Icon Extraction**: Added `asar` extraction command in `workstation-image/boot/07-apps.sh` to extract `icon.png` from the Hub's `app.asar`.
+  - **Desktop File Deployment**: Added script snippet to deploy `/home/user/.local/share/applications/antigravity.desktop` containing the correct binary and icon paths.
+  - **Integration tests**: Added 2 test assertions to `workstation-image/boot/10-tests.sh` to verify desktop file and tray icon file presence.
+- **Backlog & Specs**:
+  - Created specs: `docs/specs/F-0139-sway-xdg-portal.md` and `docs/specs/F-0140-antigravity-hub-tray-icon.md`.
+  - Updated `docs/BACKLOG.md` to mark both features as `done` and added feedback.
+- **Consolidated Live Setup Script**:
+  - Created `/home/user/dev/my-workspace/cloud-workstations/run_live_setup.sh` to apply both configurations immediately to the live system.
+
+### Files Changed
+- `scripts/cloud-build-setup.sh` — added package and home.nix template for portals config
+- `workstation-image/configs/sway/config` — added Sway portal environment import
+- `workstation-image/boot/07-apps.sh` — added Hub icon extraction and desktop entry deployment
+- `workstation-image/boot/10-tests.sh` — added integration tests for portals and Hub desktop/icon
+- `docs/specs/F-0139-sway-xdg-portal.md` — new spec file
+- `docs/specs/F-0140-antigravity-hub-tray-icon.md` — new spec file
+- `docs/BACKLOG.md` — marked F-0139 and F-0140 done
+- `docs/PROGRESS.md` — this entry
+- `docs/RELEASENOTES.md` — v1.33.0 release notes entry
+
+### Decisions
+- Chose to extract the icon from the Hub's package `app.asar` on boot/setup so it remains fully dynamic and matches any future upgrades of the Hub application.
+- Placed the XDG desktop portal environment variables import in the Sway autostart config to ensure they are available to all child processes and user-level systemd services under Wayland.
+
+### Next Steps
+- PO approves PR → merge feature branch to main.
+
+---
+
 ## Session 56 — 2026-06-04 (F-0136: Install Antigravity IDE v2)
 
 ### Date

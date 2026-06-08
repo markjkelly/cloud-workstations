@@ -1476,6 +1476,64 @@ else
 fi
 
 # =============================================================================
+# F-0139: Sway XDG Desktop Portal Integration
+# =============================================================================
+log ""
+log "--- F-0139: Sway XDG Desktop Portal ---"
+
+# (a) xdg-desktop-portal-wlr binary is on PATH
+if runuser -u $USER -- bash -c ". $NIX_SH && export PATH=\$PATH:$HOME_DIR/.nix-profile/libexec && which xdg-desktop-portal-wlr" >/dev/null 2>&1; then
+    test_pass "F-0139: xdg-desktop-portal-wlr binary is on PATH"
+else
+    test_fail "F-0139: xdg-desktop-portal-wlr binary is not on PATH"
+fi
+
+# (b) portals.conf exists and contains default=wlr;gtk
+PORTALS_CONF="$HOME_DIR/.config/xdg-desktop-portal/portals.conf"
+if [ -f "$PORTALS_CONF" ]; then
+    test_pass "F-0139: portals.conf exists"
+    if grep -q "default=wlr;gtk" "$PORTALS_CONF"; then
+        test_pass "F-0139: portals.conf contains default=wlr;gtk"
+    else
+        test_fail "F-0139: portals.conf does not contain default=wlr;gtk"
+    fi
+else
+    test_fail "F-0139: portals.conf does not exist ($PORTALS_CONF missing)"
+fi
+
+# (c) Sway config contains dbus-update-activation-environment line
+if [ -f "$SWAY_CFG" ]; then
+    if grep -q "exec dbus-update-activation-environment --systemd WAYLAND_DISPLAY DISPLAY XDG_CURRENT_DESKTOP=sway" "$SWAY_CFG" 2>/dev/null; then
+        test_pass "F-0139: sway config contains dbus-update-activation-environment"
+    else
+        test_fail "F-0139: sway config missing dbus-update-activation-environment"
+    fi
+else
+    test_fail "F-0139: sway config not found at $SWAY_CFG"
+fi
+
+# (d) systemd services active
+USER_UID=$(id -u $USER)
+if XDG_RUNTIME_DIR=/run/user/$USER_UID runuser -u $USER -- systemctl --user is-active xdg-desktop-portal.service >/dev/null 2>&1; then
+    test_pass "F-0139: xdg-desktop-portal.service is active"
+else
+    test_fail "F-0139: xdg-desktop-portal.service is not active"
+fi
+if XDG_RUNTIME_DIR=/run/user/$USER_UID runuser -u $USER -- systemctl --user is-active xdg-desktop-portal-gtk.service >/dev/null 2>&1; then
+    test_pass "F-0139: xdg-desktop-portal-gtk.service is active"
+else
+    test_fail "F-0139: xdg-desktop-portal-gtk.service is not active"
+fi
+
+# =============================================================================
+# F-0140: Antigravity Hub Tray Icon and Desktop entry
+# =============================================================================
+log ""
+log "--- F-0140: Antigravity Hub Tray Icon/Desktop ---"
+check_file "F-0140: Antigravity Hub desktop entry" "$HOME_DIR/.local/share/applications/antigravity.desktop"
+check_file "F-0140: Antigravity Hub tray icon" "$HOME_DIR/.local/share/antigravity-hub/icon.png"
+
+# =============================================================================
 # Summary
 # =============================================================================
 TOTAL=$((PASS+FAIL+WARN+SKIP))

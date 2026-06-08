@@ -277,6 +277,22 @@ else
     log "Antigravity Hub: already installed at $HUB_INSTALL_DIR — OK (no download needed)"
 fi
 
+log "Extracting Antigravity Hub tray icon..."
+runuser -u $USER -- bash -c "cd \"$HUB_INSTALL_DIR\" && npx -y asar extract-file resources/app.asar icon.png" >> "$LOG_FILE" 2>&1 || true
+
+# Deploy the desktop file to ~/.local/share/applications/antigravity.desktop
+runuser -u $USER -- tee "$HOME_DIR/.local/share/applications/antigravity.desktop" > /dev/null <<'DESKTOP_EOF'
+[Desktop Entry]
+Name=Antigravity Hub
+Comment=Antigravity 2.0 Desktop App (Hub)
+Exec=/home/user/.local/bin/antigravity-hub
+Icon=/home/user/.local/share/antigravity-hub/icon.png
+Type=Application
+Categories=Development;
+Terminal=false
+StartupWMClass=antigravity
+DESKTOP_EOF
+
 # --- Update npm global packages (Claude Code, Gemini CLI) ---
 # F-0121: check exit status; log real success or failure (no unconditional "complete").
 log "Updating npm global packages..."

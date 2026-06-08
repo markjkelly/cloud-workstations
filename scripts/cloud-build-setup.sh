@@ -512,7 +512,7 @@ fi
 log "  Building package list for profile '$PROFILE'..."
 
 # Base packages (all profiles)
-BASE_PKGS="neovim tmux tree ffmpeg git gh curl wget htop ripgrep fd jq unzip chromium google-chrome sway waybar foot wofi thunar grim slurp wl-clipboard clipman mako swaylock swayidle wayvnc nodejs_22"
+BASE_PKGS="neovim tmux tree ffmpeg git gh curl wget htop ripgrep fd jq unzip chromium google-chrome sway waybar foot wofi thunar grim slurp wl-clipboard clipman mako swaylock swayidle wayvnc nodejs_22 xdg-desktop-portal-wlr"
 
 # IDE packages (ides module — ai + full profiles)
 IDE_PKGS=""
@@ -638,6 +638,10 @@ cat << NIXEOF | ws_pipe "mkdir -p ~/.config/home-manager && cat > ~/.config/home
   home.file.".config/sway/config".source = /home/user/.config/home-manager/sway-config;
   home.file.".config/waybar/config".source = /home/user/.config/home-manager/waybar-config.json;
   home.file.".config/waybar/style.css".source = /home/user/.config/home-manager/waybar-style.css;
+  home.file.".config/xdg-desktop-portal/portals.conf".text = ''
+    [preferred]
+    default=wlr;gtk
+  '';
   home.sessionVariables = {
     EDITOR = "nvim";
     VISUAL = "nvim";
