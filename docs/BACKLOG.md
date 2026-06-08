@@ -1,7 +1,7 @@
 # Project Backlog — Cloud Workstation
 
 **Maintained by:** TPM
-**Last updated:** 2026-06-04 (F-0137 auto crd-resize on boot)
+**Last updated:** 2026-06-08 (F-0139 and F-0140 XDG and Hub tray fixes)
 
 ---
 
@@ -474,6 +474,15 @@ config drift, not active regressions. Each item below addresses one root-cause c
 | ID | Feature | Spec | Priority | Status | Owner | Branch | Dependencies | Feedback |
 |----|---------|------|----------|--------|-------|--------|--------------|----------|
 | F-0138 | Remove GitHub Copilot CLI | [F-0138](specs/F-0138-remove-copilot.md) | P1 | done | SWE-1 | feature/remove-copilot | — | **Implemented, tested, verified (2026-06-04).** Removed GitHub Copilot CLI from 07-apps.sh and cloud-build-setup.sh. Removed all copilot tests and skips from 10-tests.sh. Updated README.md and marked F-0130 as superseded. |
+
+---
+
+## Milestone 48: XDG Portal & Tray Fixes
+
+| ID | Feature | Spec | Priority | Status | Owner | Branch | Dependencies | Feedback |
+|----|---------|------|----------|--------|-------|--------|--------------|----------|
+| F-0139 | Fix XDG Desktop Portal failure | [F-0139](specs/F-0139-sway-xdg-portal.md) | P1 | done | SWE-1 | feature/portal-tray-fixes | — | **Implemented & verified (2026-06-08).** Installed xdg-desktop-portal-wlr. Added preferred portal config in home.nix. Updated sway config with dbus-update-activation-environment. Added integration tests. |
+| F-0140 | Fix Antigravity Hub tray icon/desktop file | [F-0140](specs/F-0140-antigravity-hub-tray-icon.md) | P1 | done | SWE-1 | feature/portal-tray-fixes | F-0106 | **Implemented & verified (2026-06-08).** Extracted tray icon using asar in 07-apps.sh. Deployed antigravity.desktop entry to applications folder. Added integration tests. |
 
 ---
 

@@ -1,5 +1,17 @@
 # Release Notes — Cloud Workstation
 
+## v1.35.0 — XDG Portals and Antigravity Hub Tray Fixes (2026-06-08)
+
+### Added
+- **XDG Desktop Portal Integration** (F-0139) — Installed `xdg-desktop-portal-wlr` and configured the preferred portal backends in Home Manager. Added autostart setup in Sway to import environment variables (`WAYLAND_DISPLAY`, `DISPLAY`, `XDG_CURRENT_DESKTOP=sway`) into the systemd and D-Bus activation environments, fixing portal activation failures.
+- **Hub Tray Icon & Desktop Launcher** (F-0140) — Deployed `antigravity.desktop` launcher at `~/.local/share/applications/` and automated the extraction of the tray icon (`icon.png`) from the Hub's `app.asar` package during the apps installation boot sequence.
+- **Verification Tests** — Added 6 new integration tests to the boot verification suite (`10-tests.sh`) covering portals configuration, active systemd portal services, desktop entry verification, and tray icon file presence.
+
+### Changed
+- **`scripts/cloud-build-setup.sh`** — Deploys `xdg-desktop-portal-wlr` base package and configures preferred portals in the generated `home.nix`.
+- **`workstation-image/configs/sway/config`** — Executes `dbus-update-activation-environment` at Sway startup to propagate Wayland credentials.
+- **`workstation-image/boot/07-apps.sh`** — Automates Hub icon extraction and `antigravity.desktop` deployment.
+
 ## v1.34.0 — Remove GitHub Copilot CLI (2026-06-04)
 
 ### Removed
